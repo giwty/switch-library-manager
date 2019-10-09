@@ -1,10 +1,12 @@
 # NSP Update
-Didn't find a simple way to scan NSP folder for possible updates, so made this little tool.
+A simple tool to scan your NSP folder for possible updates.
+![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/screenshot.png)
 
 This program relies on updated lists from [blawar's titledb](https://github.com/blawar/titledb). 
 It downloads the titles and versions JSON lists and compares it to the local .NSP files.
 
 Local .NSP files must contain their titleId and version in their filename (for example `Super Mario Odyssey [0100000000010000][v0].nsp`).
+
 
 ## Usage
 ##### Windows
