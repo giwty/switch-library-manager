@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"github.com/briandowns/spinner"
 	"github.com/jedib0t/go-pretty/table"
-	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -25,7 +25,13 @@ const (
 
 var (
 	nspFolder = flag.String("f", "", "path to NSP folder")
-	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond) // Build our new spinner
+	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond)
+)
+
+const (
+	TITLEDB_FILENAME    = "titlesDb.json"
+	VERSIONSDB_FILENAME = "versionsDb.json"
+	CONFIG_FILENAME     = "nu_config.json"
 )
 
 type title struct {
@@ -50,18 +56,39 @@ func main() {
 		os.Exit(1)
 	}
 
+	currVersionEtag := ""
+	currTitlesEtag := ""
+
+	//read etag version from config file
+	if _, err := os.Stat(CONFIG_FILENAME); err == nil {
+		file, err := os.Open("./nu_config.json")
+		if err != nil {
+			log.Print("Failed to read config file, ignoring")
+		} else {
+			configMap := map[string]string{}
+			err = json.NewDecoder(file).Decode(&configMap)
+			currVersionEtag = configMap["versions_etag"]
+			currTitlesEtag = configMap["titles_etag"]
+		}
+	}
+
 	var titlesDb = map[string]title{}
-	err := loadOrDownloadFileFromUrl(titles_json_uri, "titlesDb.json", &titlesDb)
+	titlesEtag, err := loadOrDownloadFileFromUrl(titles_json_uri, TITLEDB_FILENAME, currTitlesEtag, &titlesDb)
 	if err != nil {
 		fmt.Printf("unable to download file - %v\n%v", titles_json_uri, err)
 		return
 	}
 
 	var versionsDb = map[string]map[int]string{}
-	err = loadOrDownloadFileFromUrl(versions_json_url, "versionsDb.json", &versionsDb)
+	versionsEtag, err := loadOrDownloadFileFromUrl(versions_json_url, VERSIONSDB_FILENAME, currVersionEtag, &versionsDb)
 	if err != nil {
 		fmt.Printf("unable to download file - %v\n%v", versions_json_url, err)
 		return
+	}
+	if versionsEtag != currVersionEtag || titlesEtag != currTitlesEtag {
+		etagMap := map[string]string{"versions_etag": versionsEtag, "titles_etag": titlesEtag}
+		file, _ := json.MarshalIndent(etagMap, "", " ")
+		_ = ioutil.WriteFile(CONFIG_FILENAME, file, 0644)
 	}
 
 	s.Restart()
@@ -122,7 +149,7 @@ func main() {
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.SetStyle(table.StyleColoredBright)
-	t.AppendHeader(table.Row{"#", "Title","TitleId" ,"Current version", "Available Version", "Release date"})
+	t.AppendHeader(table.Row{"#", "Title", "TitleId", "Current version", "Available Version", "Release date"})
 	//iterate over local files, and compare to remote versions
 	for titleId, _ := range localVersionsDb {
 
@@ -167,47 +194,56 @@ func main() {
 				nspName = title.Name
 			}
 			numTobeUpdated++
-			t.AppendRow([]interface{}{numTobeUpdated, nspName,titleId, localVer, remoteVer, versionsDb[titleId][remoteVer]})
+			t.AppendRow([]interface{}{numTobeUpdated, nspName, titleId, localVer, remoteVer, versionsDb[titleId][remoteVer]})
 		}
 	}
-	t.AppendFooter(table.Row{"", "", "", "","Total", numTobeUpdated})
-	if numTobeUpdated != 0{
+	t.AppendFooter(table.Row{"", "", "", "", "Total", numTobeUpdated})
+	if numTobeUpdated != 0 {
 		fmt.Printf("\nFound available updates:\n\n")
 		t.Render()
-	}else{
+	} else {
 		fmt.Printf("\nAll NSP's are up to date!\n\n")
 	}
 
-
 }
 
-func loadOrDownloadFileFromUrl(url string, fileName string, target interface{}) error {
+func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target interface{}) (string, error) {
 
-	if _, err := os.Stat("./" + fileName); os.IsNotExist(err) {
-		file, err := os.Create("./" + fileName)
-		fmt.Printf("\nDownloading from - %v", url)
-		s.Start()
-		resp, err := http.Get(url)
-		if err != nil {
-			return err
-		}
-		if resp.StatusCode != 200 {
-			return errors.New("got a non 200 response - " + resp.Status)
-		}
-		defer resp.Body.Close()
-
-		_, err = io.Copy(file, resp.Body)
-		if err != nil {
-			return err
-		}
-	}
-
-	fmt.Printf("\nLoading file - %v", fileName)
-	s.Start()
-	file, err := os.Open("./" + fileName)
-	err = json.NewDecoder(file).Decode(target)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return etag, err
 	}
-	return nil
+	req.Header.Set("If-None-Match", etag)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return etag, err
+	}
+
+	if resp.StatusCode >= 400 {
+		return etag, errors.New("got a non 200 response - " + resp.Status)
+	}
+	defer resp.Body.Close()
+	//getting the new etag
+	etag = resp.Header.Get("Etag")
+	switch resp.StatusCode {
+	case http.StatusOK:
+		fmt.Printf("\nCreating/Updating [%v] from - [%v]", fileName, url)
+		s.Start()
+		body, err := ioutil.ReadAll(resp.Body)
+		err = ioutil.WriteFile("./"+fileName, body, 0644)
+		if err != nil {
+			return etag, err
+		}
+		fallthrough
+	case http.StatusNotModified:
+		fmt.Printf("\nLoading file - %v", fileName)
+		s.Start()
+		file, err := os.Open("./" + fileName)
+		err = json.NewDecoder(file).Decode(target)
+		if err != nil {
+			return etag, err
+		}
+	}
+
+	return etag, nil
 }
