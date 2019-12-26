@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	titles_json_uri   = "https://raw.githubusercontent.com/blawar/titledb/master/titles.US.en.json"
-	versions_json_url = "https://raw.githubusercontent.com/blawar/titledb/master/versions.json"
+	titles_json_uri   = "https://tinfoil.media/repo/db/titles.US.en.json"
+	versions_json_url = "https://tinfoil.media/repo/db/versions.json"
 )
 
 var (
@@ -78,6 +78,20 @@ func main() {
 		fmt.Printf("unable to download file - %v\n%v", titles_json_uri, err)
 		return
 	}
+	var titlesPrefixDb = map[string][]title{}
+	for _, t := range titlesDb {
+		id := strings.ToLower(t.Id)
+		prefix := id[0 : len(id)-4]
+		if strings.HasSuffix(id, "800") {
+			continue
+		}
+		titles, ok := titlesPrefixDb[prefix]
+		if !ok {
+			titles = []title{}
+		}
+		titles = append(titles, t)
+		titlesPrefixDb[prefix] = titles
+	}
 
 	var versionsDb = map[string]map[int]string{}
 	versionsEtag, err := loadOrDownloadFileFromUrl(versions_json_url, VERSIONSDB_FILENAME, currVersionEtag, &versionsDb)
@@ -109,7 +123,7 @@ func main() {
 			continue
 		}
 
-		if !strings.HasSuffix(file.Name(), "nsp") {
+		if !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
 			skippedFiles[file.Name()] = "non NSP file"
 			continue
 		}
@@ -145,7 +159,12 @@ func main() {
 	}
 
 	var numTobeUpdated int = 0
-
+	type Dlcs struct {
+		dlcs  []string
+		title string
+	}
+	missingDLC := map[string]Dlcs{}
+	fmt.Print("Missing Updates:\n\n")
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.SetStyle(table.StyleColoredBright)
@@ -155,6 +174,31 @@ func main() {
 
 		localVersions := localVersionsDb[titleId]
 		sort.Ints(localVersions)
+
+		id := strings.ToLower(titleId)
+		prefix := id[0 : len(id)-4]
+		//find missing DLC's
+		//do this once per title id
+		if _, ok := missingDLC[prefix]; !ok {
+			dlcsObj := Dlcs{}
+			dlcsObj.dlcs = []string{}
+			for _, t := range titlesPrefixDb[prefix] {
+				//check if titleid exist in local db
+				if strings.HasSuffix(t.Id, "000") {
+					dlcsObj.title = t.Name
+				}
+				if _, ok := localVersionsDb[strings.ToLower(t.Id)]; !ok {
+					name := strings.ToLower(t.Name)
+					//if !strings.Contains(name,"audio") && !    strings.Contains(name,"language") {
+					dlcsObj.dlcs = append(dlcsObj.dlcs, t.Id+" ["+name+"] ")
+					//	}
+				}
+			}
+			if len(dlcsObj.dlcs) != 0 {
+				missingDLC[prefix] = dlcsObj
+			}
+
+		}
 
 		var remoteVersions []int
 		for k, _ := range versionsDb[titleId] {
@@ -199,12 +243,23 @@ func main() {
 	}
 	t.AppendFooter(table.Row{"", "", "", "", "Total", numTobeUpdated})
 	if numTobeUpdated != 0 {
-		fmt.Printf("\nFound available updates:\n\n")
+		fmt.Print("\nFound available updates:\n\n")
 		t.Render()
 	} else {
-		fmt.Printf("\nAll NSP's are up to date!\n\n")
+		fmt.Print("\nAll NSP's are up to date!\n\n")
 	}
-
+	fmt.Print("\n\nMissing DLCs\n\n")
+	t = table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.SetStyle(table.StyleColoredBright)
+	t.AppendHeader(table.Row{"#", "Title", "TitleId", "Missing DLCs (titleId - Name)"})
+	numMissingDlcs := 0
+	for titleId, dlcs := range missingDLC {
+		numMissingDlcs++
+		t.AppendRow([]interface{}{numMissingDlcs, dlcs.title, titleId, strings.Join(dlcs.dlcs, "\n")})
+	}
+	t.AppendFooter(table.Row{"", "", "", "", "Total", numMissingDlcs})
+	t.Render()
 }
 
 func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target interface{}) (string, error) {
