@@ -285,7 +285,7 @@ func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target 
 		fmt.Printf("\nCreating/Updating [%v] from - [%v]", fileName, url)
 		err := os.Rename("./"+fileName, "./"+fileName+".bak")
 		if err != nil {
-			log.Fatal(err)
+			fmt.Print(" (local file doesnt exist)")
 		}
 		s.Start()
 		body, err := ioutil.ReadAll(resp.Body)
