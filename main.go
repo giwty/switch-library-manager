@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	titles_json_uri   = "https://tinfoil.media/repo/db/titles.US.en.json"
+	titles_json_uri   = "https://tinfoil.media/repo/db/titles.json"
 	versions_json_url = "https://tinfoil.media/repo/db/versions.json"
 )
 
@@ -283,6 +283,10 @@ func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target 
 	switch resp.StatusCode {
 	case http.StatusOK:
 		fmt.Printf("\nCreating/Updating [%v] from - [%v]", fileName, url)
+		err := os.Rename("./"+fileName, "./"+fileName+".bak")
+		if err != nil {
+			log.Fatal(err)
+		}
 		s.Start()
 		body, err := ioutil.ReadAll(resp.Body)
 		err = ioutil.WriteFile("./"+fileName, body, 0644)
