@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -25,6 +26,9 @@ const (
 
 var (
 	nspFolder = flag.String("f", "", "path to NSP folder")
+	recursive = flag.Bool("r", false, "recursively scan sub folders")
+	versionR  = regexp.MustCompile(`\[[vV]?(?P<version>[0-9]{1,10})\]`)
+	titleIdR  = regexp.MustCompile(`\[(?P<titleId>[A-Z,a-z,0-9]{16})\]`)
 	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond)
 )
 
@@ -116,47 +120,7 @@ func main() {
 	var localVersionsDb = map[string][]int{}
 	var skippedFiles = map[string]string{}
 
-	versionR := regexp.MustCompile(`\[[vV]?(?P<version>[0-9]{1,10})\]`)
-	titleIdR := regexp.MustCompile(`\[(?P<titleId>[A-Z,a-z,0-9]{16})\]`)
-	for _, file := range files {
-		if file.Name()[0:1] == "." || file.IsDir() {
-			continue
-		}
-
-		if !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
-			skippedFiles[file.Name()] = "non NSP file"
-			continue
-		}
-
-		res := versionR.FindStringSubmatch(file.Name())
-		if len(res) != 2 {
-			skippedFiles[file.Name()] = "failed to parse name"
-			continue
-		}
-		verStr := res[1]
-		res = titleIdR.FindStringSubmatch(file.Name())
-		if len(res) != 2 {
-			skippedFiles[file.Name()] = "failed to parse name"
-			continue
-		}
-		if len(res) != 2 {
-			skippedFiles[file.Name()] = "failed to parse name"
-			continue
-		}
-		titleId := strings.ToLower(res[1])
-
-		if strings.HasSuffix(titleId, "800") {
-			titleId = titleId[0:len(titleId)-3] + "000"
-		}
-
-		ver, err := strconv.Atoi(verStr)
-		if err != nil {
-			skippedFiles[file.Name()] = "failed to parse version"
-			continue
-		}
-
-		localVersionsDb[titleId] = append(localVersionsDb[titleId], ver)
-	}
+	scanLocalFiles(*nspFolder, files, *recursive, localVersionsDb, skippedFiles)
 
 	var numTobeUpdated int = 0
 	type Dlcs struct {
@@ -260,6 +224,55 @@ func main() {
 	}
 	t.AppendFooter(table.Row{"", "", "", "", "Total", numMissingDlcs})
 	t.Render()
+}
+
+func scanLocalFiles(path string, files []os.FileInfo, recurise bool, localVersionsDb map[string][]int, skippedFiles map[string]string) {
+
+	for _, file := range files {
+		if file.Name()[0:1] == "." || file.IsDir() {
+			folder := filepath.Join(path, file.Name())
+			innerFiles, err := ioutil.ReadDir(folder)
+			if err != nil {
+				fmt.Printf("\nfailed scanning NSP folder\n %v", err)
+				continue
+			}
+			scanLocalFiles(folder, innerFiles, recurise, localVersionsDb, skippedFiles)
+		}
+
+		if !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
+			skippedFiles[file.Name()] = "non NSP file"
+			continue
+		}
+
+		res := versionR.FindStringSubmatch(file.Name())
+		if len(res) != 2 {
+			skippedFiles[file.Name()] = "failed to parse name"
+			continue
+		}
+		verStr := res[1]
+		res = titleIdR.FindStringSubmatch(file.Name())
+		if len(res) != 2 {
+			skippedFiles[file.Name()] = "failed to parse name"
+			continue
+		}
+		if len(res) != 2 {
+			skippedFiles[file.Name()] = "failed to parse name"
+			continue
+		}
+		titleId := strings.ToLower(res[1])
+
+		if strings.HasSuffix(titleId, "800") {
+			titleId = titleId[0:len(titleId)-3] + "000"
+		}
+
+		ver, err := strconv.Atoi(verStr)
+		if err != nil {
+			skippedFiles[file.Name()] = "failed to parse version"
+			continue
+		}
+
+		localVersionsDb[titleId] = append(localVersionsDb[titleId], ver)
+	}
 }
 
 func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target interface{}) (string, error) {
