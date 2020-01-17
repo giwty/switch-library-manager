@@ -13,6 +13,7 @@ Local .NSP files must contain their titleId and version in their filename (for e
 - Run `cmd.exe`
 - `cd` to the folder containing `nsp-update.exe`
 - Run `nsp-update.exe -f "X:\folder\containing\nsp\files"`
+- Optionally add  `-r` to recursively scan for nested folders 
 ##### macOS or Linux
 - Open your Terminal
 - `cd` to the folder containing `nsp-update`
