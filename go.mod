@@ -1,4 +1,4 @@
-module switch/nsp/diff
+module switch/nsp-update
 
 go 1.12
 
