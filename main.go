@@ -20,8 +20,11 @@ import (
 )
 
 const (
-	titles_json_uri   = "https://tinfoil.media/repo/db/titles.json"
-	versions_json_url = "https://tinfoil.media/repo/db/versions.json"
+	TITLEDB_FILENAME    = "titlesDb.json"
+	VERSIONSDB_FILENAME = "versionsDb.json"
+	CONFIG_FILENAME     = "nu_config.json"
+	TITLES_JSON_URL     = "https://tinfoil.media/repo/db/titles.json"
+	VERSIONS_JSON_URL   = "https://tinfoil.media/repo/db/versions.json"
 )
 
 var (
@@ -30,12 +33,6 @@ var (
 	versionR  = regexp.MustCompile(`\[[vV]?(?P<version>[0-9]{1,10})\]`)
 	titleIdR  = regexp.MustCompile(`\[(?P<titleId>[A-Z,a-z,0-9]{16})\]`)
 	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond)
-)
-
-const (
-	TITLEDB_FILENAME    = "titlesDb.json"
-	VERSIONSDB_FILENAME = "versionsDb.json"
-	CONFIG_FILENAME     = "nu_config.json"
 )
 
 type title struct {
@@ -55,6 +52,7 @@ type title struct {
 func main() {
 	flag.Parse()
 
+	//no folder was specified
 	if *nspFolder == "" {
 		flag.Usage()
 		os.Exit(1)
@@ -77,11 +75,12 @@ func main() {
 	}
 
 	var titlesDb = map[string]title{}
-	titlesEtag, err := loadOrDownloadFileFromUrl(titles_json_uri, TITLEDB_FILENAME, currTitlesEtag, &titlesDb)
+	titlesEtag, err := loadOrDownloadFileFromUrl(TITLES_JSON_URL, TITLEDB_FILENAME, currTitlesEtag, &titlesDb)
 	if err != nil {
-		fmt.Printf("unable to download file - %v\n%v", titles_json_uri, err)
+		fmt.Printf("unable to download file - %v\n%v", TITLES_JSON_URL, err)
 		return
 	}
+
 	var titlesPrefixDb = map[string][]title{}
 	for _, t := range titlesDb {
 		id := strings.ToLower(t.Id)
@@ -97,12 +96,14 @@ func main() {
 		titlesPrefixDb[prefix] = titles
 	}
 
+	//titleID -> versionId-> release date
 	var versionsDb = map[string]map[int]string{}
-	versionsEtag, err := loadOrDownloadFileFromUrl(versions_json_url, VERSIONSDB_FILENAME, currVersionEtag, &versionsDb)
+	versionsEtag, err := loadOrDownloadFileFromUrl(VERSIONS_JSON_URL, VERSIONSDB_FILENAME, currVersionEtag, &versionsDb)
 	if err != nil {
-		fmt.Printf("unable to download file - %v\n%v", versions_json_url, err)
+		fmt.Printf("unable to download file - %v\n%v", VERSIONS_JSON_URL, err)
 		return
 	}
+
 	if versionsEtag != currVersionEtag || titlesEtag != currTitlesEtag {
 		etagMap := map[string]string{"versions_etag": versionsEtag, "titles_etag": titlesEtag}
 		file, _ := json.MarshalIndent(etagMap, "", " ")
@@ -226,19 +227,29 @@ func main() {
 	t.Render()
 }
 
-func scanLocalFiles(path string, files []os.FileInfo, recurise bool, localVersionsDb map[string][]int, skippedFiles map[string]string) {
+func scanLocalFiles(path string, files []os.FileInfo, recurse bool, localVersionsDb map[string][]int, skippedFiles map[string]string) {
 
 	for _, file := range files {
-		if file.Name()[0:1] == "." || file.IsDir() {
+		//skip mac hidden files
+		if file.Name()[0:1] == "." {
+			continue
+		}
+
+		//scan sub-folders if flag is present
+		if file.IsDir() {
+			if !recurse {
+				continue
+			}
 			folder := filepath.Join(path, file.Name())
 			innerFiles, err := ioutil.ReadDir(folder)
 			if err != nil {
 				fmt.Printf("\nfailed scanning NSP folder\n %v", err)
 				continue
 			}
-			scanLocalFiles(folder, innerFiles, recurise, localVersionsDb, skippedFiles)
+			scanLocalFiles(folder, innerFiles, recurse, localVersionsDb, skippedFiles)
 		}
 
+		//only handle NSZ and NSP files
 		if !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
 			skippedFiles[file.Name()] = "non NSP file"
 			continue
@@ -292,13 +303,13 @@ func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target 
 	}
 	defer resp.Body.Close()
 	//getting the new etag
-	etag = resp.Header.Get("Etag")
+	newEtag := resp.Header.Get("Etag")
 	switch resp.StatusCode {
 	case http.StatusOK:
 		fmt.Printf("\nCreating/Updating [%v] from - [%v]", fileName, url)
 		err := os.Rename("./"+fileName, "./"+fileName+".bak")
 		if err != nil {
-			fmt.Print(" (local file doesnt exist)")
+			fmt.Print("\n (local file doesnt exist)")
 		}
 		s.Start()
 		body, err := ioutil.ReadAll(resp.Body)
@@ -306,6 +317,7 @@ func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target 
 		if err != nil {
 			return etag, err
 		}
+		//continue to load the file
 		fallthrough
 	case http.StatusNotModified:
 		fmt.Printf("\nLoading file - %v", fileName)
@@ -313,9 +325,18 @@ func loadOrDownloadFileFromUrl(url string, fileName string, etag string, target 
 		file, err := os.Open("./" + fileName)
 		err = json.NewDecoder(file).Decode(target)
 		if err != nil {
+			fmt.Print("\nNew file version is malformed, trying to load previous version")
+			//try to restore the last known working file
+			err := os.Remove("./" + fileName)
+			err = os.Rename("./"+fileName+".bak", "./"+fileName)
+			if err != nil {
+				fmt.Print("\n (No backup, or failed to load backup)")
+				return etag, err
+			}
+			err = json.NewDecoder(file).Decode(target)
 			return etag, err
 		}
 	}
 
-	return etag, nil
+	return newEtag, nil
 }
