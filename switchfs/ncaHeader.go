@@ -4,8 +4,8 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/giwty/switch-backup-manager/switchfs/crypto"
 	"strconv"
-	"switch-backup-manager/switchfs/crypto"
 )
 
 //https://switchbrew.org/wiki/NCA_Format

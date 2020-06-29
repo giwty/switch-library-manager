@@ -4,13 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/briandowns/spinner"
+	"github.com/giwty/switch-backup-manager/db"
+	"github.com/giwty/switch-backup-manager/process"
+	"github.com/giwty/switch-backup-manager/settings"
 	"github.com/jedib0t/go-pretty/table"
 	"io/ioutil"
 	"os"
 	"strings"
-	"switch-backup-manager/db"
-	"switch-backup-manager/process"
-	"switch-backup-manager/settings"
 	"time"
 )
 

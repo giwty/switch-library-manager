@@ -2,9 +2,9 @@ package process
 
 import (
 	"fmt"
+	"github.com/giwty/switch-backup-manager/db"
 	"sort"
 	"strconv"
-	"switch-backup-manager/db"
 )
 
 type incompleteTitle struct {

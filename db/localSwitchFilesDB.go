@@ -3,14 +3,14 @@ package db
 import (
 	"errors"
 	"fmt"
+	"github.com/giwty/switch-backup-manager/settings"
+	"github.com/giwty/switch-backup-manager/switchfs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"switch-backup-manager/settings"
-	"switch-backup-manager/switchfs"
 )
 
 var (

@@ -7,9 +7,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/giwty/switch-backup-manager/settings"
+	"github.com/giwty/switch-backup-manager/switchfs/crypto"
 	"io"
-	"switch-backup-manager/settings"
-	"switch-backup-manager/switchfs/crypto"
 )
 
 const (

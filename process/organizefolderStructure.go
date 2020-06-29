@@ -2,6 +2,8 @@ package process
 
 import (
 	"fmt"
+	"github.com/giwty/switch-backup-manager/db"
+	"github.com/giwty/switch-backup-manager/settings"
 	"io/ioutil"
 	"os"
 	"path"
@@ -10,8 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"switch-backup-manager/db"
-	"switch-backup-manager/settings"
 )
 
 var (
