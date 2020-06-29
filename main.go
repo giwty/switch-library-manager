@@ -23,13 +23,17 @@ const (
 
 var (
 	nspFolder = flag.String("f", "", "path to NSP folder")
-	recursive = flag.Bool("r", false, "recursively scan sub folders")
+	recursive = flag.Bool("r", true, "recursively scan sub folders")
 	mode      = flag.String("m", "", "**deprecated**")
 	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond)
 )
 
 func main() {
 	flag.Parse()
+
+	if mode != nil && *mode != "" {
+		fmt.Println("the mode option is deprecated, please use the settings.json to control options.")
+	}
 
 	settingsObj := settings.ReadSettings()
 
@@ -82,7 +86,7 @@ func main() {
 	}
 
 	recursiveMode := settingsObj.ScanRecursively
-	if recursive != nil {
+	if recursive != nil && *recursive != true {
 		recursiveMode = *recursive
 	}
 	localDB, err := db.CreateLocalSwitchFilesDB(files, *nspFolder, recursiveMode)
