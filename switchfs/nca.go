@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/giwty/switch-backup-manager/settings"
-	"github.com/giwty/switch-backup-manager/switchfs/crypto"
+	"github.com/giwty/switch-backup-manager/switchfs/_crypto"
 	"io"
 )
 
@@ -109,7 +109,7 @@ func decryptAesCtr(ncaHeader *ncaHeader, fsHeader *fsHeader, offset uint32, size
 	}
 	key, _ := hex.DecodeString(KeyString)
 
-	decKey := crypto.DecryptAes128Ecb(ncaHeader.encryptedKeys[0x20:0x30], key)
+	decKey := _crypto.DecryptAes128Ecb(ncaHeader.encryptedKeys[0x20:0x30], key)
 
 	counter := make([]byte, 0x10)
 	binary.BigEndian.PutUint64(counter, uint64(fsHeader.generation))

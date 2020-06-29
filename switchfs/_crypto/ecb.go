@@ -1,4 +1,4 @@
-package crypto
+package _crypto
 
 import "crypto/aes"
 

@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/giwty/switch-backup-manager/switchfs/crypto"
+	"github.com/giwty/switch-backup-manager/switchfs/_crypto"
 	"strconv"
 )
 
@@ -53,7 +53,7 @@ func max(a byte, b byte) byte {
 
 func DecryptNcaHeader(key string, encHeader []byte) (*ncaHeader, error) {
 	headerKey, _ := hex.DecodeString(key)
-	c, err := crypto.NewCipher(aes.NewCipher, headerKey)
+	c, err := _crypto.NewCipher(aes.NewCipher, headerKey)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func DecryptNcaHeader(key string, encHeader []byte) (*ncaHeader, error) {
 	return &result, nil
 }
 
-func _decryptNcaHeader(c *crypto.Cipher, header []byte, end int, sectorSize int, sectorNum int) ([]byte, error) {
+func _decryptNcaHeader(c *_crypto.Cipher, header []byte, end int, sectorSize int, sectorNum int) ([]byte, error) {
 	decrypted := make([]byte, len(header))
 	for pos := 0; pos < end; pos += sectorSize {
 		/* Workaround for Nintendo's custom sector...manually generate the tweak. */
