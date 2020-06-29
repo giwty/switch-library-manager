@@ -62,18 +62,18 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 		}
 
 		//process dlc
-		for k, v := range switchDB[idPrefix].Dlc {
+		for k, availableDlc := range switchDB[idPrefix].Dlc {
 			if localDlc, ok := switchFile.Dlc[k]; ok {
-				latestDlcVersion, err := v.Version.Int64()
+				latestDlcVersion, err := availableDlc.Version.Int64()
 				if err != nil {
 					continue
 				}
-				metadata, err := db.GetGameMetadata(localDlc.Info, localDlc.BaseFolder)
-				if err != nil {
+
+				if localDlc.Metadata == nil {
 					continue
 				}
-				if metadata.Version != int(latestDlcVersion) {
-					result[v.Id] = incompleteTitle{Attributes: v, LatestUpdate: int(latestDlcVersion), LocalUpdate: metadata.Version, LatestUpdateDate: strconv.Itoa(v.ReleaseDate)}
+				if localDlc.Metadata.Version != int(latestDlcVersion) {
+					result[availableDlc.Id] = incompleteTitle{Attributes: availableDlc, LatestUpdate: int(latestDlcVersion), LocalUpdate: localDlc.Metadata.Version, LatestUpdateDate: strconv.Itoa(availableDlc.ReleaseDate)}
 				}
 			}
 		}
