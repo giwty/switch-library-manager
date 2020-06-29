@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"switch-backup-manager/settings"
+	"switch-backup-manager/switchfs"
 )
 
 var (
@@ -18,6 +21,7 @@ var (
 type ExtendedFileInfo struct {
 	Info       os.FileInfo
 	BaseFolder string
+	Metadata   *switchfs.ContentMetaAttributes
 }
 
 type SwitchFile struct {
@@ -41,7 +45,9 @@ func CreateLocalSwitchFilesDB(files []os.FileInfo, parentFolder string, recursiv
 	return &LocalSwitchFilesDB{TitlesMap: titles, Skipped: skipped}, nil
 }
 
-func scanLocalFiles(parentFolder string, files []os.FileInfo, recurse bool, titles map[string]*SwitchFile, skipped map[os.FileInfo]string) {
+func scanLocalFiles(parentFolder string, files []os.FileInfo,
+	recurse bool, titles map[string]*SwitchFile,
+	skipped map[os.FileInfo]string) {
 
 	for _, file := range files {
 		//skip mac hidden files
@@ -50,14 +56,15 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo, recurse bool, titl
 		}
 
 		//scan sub-folders if flag is present
+		filePath := filepath.Join(parentFolder, file.Name())
 		if file.IsDir() {
 			if !recurse {
 				continue
 			}
-			folder := filepath.Join(parentFolder, file.Name())
+			folder := filePath
 			innerFiles, err := ioutil.ReadDir(folder)
 			if err != nil {
-				fmt.Printf("\nfailed scanning NSP folder\n %v", err)
+				fmt.Printf("\nfailed scanning NSP folder [%v]", err)
 				continue
 			}
 			scanLocalFiles(folder, innerFiles, recurse, titles, skipped)
@@ -65,31 +72,18 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo, recurse bool, titl
 
 		//only handle NSZ and NSP files
 		if !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
-			skipped[file] = "non NSP File"
+			skipped[file] = "non supported File"
 			continue
 		}
 
-		//parse title id
-		res := titleIdRegex.FindStringSubmatch(file.Name())
-		if len(res) != 2 {
-			skipped[file] = "failed to parse name - no title id found"
-			continue
-		}
-		titleId := strings.ToLower(res[1])
+		metadata, err := GetGameMetadata(file, filePath)
 
-		//parse version id
-		res = versionRegex.FindStringSubmatch(file.Name())
-		if len(res) != 2 {
-			skipped[file] = "failed to parse name - no version id found"
-			continue
-		}
-		ver, err := strconv.Atoi(res[1])
 		if err != nil {
-			skipped[file] = "failed to parse version - unable to parse version id"
+			skipped[file] = "unable to determine titileId / version"
 			continue
 		}
 
-		idPrefix := titleId[0 : len(titleId)-4]
+		idPrefix := metadata.TitleId[0 : len(metadata.TitleId)-4]
 		switchTitle := &SwitchFile{Updates: map[int]ExtendedFileInfo{}, Dlc: map[string]ExtendedFileInfo{}, BaseExist: false}
 		if t, ok := titles[idPrefix]; ok {
 			switchTitle = t
@@ -97,19 +91,80 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo, recurse bool, titl
 		titles[idPrefix] = switchTitle
 
 		//process Updates
-		if strings.HasSuffix(titleId, "800") {
-			switchTitle.Updates[ver] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder}
+		if strings.HasSuffix(metadata.TitleId, "800") {
+			switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 			continue
 		}
 
-		//process main TitleAttributes
-		if strings.HasSuffix(titleId, "000") {
-			switchTitle.File = ExtendedFileInfo{Info: file, BaseFolder: parentFolder}
+		//process base
+		if strings.HasSuffix(metadata.TitleId, "000") {
+			switchTitle.File = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 			switchTitle.BaseExist = true
 			continue
 		}
 
 		//not an update, and not main TitleAttributes, so treat it as a DLC
-		switchTitle.Dlc[titleId] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder}
+		switchTitle.Dlc[metadata.TitleId] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 	}
+
+}
+
+func GetGameMetadata(file os.FileInfo, filePath string) (*switchfs.ContentMetaAttributes, error) {
+	var metadata *switchfs.ContentMetaAttributes = nil
+	keys, _ := settings.SwitchKeys()
+	var err error
+
+	//currently only NSP files are supported
+	if keys != nil && strings.HasSuffix(file.Name(), "nsp") {
+		metadata, err = switchfs.ReadNspMetadata(filePath)
+		if err != nil {
+			fmt.Printf("\n[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)
+		}
+	}
+
+	if metadata != nil {
+		return metadata, nil
+	}
+
+	//fallback to parse data from filename
+
+	//parse title id
+	titleId, _ := parseTitleIdFromFileName(file.Name())
+	version, _ := parseVersionFromFileName(file.Name())
+
+	if titleId == nil || version == nil {
+		return nil, errors.New("unable to determine titileId / version")
+	}
+
+	return &switchfs.ContentMetaAttributes{TitleId: *titleId, Version: *version}, nil
+}
+
+func parseVersionFromFileName(fileName string) (*int, error) {
+	res := versionRegex.FindStringSubmatch(fileName)
+	if len(res) != 2 {
+		return nil, errors.New("failed to parse name - no version id found")
+	}
+	ver, err := strconv.Atoi(res[1])
+	if err != nil {
+		return nil, errors.New("failed to parse name - no version id found")
+	}
+	return &ver, nil
+}
+
+func parseTitleIdFromFileName(fileName string) (*string, error) {
+	res := titleIdRegex.FindStringSubmatch(fileName)
+
+	if len(res) != 2 {
+		return nil, errors.New("failed to parse name - no title id found")
+	}
+	titleId := strings.ToLower(res[1])
+	return &titleId, nil
+}
+
+func ParseTitleNameFromFileName(fileName string) string {
+	ind := strings.Index(fileName, "[")
+	if ind != -1 {
+		return fileName[:ind]
+	}
+	return fileName
 }

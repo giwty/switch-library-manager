@@ -1,40 +1,80 @@
-# NSP Update
-A simple tool to scan your NSP folder for possible updates.
+# Switch backup manager
+Easily manage your switch games backups 
 ![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/screenshot.png)
 
-This program relies on updated lists from [blawar's titledb](https://github.com/blawar/titledb). 
-It downloads the titles and versions JSON lists and compares it to the local .NSP files.
+####Features:
+- Scan your local switch backup library (NSP/NSZ)
+- Lists any missing update files (for games and DLC)
+- Lists any missing DLCs
+- Read titleId/version by decrypting NSPs (requires prod.keys)
+- Read titleId/version by parsing file name  (example: `Super Mario Odyssey [0100000000010000][v0].nsp`).
+- Automatically organize games per folder
+- Rename files based on metadata read from NSP
+- Delete old update files (in case you have multiple update files for the same game, only the latest will remain)
+- Delete empty folders
 
-Local .NSP files must contain their titleId and version in their filename (for example `Super Mario Odyssey [0100000000010000][v0].nsp`).
+## Keys (optional)
+Having a prod.keys file will allow you to ensure the files you have a correctly classified.
+The keys are expected to be in the traditional format, names as "prod.keys", and found in the app folder or under ${HOME}/.switch/
 
+Note: Only the header_key, and the key_area_key_application_XX are needed.
 
+## Settings  
+During the App first launch a "settings.json" file will be created, that allows for granular control over the Apps execution.
+
+You can customize the folder/file re-naming, as well as turn on/off features.
+
+```
+{
+ "versions_etag": "",
+ "titles_etag": "",
+ "folder": "",
+ "check_for_missing_updates": true,
+ "check_for_missing_dlc": true,
+ "organize_options": {
+  "create_folder_per_game": false,
+  "rename_files": true,
+  "delete_empty_folders": true,
+  "delete_old_update_files": false,
+  "folder_name_template": "{TITLE_NAME}",
+  "file_name_template": "{TITLE_NAME} [{DLC_NAME}][{TITLE_ID}][v{VERSION}]"
+ },
+ "scan_recursively": true
+}
+```
+
+## Naming template
+The following template elements are supported:
+- {TITLE_NAME} - game name
+- {TITLE_ID} - title id
+- {VERSION} - version id (only applicable to files)
+- {TYPE} - impacts DLCs/updates, will appear as ["UPD","DLC"]
+- {DLC_NAME} - DLC name (only applicable to DLCs)
 ## Usage
 ##### Windows
 - Run `cmd.exe`
 - `cd` to the folder containing `nsp-update.exe`
-- Run `nsp-update.exe -f "X:\folder\containing\nsp\files"`
+- Run `nsp-update.exe'
+- Optionally -f "X:\folder\containing\nsp\files"`
 - Optionally add  `-r` to recursively scan for nested folders
-- Add  `-m dlc` to show missing dlc's
-- Add  `-m u` to show missing updates (default)
-- Add  `-m o` to organize the files in a folder per game structure, where the folder will contains base/updates/dlc files in a flat structure.
-- Add  `-m d` to *delete* outdated local update files
+- Edit the settings.json file for additional options
+
  
 ##### macOS or Linux
 - Open your Terminal
 - `cd` to the folder containing `nsp-update`
 - `chmod +x nsp-update` to make it executable
-- Run `./nsp-update -f "/folder/containing/nsp/files"`
+- Run `./nsp-update'
+- Optionally -f "X:\folder\containing\nsp\files"`
 - Optionally add  `-r` to recursively scan for nested folders
-- Add  `-m dlc` to show missing dlc's
-- Add  `-m u` to show missing updates (default)
-- Add  `-m o` to organize the files in a folder per game structure, where the folder will contains base/updates/dlc files in a flat structure.
-- Add  `-m d` to *delete* outdated local update files
-
-
+- Edit the settings.json file for additional options
 
 ## Building
 - Install and setup latest Go
-- Get the module and its dependencies: `go get -u github.com/giwty/nsp-update`
+- Get the module and its dependencies: `go get -u github.com/giwty/switch-backup-manager`
 - Build it for the OS you need, and make sure to choose `amd64` architecture:
-    - `env GOOS=target-OS GOARCH=amd64 go build github.com/giwty/nsp-update`
+    - `env GOOS=target-OS GOARCH=amd64 go build github.com/giwty/switch-backup-manager`
     - `target-OS` can be `windows`, `darwin` (mac OS), `linux`, or any other (check the Go documentation for a complete list).
+
+####Thanks
+This program relies on [blawar's titledb](https://github.com/blawar/titledb), to get the latest titles and versions.

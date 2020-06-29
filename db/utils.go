@@ -27,10 +27,10 @@ func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, stri
 			file, err = saveFile(bytes, filePath)
 			etag = newEtag
 		} else {
-			fmt.Printf("mailformed json file - [%v], error: [%v]\n", url, err)
+			fmt.Printf("\nignoring new update [%v], reason - [mailformed json file]", url)
 		}
 	} else {
-		fmt.Printf("file [%v] was not downloaded, reason - [%v]\n", url, err)
+		fmt.Printf("\nfile [%v] was not downloaded, reason - [%v]", url, err)
 	}
 
 	return file, etag, nil

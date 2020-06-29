@@ -1,115 +1,124 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/briandowns/spinner"
 	"github.com/jedib0t/go-pretty/table"
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
-	"switch/nsp-update/db"
-	"switch/nsp-update/process"
+	"switch-backup-manager/db"
+	"switch-backup-manager/process"
+	"switch-backup-manager/settings"
 	"time"
 )
 
 const (
-	TITLEDB_FILENAME    = "titlesDb.json"
-	VERSIONSDB_FILENAME = "versionsDb.json"
-	CONFIG_FILENAME     = "nu_config.json"
-	TITLES_JSON_URL     = "https://tinfoil.media/repo/db/titles.json"
-	VERSIONS_JSON_URL   = "https://tinfoil.media/repo/db/versions.json"
+	TITLE_JSON_FILENAME    = "titles.json"
+	VERSIONS_JSON_FILENAME = "versions.json"
+	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
+	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
 )
 
 var (
 	nspFolder = flag.String("f", "", "path to NSP folder")
 	recursive = flag.Bool("r", false, "recursively scan sub folders")
-	mode      = flag.String("m", "u", "mode (available options: (u) find missing updates / (dlc) find missing dlc / (d) delete old updates / (o) - organize library ")
+	mode      = flag.String("m", "", "**deprecated**")
 	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond)
 )
 
 func main() {
 	flag.Parse()
 
-	//no folder was specified
-	if *nspFolder == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	versionsEtag := ""
-	titlesEtag := ""
-
-	//read config file
-	if _, err := os.Stat(CONFIG_FILENAME); err == nil {
-		file, err := os.Open("./nu_config.json")
-		if err != nil {
-			log.Print("Missing or corrupted config file, ignoring")
-		} else {
-			configMap := map[string]string{}
-			err = json.NewDecoder(file).Decode(&configMap)
-			versionsEtag = configMap["versions_etag"]
-			titlesEtag = configMap["titles_etag"]
-		}
-	}
+	settingsObj := settings.ReadSettings()
 
 	//1. load the titles JSON object
 	s.Start()
-	fmt.Printf("Downlading latest switch titles json file\n")
-	titleFile, titlesEtag, err := db.LoadAndUpdateFile(TITLES_JSON_URL, TITLEDB_FILENAME, titlesEtag)
+	fmt.Printf("Downlading latest switch titles json file")
+	titleFile, titlesEtag, err := db.LoadAndUpdateFile(TITLES_JSON_URL, TITLE_JSON_FILENAME, settingsObj.TitlesEtag)
 	if err != nil {
-		fmt.Printf("titleAttributes json file doesn't exist\n")
+		fmt.Printf("title json file doesn't exist\n")
 		return
 	}
+	settingsObj.TitlesEtag = titlesEtag
 
 	//2. load the versions JSON object
-	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(VERSIONS_JSON_URL, VERSIONSDB_FILENAME, versionsEtag)
+	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(VERSIONS_JSON_URL, VERSIONS_JSON_FILENAME, settingsObj.VersionsEtag)
 	if err != nil {
-		fmt.Printf("titleAttributes json file doesn't exist\n")
+		fmt.Printf("version json file doesn't exist\n")
 		return
 	}
 	s.Stop()
+	settingsObj.VersionsEtag = versionsEtag
 
 	//3. update the config file with new etag
-	etagMap := map[string]string{"versions_etag": versionsEtag, "titles_etag": titlesEtag}
-	file, _ := json.MarshalIndent(etagMap, "", " ")
-	_ = ioutil.WriteFile(CONFIG_FILENAME, file, 0644)
+	settings.SaveSettings(settingsObj)
 
-	//4. create switch titleAttributes db
+	//4. create switch title db
 	titlesDB, err := db.CreateSwitchTitleDB(titleFile, versionsFile)
 
 	//5. read local files
+	folderToScan := settingsObj.Folder
+	if nspFolder != nil {
+		folderToScan = *nspFolder
+	}
+
+	if folderToScan == "" {
+		fmt.Printf("\n\nNo folder to scan was defined, please use the '-f' command line, or edit the settings.json file.\n")
+		return
+	}
 	s.Restart()
-	fmt.Printf("\nScanning nsp folder\n ")
-	files, err := ioutil.ReadDir(*nspFolder)
+	fmt.Printf("\n\nScanning folder [%v]", folderToScan)
+	files, err := ioutil.ReadDir(folderToScan)
 	if err != nil {
 		fmt.Printf("\nfailed accessing NSP folder\n %v", err)
 		return
 	}
+
+	keys, _ := settings.SwitchKeys()
+	if keys == nil {
+		fmt.Printf("\nkeys file was not found, NSP file decrypt is disabled\n %v", err)
+	}
+
+	recursiveMode := settingsObj.ScanRecursively
+	if recursive != nil {
+		recursiveMode = *recursive
+	}
+	localDB, err := db.CreateLocalSwitchFilesDB(files, *nspFolder, recursiveMode)
+	fmt.Printf("\nFinished scan\n ")
+
 	s.Stop()
-
-	localDB, err := db.CreateLocalSwitchFilesDB(files, *nspFolder, *recursive)
-
 	p := (float32(len(localDB.TitlesMap)) / float32(len(titlesDB.TitlesMap))) * 100
 
-	fmt.Printf("Local library completion status: %.2f%% (have %d titles, out of %d titles)\n\n", p, len(localDB.TitlesMap), len(titlesDB.TitlesMap))
+	fmt.Printf("Local library completion status: %.2f%% (have %d titles, out of %d titles)\n", p, len(localDB.TitlesMap), len(titlesDB.TitlesMap))
 
-	if mode == nil || *mode == "u" {
-		processMissingUpdates(localDB, titlesDB)
-	}
-
-	if mode != nil && *mode == "dlc" {
-		processMissingDLC(localDB, titlesDB)
-	}
-
-	if mode != nil && *mode == "d" {
+	if settingsObj.OrganizeOptions.DeleteOldUpdateFiles {
+		s.Restart()
+		fmt.Printf("\nDeleting old updates\n")
 		process.DeleteOldUpdates(localDB, titlesDB)
+		s.Stop()
 	}
 
-	if mode != nil && *mode == "o" {
+	if settingsObj.OrganizeOptions.RenameFiles || settingsObj.OrganizeOptions.CreateFolderPerGame {
+		s.Restart()
+		fmt.Printf("\nStarting library organization\n")
 		process.OrganizeByFolders(*nspFolder, localDB, titlesDB)
+		s.Stop()
+	}
+
+	if settingsObj.CheckForMissingUpdates {
+		s.Restart()
+		fmt.Printf("\nChecking for missing updates\n")
+		processMissingUpdates(localDB, titlesDB)
+		s.Stop()
+	}
+
+	if settingsObj.CheckForMissingDLC {
+		s.Restart()
+		fmt.Printf("\nChecking for missing DLC\n")
+		processMissingDLC(localDB, titlesDB)
+		s.Stop()
 	}
 
 	fmt.Printf("Completed")

@@ -3,7 +3,8 @@ package process
 import (
 	"fmt"
 	"sort"
-	"switch/nsp-update/db"
+	"strconv"
+	"switch-backup-manager/db"
 )
 
 type incompleteTitle struct {
@@ -55,6 +56,28 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 				result[switchDB[idPrefix].Attributes.Id] = switchTitle
 			}
 		}
+
+		if len(switchDB[idPrefix].Dlc) == 0 {
+			continue
+		}
+
+		//process dlc
+		for k, v := range switchDB[idPrefix].Dlc {
+			if localDlc, ok := switchFile.Dlc[k]; ok {
+				latestDlcVersion, err := v.Version.Int64()
+				if err != nil {
+					continue
+				}
+				metadata, err := db.GetGameMetadata(localDlc.Info, localDlc.BaseFolder)
+				if err != nil {
+					continue
+				}
+				if metadata.Version != int(latestDlcVersion) {
+					result[v.Id] = incompleteTitle{Attributes: v, LatestUpdate: int(latestDlcVersion), LocalUpdate: metadata.Version, LatestUpdateDate: strconv.Itoa(v.ReleaseDate)}
+				}
+			}
+		}
+
 	}
 	return result
 }
