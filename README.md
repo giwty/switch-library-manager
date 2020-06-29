@@ -1,17 +1,18 @@
-# Switch backup manager
-Easily manage your switch games backups 
+# Switch library manager
+Easily manage your switch game backups 
 ![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/screenshot.png)
 
-####Features:
+#### Features:
 - Scan your local switch backup library (NSP/NSZ)
-- Lists any missing update files (for games and DLC)
-- Lists any missing DLCs
+- Lists missing update files (for games and DLC)
+- Lists missing DLCs
 - Read titleId/version by decrypting NSPs (requires prod.keys)
 - Read titleId/version by parsing file name  (example: `Super Mario Odyssey [0100000000010000][v0].nsp`).
 - Automatically organize games per folder
 - Rename files based on metadata read from NSP
 - Delete old update files (in case you have multiple update files for the same game, only the latest will remain)
 - Delete empty folders
+- Zero dependencies, all crypto operations implemented in Go. 
 
 ## Keys (optional)
 Having a prod.keys file will allow you to ensure the files you have a correctly classified.
@@ -76,5 +77,5 @@ The following template elements are supported:
     - `env GOOS=target-OS GOARCH=amd64 go build github.com/giwty/switch-backup-manager`
     - `target-OS` can be `windows`, `darwin` (mac OS), `linux`, or any other (check the Go documentation for a complete list).
 
-####Thanks
+#### Thanks
 This program relies on [blawar's titledb](https://github.com/blawar/titledb), to get the latest titles and versions.

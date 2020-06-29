@@ -71,12 +71,12 @@ func saveDefaultSettings() *settings {
 		CheckForMissingDLC:     true,
 		ScanRecursively:        true,
 		OrganizeOptions: OrganizeOptions{
-			RenameFiles:         true,
+			RenameFiles:         false,
 			CreateFolderPerGame: false,
 			FolderNameTemplate:  fmt.Sprintf("{%v}", TEMPLATE_TITLE_NAME),
 			FileNameTemplate: fmt.Sprintf("{%v} [{%v}][{%v}][{%v}]", TEMPLATE_TITLE_NAME, TEMPLATE_DLC_NAME,
 				TEMPLATE_TITLE_ID, TEMPLATE_VERSION),
-			DeleteEmptyFolders:   true,
+			DeleteEmptyFolders:   false,
 			DeleteOldUpdateFiles: false,
 		},
 	}
