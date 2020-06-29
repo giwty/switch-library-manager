@@ -92,17 +92,29 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 
 		//process Updates
 		if strings.HasSuffix(metadata.TitleId, "800") {
+			if update, ok := switchTitle.Updates[metadata.Version]; ok {
+				fmt.Printf("\n-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
+			}
 			switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 			continue
 		}
 
 		//process base
 		if strings.HasSuffix(metadata.TitleId, "000") {
+			if switchTitle.BaseExist {
+				fmt.Printf("\n-->Duplicate base file found [%v] and [%v]", file.Name(), switchTitle.File.Info.Name())
+			}
 			switchTitle.File = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 			switchTitle.BaseExist = true
 			continue
 		}
 
+		if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
+			fmt.Printf("\n-->Duplicate DLC file found [%v] and [%v]", file.Name(), dlc.Info.Name())
+			if dlc.Metadata.Version > metadata.Version {
+				continue
+			}
+		}
 		//not an update, and not main TitleAttributes, so treat it as a DLC
 		switchTitle.Dlc[metadata.TitleId] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 	}
