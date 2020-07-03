@@ -1,6 +1,11 @@
 # Switch library manager
-Easily manage your switch game backups 
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/screenshot.png)
+Easily manage your switch game backups
+
+![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/updates_ui.png)
+
+![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/dlc_ui.png)
+ 
+![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/cmd.png)
 
 #### Features:
 - Cross platform, works on Windows / Mac / Linux
@@ -55,22 +60,27 @@ The following template elements are supported:
 - {DLC_NAME} - DLC name (only applicable to DLCs)
 ## Usage
 ##### Windows
-- Run `cmd.exe`
-- `cd` to the folder containing `nsp-update.exe`
-- Run `nsp-update.exe'
-- Optionally -f "X:\folder\containing\nsp\files"`
-- Optionally add  `-r` to recursively scan for nested folders
-- Edit the settings.json file for additional options
+- Extract the zip file
+- Double click the Exe file
+- If you want to use command line mode, update the settings.json with `'GUI':false`
+    - Open `cmd`
+    - Run `switch-backup-manager.exe`
+    - Optionally -f `X:\folder\containing\nsp\files"`
+    - Optionally add  `-r` to recursively scan for nested folders
+    - Edit the settings.json file for additional options
 
  
 ##### macOS or Linux
-- Open your Terminal
-- `cd` to the folder containing `nsp-update`
-- `chmod +x nsp-update` to make it executable
-- Run `./nsp-update'
-- Optionally -f "X:\folder\containing\nsp\files"`
-- Optionally add  `-r` to recursively scan for nested folders
-- Edit the settings.json file for additional options
+- Extract the zip file
+- Double click the App file
+- If you want to use command line mode, update the settings.json with `'GUI':false`
+    - Open your Terminal
+    - `cd` to the folder containing `switch-backup-manager`
+    - `chmod +x switch-backup-manager` to make it executable
+    - Run `./switch-backup-manager'
+    - Optionally -f `X:\folder\containing\nsp\files"`
+    - Optionally add  `-r` to recursively scan for nested folders
+    - Edit the settings.json file for additional options
 
 ## Building
 - Install and setup latest Go
