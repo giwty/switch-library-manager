@@ -3,6 +3,8 @@ Easily manage your switch game backups
 ![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/screenshot.png)
 
 #### Features:
+- Cross platform, works on Windows / Mac / Linux
+- GUI and command line modes 
 - Scan your local switch backup library (NSP/NSZ)
 - Lists missing update files (for games and DLC)
 - Lists missing DLCs
