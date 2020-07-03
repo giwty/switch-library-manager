@@ -31,10 +31,16 @@ func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
 		if strings.Contains(pfs0File.Name, "cnmt.nca") {
 			section, err := openMetaNcaDataSection(file, fileOffset)
 			if err != nil {
-				return nil, errors.New("failed to read NCA [reason:" + err.Error() + "]")
+				return nil, err
 			}
 			pfs0, err := readPfs0(bytes.NewReader(section))
+			if err != nil {
+				return nil, err
+			}
 			cnmt, err := readBinaryCnmt(pfs0, section)
+			if err != nil {
+				return nil, err
+			}
 			return cnmt, err
 
 		} else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
@@ -45,6 +51,9 @@ func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
 			}
 
 			cnmt, err := readXmlCnmt(xmlBytes)
+			if err != nil {
+				return nil, err
+			}
 			return cnmt, err
 		}
 	}

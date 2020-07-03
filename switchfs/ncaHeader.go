@@ -9,9 +9,6 @@ import (
 )
 
 //https://switchbrew.org/wiki/NCA_Format
-const (
-	numSections = 4
-)
 
 type ncaHeader struct {
 	headerBytes    []byte
@@ -61,6 +58,9 @@ func DecryptNcaHeader(key string, encHeader []byte) (*ncaHeader, error) {
 	sectorSize := 0x200
 	endOffset := 0x400
 	decryptNcaHeader, err := _decryptNcaHeader(c, encHeader, endOffset, sectorSize, sector)
+	if err != nil {
+		return nil, err
+	}
 
 	magic := string(decryptNcaHeader[0x200:0x204])
 

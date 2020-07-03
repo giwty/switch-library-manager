@@ -3,6 +3,10 @@ module github.com/giwty/switch-backup-manager
 go 1.12
 
 require (
+	github.com/asticode/go-astikit v0.8.0
+	github.com/asticode/go-astilectron v0.16.0
+	github.com/asticode/go-astilectron-bootstrap v0.4.1
+	github.com/asticode/go-astilog v1.7.0
 	github.com/briandowns/spinner v1.6.1
 	github.com/go-openapi/strfmt v0.19.2 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible

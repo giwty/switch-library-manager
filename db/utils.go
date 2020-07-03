@@ -11,6 +11,10 @@ import (
 	"os"
 )
 
+type ProgressUpdater interface {
+	UpdateProgress(curr int, total int, message string)
+}
+
 func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, string, error) {
 
 	//load file

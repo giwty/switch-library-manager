@@ -39,11 +39,17 @@ func openMetaNcaDataSection(reader io.ReaderAt, ncaOffset int64) ([]byte, error)
 	}
 
 	keys, err := settings.SwitchKeys()
+	if err != nil {
+		return nil, err
+	}
 	headerKey := keys.GetKey("header_key")
 	if headerKey == "" {
 		return nil, errors.New("missing key - header_key")
 	}
 	ncaHeader, err := DecryptNcaHeader(headerKey, encNcaHeader)
+	if err != nil {
+		return nil, err
+	}
 
 	if ncaHeader.HasRightsId() {
 		//fail - need title keys

@@ -1,0 +1,48 @@
+.astiloader {
+    color: #fff;
+    display: none;
+    height: 100%;
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1;
+}
+.astiloader-background {
+    background-color: #000;
+    height: 100%;
+    left: 0;
+    opacity: 0.7;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+.astiloader-table {
+    display: table;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+.astiloader-content {
+    display: table-cell;
+    height: 100%;
+    text-align: center;
+    vertical-align: middle;
+    width: 100%;
+}
+@keyframes asticode-spin {
+    0% {
+        -webkit-transform:rotate(0deg);
+        transform:rotate(0deg)
+    }
+    to {
+        -webkit-transform:rotate(1turn);
+        transform:rotate(1turn)
+    }
+}
+.astiloader-content img {
+    animation: asticode-spin 2s linear infinite;
+    width: 5em;
+}

@@ -3,6 +3,7 @@ package switchfs
 import (
 	"encoding/binary"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -20,9 +21,9 @@ const (
 )
 
 type ContentMetaAttributes struct {
-	TitleId string
-	Version int
-	Type    string
+	TitleId string `json:"title_id"`
+	Version int    `json:"version"`
+	Type    string `json:"type"`
 }
 
 type ContentMeta struct {
@@ -47,6 +48,9 @@ type ContentMeta struct {
 }
 
 func readBinaryCnmt(pfs0 *PFS0, data []byte) (*ContentMetaAttributes, error) {
+	if pfs0 == nil || len(pfs0.Files) != 1 {
+		return nil, errors.New("unexpected pfs0")
+	}
 	cnmtFile := pfs0.Files[0]
 	cnmt := data[int64(cnmtFile.StartOffset):]
 	titleId := binary.LittleEndian.Uint64(cnmt[0:0x8])

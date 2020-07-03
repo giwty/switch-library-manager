@@ -8,12 +8,16 @@ import (
 	"os"
 )
 
-const (
-	SETTINGS_FILENAME = "settings.json"
+var (
+	settingsInstance *AppSettings
 )
 
-var (
-	settingsInstance *settings
+const (
+	SETTINGS_FILENAME      = "settings.json"
+	TITLE_JSON_FILENAME    = "titles.json"
+	VERSIONS_JSON_FILENAME = "versions.json"
+	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
+	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
 )
 
 const (
@@ -33,21 +37,31 @@ type OrganizeOptions struct {
 	FileNameTemplate     string `json:"file_name_template"`
 }
 
-type settings struct {
+type AppSettings struct {
 	VersionsEtag           string          `json:"versions_etag"`
 	TitlesEtag             string          `json:"titles_etag"`
 	Folder                 string          `json:"folder"`
+	GUI                    bool            `json:"gui"`
 	CheckForMissingUpdates bool            `json:"check_for_missing_updates"`
 	CheckForMissingDLC     bool            `json:"check_for_missing_dlc"`
 	OrganizeOptions        OrganizeOptions `json:"organize_options"`
 	ScanRecursively        bool            `json:"scan_recursively"`
 }
 
-func ReadSettings() *settings {
+func ReadSettingsAsJSON() string {
+	if _, err := os.Stat(SETTINGS_FILENAME); err != nil {
+		saveDefaultSettings()
+	}
+	file, _ := os.Open("./" + SETTINGS_FILENAME)
+	bytes, _ := ioutil.ReadAll(file)
+	return string(bytes)
+}
+
+func ReadSettings() *AppSettings {
 	if settingsInstance != nil {
 		return settingsInstance
 	}
-	settingsInstance = &settings{}
+	settingsInstance = &AppSettings{}
 	if _, err := os.Stat(SETTINGS_FILENAME); err == nil {
 		file, err := os.Open("./" + SETTINGS_FILENAME)
 		if err != nil {
@@ -62,11 +76,12 @@ func ReadSettings() *settings {
 	}
 }
 
-func saveDefaultSettings() *settings {
-	settingsInstance = &settings{
+func saveDefaultSettings() *AppSettings {
+	settingsInstance = &AppSettings{
 		VersionsEtag:           "",
 		TitlesEtag:             "",
 		Folder:                 "",
+		GUI:                    true,
 		CheckForMissingUpdates: true,
 		CheckForMissingDLC:     true,
 		ScanRecursively:        true,
@@ -83,7 +98,7 @@ func saveDefaultSettings() *settings {
 	return SaveSettings(settingsInstance)
 }
 
-func SaveSettings(settings *settings) *settings {
+func SaveSettings(settings *AppSettings) *AppSettings {
 	file, _ := json.MarshalIndent(settings, "", " ")
 	_ = ioutil.WriteFile(SETTINGS_FILENAME, file, 0644)
 	settingsInstance = settings

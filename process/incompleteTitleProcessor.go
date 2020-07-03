@@ -3,20 +3,22 @@ package process
 import (
 	"fmt"
 	"github.com/giwty/switch-backup-manager/db"
+	"github.com/giwty/switch-backup-manager/switchfs"
 	"sort"
 	"strconv"
 )
 
-type incompleteTitle struct {
+type IncompleteTitle struct {
 	Attributes       db.TitleAttributes
-	LocalUpdate      int
-	LatestUpdate     int
-	LatestUpdateDate string
-	MissingDLC       []string
+	Meta             *switchfs.ContentMetaAttributes
+	LocalUpdate      int      `json:"local_update"`
+	LatestUpdate     int      `json:"latest_update"`
+	LatestUpdateDate string   `json:"latest_update_date"`
+	MissingDLC       []string `json:"missing_dlc"`
 }
 
-func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[string]*db.SwitchTitle) map[string]incompleteTitle {
-	result := map[string]incompleteTitle{}
+func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
 	for idPrefix, switchFile := range localDB {
@@ -24,11 +26,11 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 		if switchFile.BaseExist == false {
 			continue
 		}
-		switchTitle := incompleteTitle{Attributes: switchDB[idPrefix].Attributes}
+		switchTitle := IncompleteTitle{Attributes: switchDB[idPrefix].Attributes, Meta: switchFile.File.Metadata}
 		//sort the available local versions
 		localVersions := make([]int, len(switchFile.Updates))
 		i := 0
-		for k, _ := range switchFile.Updates {
+		for k := range switchFile.Updates {
 			localVersions[i] = k
 			i++
 		}
@@ -37,7 +39,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 		//sort the available remote versions
 		remoteVersions := make([]int, len(switchDB[idPrefix].Updates))
 		i = 0
-		for k, _ := range switchDB[idPrefix].Updates {
+		for k := range switchDB[idPrefix].Updates {
 			remoteVersions[i] = k
 			i++
 		}
@@ -52,7 +54,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 		if len(remoteVersions) != 0 {
 			switchTitle.LatestUpdate = remoteVersions[len(remoteVersions)-1]
 			switchTitle.LatestUpdateDate = switchDB[idPrefix].Updates[remoteVersions[len(remoteVersions)-1]]
-			if switchTitle.LocalUpdate != switchTitle.LatestUpdate {
+			if switchTitle.LocalUpdate < switchTitle.LatestUpdate {
 				result[switchDB[idPrefix].Attributes.Id] = switchTitle
 			}
 		}
@@ -72,8 +74,13 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 				if localDlc.Metadata == nil {
 					continue
 				}
-				if localDlc.Metadata.Version != int(latestDlcVersion) {
-					result[availableDlc.Id] = incompleteTitle{Attributes: availableDlc, LatestUpdate: int(latestDlcVersion), LocalUpdate: localDlc.Metadata.Version, LatestUpdateDate: strconv.Itoa(availableDlc.ReleaseDate)}
+				if localDlc.Metadata.Version < int(latestDlcVersion) {
+					result[availableDlc.Id] = IncompleteTitle{
+						Attributes:       availableDlc,
+						LatestUpdate:     int(latestDlcVersion),
+						LocalUpdate:      localDlc.Metadata.Version,
+						LatestUpdateDate: strconv.Itoa(availableDlc.ReleaseDate),
+						Meta:             localDlc.Metadata}
 				}
 			}
 		}
@@ -82,8 +89,8 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 	return result
 }
 
-func ScanForMissingDLC(localDB map[string]*db.SwitchFile, switchDB map[string]*db.SwitchTitle) map[string]incompleteTitle {
-	result := map[string]incompleteTitle{}
+func ScanForMissingDLC(localDB map[string]*db.SwitchFile, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
 	for idPrefix, switchFile := range localDB {
@@ -91,13 +98,13 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchFile, switchDB map[string]*d
 		if switchFile.BaseExist == false {
 			continue
 		}
-		switchTitle := incompleteTitle{Attributes: switchDB[idPrefix].Attributes}
+		switchTitle := IncompleteTitle{Attributes: switchDB[idPrefix].Attributes}
 
 		//process dlc
 		if len(switchDB[idPrefix].Dlc) != 0 {
 			for k, v := range switchDB[idPrefix].Dlc {
 				if _, ok := switchFile.Dlc[k]; !ok {
-					switchTitle.MissingDLC = append(switchTitle.MissingDLC, fmt.Sprintf("%v [%v]", v.Id, v.Name))
+					switchTitle.MissingDLC = append(switchTitle.MissingDLC, fmt.Sprintf("%v [%v]", v.Name, v.Id))
 				}
 			}
 			if len(switchTitle.MissingDLC) != 0 {

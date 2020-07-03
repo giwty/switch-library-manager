@@ -14,8 +14,13 @@ import (
 )
 
 var (
-	versionRegex = regexp.MustCompile(`\[[vV]?(?P<version>[0-9]{1,10})\]`)
-	titleIdRegex = regexp.MustCompile(`\[(?P<titleId>[A-Z,a-z,0-9]{16})\]`)
+	versionRegex = regexp.MustCompile(`\[[vV]?(?P<version>[0-9]{1,10})]`)
+	titleIdRegex = regexp.MustCompile(`\[(?P<titleId>[A-Z,a-z0-9]{16})]`)
+)
+
+var (
+	total     = 0
+	globalInd = 0
 )
 
 type ExtendedFileInfo struct {
@@ -36,20 +41,26 @@ type LocalSwitchFilesDB struct {
 	Skipped   map[os.FileInfo]string
 }
 
-func CreateLocalSwitchFilesDB(files []os.FileInfo, parentFolder string, recursive bool) (*LocalSwitchFilesDB, error) {
+func CreateLocalSwitchFilesDB(files []os.FileInfo, parentFolder string, progress ProgressUpdater, recursive bool) (*LocalSwitchFilesDB, error) {
 	titles := map[string]*SwitchFile{}
 	skipped := map[os.FileInfo]string{}
-
-	scanLocalFiles(parentFolder, files, recursive, titles, skipped)
+	globalInd = 0
+	total = 0
+	scanLocalFiles(parentFolder, files, progress, recursive, titles, skipped)
 
 	return &LocalSwitchFilesDB{TitlesMap: titles, Skipped: skipped}, nil
 }
 
 func scanLocalFiles(parentFolder string, files []os.FileInfo,
+	progress ProgressUpdater,
 	recurse bool, titles map[string]*SwitchFile,
 	skipped map[os.FileInfo]string) {
-
+	total += len(files)
 	for _, file := range files {
+		globalInd += 1
+		if progress != nil {
+			progress.UpdateProgress(globalInd, total, file.Name())
+		}
 		//skip mac hidden files
 		if file.Name()[0:1] == "." {
 			continue
@@ -67,7 +78,7 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 				fmt.Printf("\nfailed scanning NSP folder [%v]", err)
 				continue
 			}
-			scanLocalFiles(folder, innerFiles, recurse, titles, skipped)
+			scanLocalFiles(folder, innerFiles, progress, recurse, titles, skipped)
 		}
 
 		//only handle NSZ and NSP files
@@ -92,6 +103,7 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 
 		//process Updates
 		if strings.HasSuffix(metadata.TitleId, "800") {
+			metadata.Type = "Update"
 			if update, ok := switchTitle.Updates[metadata.Version]; ok {
 				fmt.Printf("\n-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
 			}
@@ -101,6 +113,7 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 
 		//process base
 		if strings.HasSuffix(metadata.TitleId, "000") {
+			metadata.Type = "Base"
 			if switchTitle.BaseExist {
 				fmt.Printf("\n-->Duplicate base file found [%v] and [%v]", file.Name(), switchTitle.File.Info.Name())
 			}
@@ -116,6 +129,7 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 			}
 		}
 		//not an update, and not main TitleAttributes, so treat it as a DLC
+		metadata.Type = "DLC"
 		switchTitle.Dlc[metadata.TitleId] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 	}
 

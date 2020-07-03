@@ -18,14 +18,14 @@ var (
 	folderIllegalCharsRegex = regexp.MustCompile(`[/\\?%*:|"<>]`)
 )
 
-func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
+func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB) {
 	for _, v := range localDB.TitlesMap {
 
 		if len(v.Updates) > 1 {
 			//sort the available local versions
 			localVersions := make([]int, len(v.Updates))
 			i := 0
-			for k, _ := range v.Updates {
+			for k := range v.Updates {
 				localVersions[i] = k
 				i++
 			}
@@ -45,19 +45,24 @@ func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesD
 	}
 }
 
-func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
+func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, updateProgress db.ProgressUpdater) {
 
 	options := settings.ReadSettings().OrganizeOptions
+	i := 0
 	for k, v := range localDB.TitlesMap {
-
+		i++
 		if v.BaseExist == false {
 			continue
+		}
+		if updateProgress != nil {
+			updateProgress.UpdateProgress(i, len(localDB.TitlesMap), v.File.Info.Name())
 		}
 
 		titleName := getTitleName(titlesDB.TitlesMap[k], v)
 
 		templateData := map[string]string{}
-		templateData[settings.TEMPLATE_TITLE_ID] = titlesDB.TitlesMap[k].Attributes.Id
+
+		templateData[settings.TEMPLATE_TITLE_ID] = v.File.Metadata.TitleId
 		//templateData[settings.TEMPLATE_TYPE] = "BASE"
 		templateData[settings.TEMPLATE_TITLE_NAME] = titleName
 		templateData[settings.TEMPLATE_VERSION] = "0"
@@ -66,7 +71,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 
 		//create folder if needed
 		if options.CreateFolderPerGame {
-			folderToCreate := getFolderName(options, templateData) //titleName + " [" + titlesDB.TitlesMap[k].Attributes.Id + "]"
+			folderToCreate := getFolderName(options, templateData)
 			destinationPath = filepath.Join(baseFolder, folderToCreate)
 			if _, err := os.Stat(destinationPath); os.IsNotExist(err) {
 				err = os.Mkdir(destinationPath, os.ModePerm)
@@ -137,6 +142,9 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 }
 
 func getDlcName(switchTitle *db.SwitchTitle, file db.ExtendedFileInfo) string {
+	if switchTitle == nil {
+		return ""
+	}
 	if dlcAttributes, ok := switchTitle.Dlc[file.Metadata.TitleId]; ok {
 		name := dlcAttributes.Name
 		name = strings.ReplaceAll(name, "\n", "")

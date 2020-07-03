@@ -1,0 +1,129 @@
+.astiprogresser {
+    display: table;
+    width: 100%;
+}
+
+.astiprogresser-circle-cell, .astiprogresser-bar-cell {
+    display: table-cell;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.astiprogresser-circle-cell {
+    max-width: 3em;
+    width: 3em;
+}
+
+.astiprogresser-circle-wrapper {
+    height: 3em;
+    position: relative;
+    width: 100%;
+}
+
+.astiprogresser-circle-cell:first-child .astiprogresser-circle-bar {
+    float: right;
+    width: 50%;
+}
+
+.astiprogresser-circle-bar {
+    height: 1em;
+    position: relative;
+    top: 1em;
+    width: 100%;
+}
+
+.astiprogresser-circle-bar {
+    background-color: #62c462;
+}
+
+.astiprogresser.error .astiprogresser-circle-bar {
+    background-color: #ee5f5b;
+}
+
+.astiprogresser-circle-cell.disabled .astiprogresser-circle-bar {
+    background-color: #d8dee3;
+}
+
+.astiprogresser-circle-cell:last-child .astiprogresser-circle-bar {
+    float: left;
+    width: 50%;
+}
+
+.astiprogresser-circle {
+    border-radius: 50%;
+    height: 3em;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 3em;
+}
+
+.astiprogresser-circle-cell.disabled .astiprogresser-circle {
+    background-color: #ffffff;
+    border: solid 6px #d8dee3;
+}
+
+.astiprogresser-circle-cell.enabled .astiprogresser-circle {
+    background-color: #ffffff;
+    border: solid 6px #62c462;
+}
+
+.astiprogresser.error .astiprogresser-circle-cell.enabled .astiprogresser-circle {
+    background-color: #ffffff;
+    border: solid 6px #ee5f5b;
+}
+
+.astiprogresser-circle-cell.done .astiprogresser-circle {
+    background-color: #62c462;
+    border: solid 6px #62c462;
+}
+
+.astiprogresser.error .astiprogresser-circle-cell.done .astiprogresser-circle {
+    background-color: #ee5f5b;
+    border: solid 6px #ee5f5b;
+}
+
+.astiprogresser-circle-check {
+    display: none;
+    height: 1.5em;
+    left: 0.75em;
+    position: absolute;
+    top: 0.75em;
+}
+
+.astiprogresser-circle-cell.done .astiprogresser-circle-check {
+    display: block;
+}
+
+.astiprogresser-bar-wrapper {
+    background-color: #d8dee3;
+    height: 1em;
+    top: 1em;
+    width: 100%;
+}
+
+.astiprogresser-label {
+    height: 1.5em;
+}
+
+.astiprogresser-label {
+    color: #62c462;
+}
+
+.astiprogresser.error .astiprogresser-label {
+    color: #ee5f5b;
+}
+
+.astiprogresser-bar-cell.disabled .astiprogresser-label {
+    color: #c1c1c1;
+}
+
+.astiprogresser-bar {
+    background-color: #62c462;
+    height: 100%;
+    width: 0;
+}
+
+.astiprogresser.error .astiprogresser-bar {
+    background-color: #ee5f5b;
+}
