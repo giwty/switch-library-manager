@@ -37,15 +37,12 @@ func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, stri
 		fmt.Printf("\nfile [%v] was not downloaded, reason - [%v]", url, err)
 	}
 
-	return file, etag, nil
+	return file, etag, err
 }
 
 func decodeToJsonObject(reader io.Reader, target interface{}) error {
 	err := json.NewDecoder(reader).Decode(target)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func downloadBytesFromUrl(url string, etag string) ([]byte, string, error) {

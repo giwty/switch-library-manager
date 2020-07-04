@@ -32,6 +32,10 @@ func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB) {
 			sort.Ints(localVersions)
 
 			for i := 0; i < len(localVersions)-1; i++ {
+				if localVersions[i] == 0 {
+					//should not happen, but make sure we do not delete base
+					continue
+				}
 				fileToRemove := filepath.Join(v.Updates[localVersions[i]].BaseFolder, v.Updates[localVersions[i]].Info.Name())
 				fmt.Printf("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, localVersions[len(localVersions)-1])
 				err := os.Remove(fileToRemove)
