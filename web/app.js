@@ -45,8 +45,21 @@ $(function () {
                 }
                 return
             }
-            if (message.name === "libraryLoaded") {
+            else if (message.name === "libraryLoaded") {
                 state.library = JSON.parse(message.payload);
+                loadTab("#library")
+            }
+            else if (message.name === "error") {
+                dialog.showMessageBox(null, {
+                    type: 'error',
+                    buttons: ['Ok'],
+                    defaultId: 0,
+                    title: 'Error',
+                    message: 'An unexpected error occurred',
+                    detail: message.payload
+                });
+                state.settings.folder = undefined;
+                $(".progress-container").hide();
                 loadTab("#library")
             }
         });

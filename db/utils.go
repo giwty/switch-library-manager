@@ -22,13 +22,13 @@ func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, stri
 
 	//try to check if there is a new version
 	//if so, save the file
-	bytes, newEtag, err := downloadBytesFromUrl(url, etag)
-	if err == nil {
+	bytes, newEtag, _err := downloadBytesFromUrl(url, etag)
+	if _err == nil {
 		//validate json structure
 		var test map[string]interface{}
-		err = decodeToJsonObject(bytes2.NewReader(bytes), &test)
-		if err == nil {
-			file, err = saveFile(bytes, filePath)
+		_err = decodeToJsonObject(bytes2.NewReader(bytes), &test)
+		if _err == nil {
+			file, _err = saveFile(bytes, filePath)
 			etag = newEtag
 		} else {
 			fmt.Printf("\nignoring new update [%v], reason - [mailformed json file]", url)

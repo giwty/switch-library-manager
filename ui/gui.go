@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/asticode/go-astilog"
 	"github.com/giwty/switch-backup-manager/db"
 	"github.com/giwty/switch-backup-manager/process"
 	"github.com/giwty/switch-backup-manager/settings"
@@ -36,6 +37,7 @@ type State struct {
 	switchDB *db.SwitchTitlesDB
 	localDB  *db.LocalSwitchFilesDB
 	window   *astilectron.Window
+	logger   *astilog.Logger
 }
 
 type Message struct {
@@ -51,15 +53,27 @@ func CreateGUI() *GUI {
 	return &GUI{state: State{}}
 }
 func (g *GUI) Start() {
-	l := log.New(log.Writer(), log.Prefix(), log.Flags())
+	file, err := os.OpenFile("./switch-backup-library.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer file.Close()
+
+	//l := log.New(file, log.Prefix(), log.Flags())
+	logger := astilog.New(astilog.Configuration{
+		Filename: "./switch-backup-library.log",
+		AppName:  "switch-backup-manager",
+		Level:    astilog.LevelWarn,
+	})
 
 	// Create astilectron
-	a, err := astilectron.New(l, astilectron.Options{
+	a, err := astilectron.New(logger, astilectron.Options{
 		AppName:           "Switch Library Manager",
 		BaseDirectoryPath: "web",
 	})
 	if err != nil {
-		l.Fatal(fmt.Errorf("main: creating astilectron failed: %w", err))
+		logger.Fatal(fmt.Errorf("main: creating astilectron failed: %w", err))
 	}
 	defer a.Close()
 
@@ -68,7 +82,7 @@ func (g *GUI) Start() {
 
 	// Start
 	if err = a.Start(); err != nil {
-		l.Fatal(fmt.Errorf("main: starting astilectron failed: %w", err))
+		logger.Fatal(fmt.Errorf("main: starting astilectron failed: %w", err))
 	}
 
 	// New window
@@ -77,7 +91,7 @@ func (g *GUI) Start() {
 	if _, err := os.Stat("./web/app.html"); err != nil {
 		basePath, err = os.Executable()
 		if err != nil {
-			l.Fatal(fmt.Errorf("main: starting astilectron failed: %w", err))
+			logger.Fatal(fmt.Errorf("main: starting astilectron failed: %w", err))
 		}
 	}
 
@@ -87,14 +101,15 @@ func (g *GUI) Start() {
 		Height: astikit.IntPtr(700),
 		Width:  astikit.IntPtr(700),
 	}); err != nil {
-		l.Fatal(fmt.Errorf("main: new window failed: %w", err))
+		logger.Fatal(fmt.Errorf("main: new window failed: %w", err))
 	}
 
 	g.state.window = w
+	g.state.logger = logger
 
 	// Create windows
 	if err = w.Create(); err != nil {
-		l.Fatal(fmt.Errorf("main: creating window failed: %w", err))
+		logger.Fatal(fmt.Errorf("main: creating window failed: %w", err))
 	}
 
 	uiWorker := sync.Mutex{}
@@ -116,13 +131,15 @@ func (g *GUI) Start() {
 		case "saveSettings":
 			g.saveSettings(msg.Payload)
 		case "updateLocalLibrary":
-			localDB, _ := g.buildLocalDB()
+			localDB, err := g.buildLocalDB()
+			if err != nil {
+				logger.Error(err)
+				g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
+				return ""
+			}
 			response := []LibraryTemplateData{}
 			for k, v := range localDB.TitlesMap {
 				if v.BaseExist {
-					if len(v.Updates) > 0 {
-						//version :=
-					}
 					response = append(response,
 						LibraryTemplateData{
 							Icon:    g.state.switchDB.TitlesMap[k].Attributes.IconUrl,
@@ -136,7 +153,12 @@ func (g *GUI) Start() {
 			g.state.window.SendMessage(Message{Name: "libraryLoaded", Payload: string(msg)}, func(m *astilectron.EventMessage) {})
 		case "updateDB":
 			if g.state.switchDB == nil {
-				switchDb, _ := g.buildSwitchDb()
+				switchDb, err := g.buildSwitchDb()
+				if err != nil {
+					logger.Error(err)
+					g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
+					return ""
+				}
 				g.state.switchDB = switchDb
 			}
 		case "missingUpdates":
@@ -148,7 +170,7 @@ func (g *GUI) Start() {
 		return retValue
 	})
 
-	//w.OpenDevTools()
+	w.OpenDevTools()
 
 	// Blocking pattern
 	a.Wait()
@@ -237,7 +259,10 @@ func (g *GUI) organizeLibrary() {
 
 func (g *GUI) UpdateProgress(curr int, total int, message string) {
 	progressMessage := ProgressUpdate{curr, total, message}
-	msg, _ := json.Marshal(progressMessage)
+	msg, err := json.Marshal(progressMessage)
+	if err != nil {
+		g.state.logger.Error(err)
+	}
 
 	g.state.window.SendMessage(Message{Name: "updateProgress", Payload: string(msg)}, func(m *astilectron.EventMessage) {})
 }
