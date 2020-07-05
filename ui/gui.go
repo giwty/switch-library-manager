@@ -170,7 +170,7 @@ func (g *GUI) Start() {
 		return retValue
 	})
 
-	w.OpenDevTools()
+	//w.OpenDevTools()
 
 	// Blocking pattern
 	a.Wait()
@@ -215,14 +215,14 @@ func (g *GUI) saveSettings(settingsJson string) {
 func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	settingsObj := settings.ReadSettings()
 	//1. load the titles JSON object
-	g.UpdateProgress(1, 4, "Downloading latest titles.json")
+	g.UpdateProgress(1, 4, "Downloading titles.json")
 	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, settings.TITLE_JSON_FILENAME, settingsObj.TitlesEtag)
 	if err != nil {
 		return nil, err
 	}
 	settingsObj.TitlesEtag = titlesEtag
 
-	g.UpdateProgress(2, 4, "Downloading latest versions.json")
+	g.UpdateProgress(2, 4, "Downloading versions.json")
 	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, settings.VERSIONS_JSON_FILENAME, settingsObj.VersionsEtag)
 	if err != nil {
 		return nil, err
@@ -231,7 +231,7 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 
 	settings.SaveSettings(settingsObj)
 
-	g.UpdateProgress(3, 4, "Downloading latest versions.json")
+	g.UpdateProgress(3, 4, "Building titles DB ...")
 	switchTitleDB, err := db.CreateSwitchTitleDB(titleFile, versionsFile)
 	g.UpdateProgress(4, 4, "Done")
 	return switchTitleDB, err

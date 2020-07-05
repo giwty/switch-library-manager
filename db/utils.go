@@ -17,24 +17,47 @@ type ProgressUpdater interface {
 
 func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, string, error) {
 
-	//load file
-	file, err := os.Open(filePath)
+	//create file if not exist
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		_, err = os.Create(filePath)
+		if err != nil {
+			fmt.Printf("Failed to create file %v - %v\n", filePath, err)
+			return nil, "", err
+		}
+	}
+
+	var file *os.File = nil
 
 	//try to check if there is a new version
 	//if so, save the file
-	bytes, newEtag, _err := downloadBytesFromUrl(url, etag)
-	if _err == nil {
+	bytes, newEtag, err := downloadBytesFromUrl(url, etag)
+	if err == nil {
 		//validate json structure
 		var test map[string]interface{}
-		_err = decodeToJsonObject(bytes2.NewReader(bytes), &test)
-		if _err == nil {
-			file, _err = saveFile(bytes, filePath)
+		err = decodeToJsonObject(bytes2.NewReader(bytes), &test)
+		if err == nil {
+			file, err = saveFile(bytes, filePath)
 			etag = newEtag
 		} else {
 			fmt.Printf("\nignoring new update [%v], reason - [mailformed json file]", url)
 		}
 	} else {
 		fmt.Printf("\nfile [%v] was not downloaded, reason - [%v]", url, err)
+	}
+
+	if file == nil {
+		//load file
+		file, err = os.Open(filePath)
+		if err != nil {
+			fmt.Printf("\nignoring new update [%v], reason - [mailformed json file]", url)
+			return nil, "", err
+		}
+
+		fileInfo, err := os.Stat(filePath)
+		if err != nil || fileInfo.Size() == 0 {
+			fmt.Print("\nLocal file is empty, or corrupted")
+			return nil, "", err
+		}
 	}
 
 	return file, etag, err

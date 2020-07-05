@@ -13,9 +13,9 @@ var (
 )
 
 const (
-	SETTINGS_FILENAME      = "settings.json"
-	TITLE_JSON_FILENAME    = "titles.json"
-	VERSIONS_JSON_FILENAME = "versions.json"
+	SETTINGS_FILENAME      = "./settings.json"
+	TITLE_JSON_FILENAME    = "./titles.json"
+	VERSIONS_JSON_FILENAME = "./versions.json"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
 	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
 )
@@ -78,8 +78,8 @@ func ReadSettings() *AppSettings {
 
 func saveDefaultSettings() *AppSettings {
 	settingsInstance = &AppSettings{
-		VersionsEtag:           "",
-		TitlesEtag:             "",
+		TitlesEtag:             "W/\"632e97dc252d61:0\"",
+		VersionsEtag:           "W/\"a29caa7bf52d61:0\"",
 		Folder:                 "",
 		GUI:                    true,
 		CheckForMissingUpdates: true,
