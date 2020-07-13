@@ -98,8 +98,8 @@ func (g *GUI) Start() {
 	htmlFile := filepath.Join(filepath.Dir(basePath), "web/app.html")
 	if w, err = a.NewWindow(htmlFile, &astilectron.WindowOptions{
 		Center: astikit.BoolPtr(true),
-		Height: astikit.IntPtr(700),
-		Width:  astikit.IntPtr(700),
+		Height: astikit.IntPtr(600),
+		Width:  astikit.IntPtr(1200),
 	}); err != nil {
 		logger.Fatal(fmt.Errorf("main: new window failed: %w", err))
 	}
