@@ -24,8 +24,14 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 	for idPrefix, switchFile := range localDB {
 
 		if switchFile.BaseExist == false {
+			fmt.Println("==== missing base " + switchDB[idPrefix].Attributes.Name + " " + switchDB[idPrefix].Attributes.Id)
 			continue
 		}
+
+		if _, ok := switchDB[idPrefix]; !ok {
+			continue
+		}
+
 		switchTitle := IncompleteTitle{Attributes: switchDB[idPrefix].Attributes, Meta: switchFile.File.Metadata}
 		//sort the available local versions
 		localVersions := make([]int, len(switchFile.Updates))
@@ -96,6 +102,10 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchFile, switchDB map[string]*d
 	for idPrefix, switchFile := range localDB {
 
 		if switchFile.BaseExist == false {
+			continue
+		}
+
+		if _, ok := switchDB[idPrefix]; !ok {
 			continue
 		}
 		switchTitle := IncompleteTitle{Attributes: switchDB[idPrefix].Attributes}

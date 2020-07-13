@@ -140,13 +140,23 @@ func (g *GUI) Start() {
 			response := []LibraryTemplateData{}
 			for k, v := range localDB.TitlesMap {
 				if v.BaseExist {
-					response = append(response,
-						LibraryTemplateData{
-							Icon:    g.state.switchDB.TitlesMap[k].Attributes.IconUrl,
-							Name:    g.state.switchDB.TitlesMap[k].Attributes.Name,
-							TitleId: v.File.Metadata.TitleId,
-							Path:    v.File.Info.Name(),
-						})
+					if title, ok := g.state.switchDB.TitlesMap[k]; ok {
+						response = append(response,
+							LibraryTemplateData{
+								Icon:    title.Attributes.IconUrl,
+								Name:    title.Attributes.Name,
+								TitleId: v.File.Metadata.TitleId,
+								Path:    v.File.Info.Name(),
+							})
+					} else {
+						response = append(response,
+							LibraryTemplateData{
+								Name:    db.ParseTitleNameFromFileName(v.File.Info.Name()),
+								TitleId: v.File.Metadata.TitleId,
+								Path:    v.File.Info.Name(),
+							})
+					}
+
 				}
 			}
 			msg, _ := json.Marshal(response)
