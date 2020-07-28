@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	fileEntryTableSize = 0x18
-	pfs0Magic          = "PFS0"
+	PfsfileEntryTableSize = 0x18
+	HfsfileEntryTableSize = 0x40
+	pfs0Magic             = "PFS0"
+	hfs0Magic             = "HFS0"
 )
 
 type fileEntry struct {
@@ -54,8 +56,13 @@ func readPfs0(reader io.ReaderAt) (*PFS0, error) {
 	if n != 0xC {
 		return nil, errors.New("failed to read file")
 	}
-	if string(header[:0x4]) != pfs0Magic {
-		return nil, errors.New("Invalid NSP headerBytes. Expected 'PFS0', got '" + string(header[:0x4]) + "'")
+	var fileEntryTableSize uint16
+	if string(header[:0x4]) == pfs0Magic {
+		fileEntryTableSize = PfsfileEntryTableSize
+	} else if string(header[:0x4]) == hfs0Magic {
+		fileEntryTableSize = HfsfileEntryTableSize
+	} else {
+		return nil, errors.New("Invalid NSP headerBytes. Expected 'PFS0'/'HFS0', got '" + string(header[:0x4]) + "'")
 	}
 	p := &PFS0{}
 

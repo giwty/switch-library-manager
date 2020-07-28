@@ -7,10 +7,12 @@ import (
 	"github.com/giwty/switch-backup-manager/db"
 	"github.com/giwty/switch-backup-manager/process"
 	"github.com/giwty/switch-backup-manager/settings"
+	"go.uber.org/zap"
 	"io/ioutil"
-	"log"
 	"os"
+	"path"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/asticode/go-astikit"
@@ -37,7 +39,6 @@ type State struct {
 	switchDB *db.SwitchTitlesDB
 	localDB  *db.LocalSwitchFilesDB
 	window   *astilectron.Window
-	logger   *astilog.Logger
 }
 
 type Message struct {
@@ -46,34 +47,43 @@ type Message struct {
 }
 
 type GUI struct {
-	state State
+	state       State
+	baseFolder  string
+	sugarLogger *zap.SugaredLogger
 }
 
-func CreateGUI() *GUI {
-	return &GUI{state: State{}}
+func CreateGUI(baseFolder string, sugarLogger *zap.SugaredLogger) *GUI {
+	return &GUI{state: State{}, baseFolder: baseFolder, sugarLogger: sugarLogger}
 }
 func (g *GUI) Start() {
-	file, err := os.OpenFile("./switch-backup-library.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
+
+	webResourcesPath := path.Join(g.baseFolder, "web")
+	if _, err := os.Stat(webResourcesPath); err != nil {
+		g.sugarLogger.Error("Missing web folder, please re-download latest release, and extract all files. aborting")
+		return
 	}
 
+	logFilePath := path.Join(g.baseFolder, "slm-gui.log")
+	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		g.sugarLogger.Error("Failed to create log file", err)
+	}
 	defer file.Close()
 
 	//l := log.New(file, log.Prefix(), log.Flags())
 	logger := astilog.New(astilog.Configuration{
-		Filename: "./switch-backup-library.log",
-		AppName:  "switch-backup-manager",
+		Filename: logFilePath,
 		Level:    astilog.LevelWarn,
 	})
 
 	// Create astilectron
 	a, err := astilectron.New(logger, astilectron.Options{
 		AppName:           "Switch Library Manager",
-		BaseDirectoryPath: "web",
+		BaseDirectoryPath: webResourcesPath,
 	})
 	if err != nil {
-		logger.Fatal(fmt.Errorf("main: creating astilectron failed: %w", err))
+		g.sugarLogger.Error("Failed to create astilectron (Electorn)\n", err)
+		return
 	}
 	defer a.Close()
 
@@ -81,51 +91,59 @@ func (g *GUI) Start() {
 	a.HandleSignals()
 
 	// Start
+	zap.S().Infof("Downloading/Validating electron files (web/vendor)")
 	if err = a.Start(); err != nil {
-		logger.Fatal(fmt.Errorf("main: starting astilectron failed: %w", err))
+		g.sugarLogger.Error("Failed to start astilectron (Electorn), please try to delete the web/vendor folder and try again\n", err)
+		return
 	}
 
 	// New window
 	var w *astilectron.Window
-	basePath := ""
-	if _, err := os.Stat("./web/app.html"); err != nil {
-		basePath, err = os.Executable()
-		if err != nil {
-			logger.Fatal(fmt.Errorf("main: starting astilectron failed: %w", err))
-		}
-	}
 
-	htmlFile := filepath.Join(filepath.Dir(basePath), "web/app.html")
+	htmlFile := filepath.Join(webResourcesPath, "app.html")
 	if w, err = a.NewWindow(htmlFile, &astilectron.WindowOptions{
 		Center: astikit.BoolPtr(true),
 		Height: astikit.IntPtr(600),
 		Width:  astikit.IntPtr(1200),
 	}); err != nil {
-		logger.Fatal(fmt.Errorf("main: new window failed: %w", err))
+		g.sugarLogger.Fatal(fmt.Errorf("main: new window failed: %w", err))
 	}
 
 	g.state.window = w
-	g.state.logger = logger
 
 	// Create windows
 	if err = w.Create(); err != nil {
-		logger.Fatal(fmt.Errorf("main: creating window failed: %w", err))
+		g.sugarLogger.Error("Failed creating window (Electorn)", err)
+		return
 	}
 
 	uiWorker := sync.Mutex{}
 
+	settings.InitSwitchKeys(g.baseFolder)
+
 	// This will listen to messages sent by Javascript
 	w.OnMessage(func(m *astilectron.EventMessage) interface{} {
+
 		var retValue string
 		uiWorker.Lock()
 		defer uiWorker.Unlock()
 		// Unmarshal
 		msg := Message{}
-		m.Unmarshal(&msg)
+		err = m.Unmarshal(&msg)
+
+		if err != nil {
+			g.sugarLogger.Error("Failed to parse client message", err)
+			return ""
+		}
+
+		g.sugarLogger.Debugf("Received message from client [%v]", msg)
 
 		switch msg.Name {
 		case "organize":
 			g.organizeLibrary()
+		case "isKeysFileAvailable":
+			keys, _ := settings.SwitchKeys()
+			retValue = strconv.FormatBool(keys != nil && keys.GetKey("header_key") != "")
 		case "loadSettings":
 			retValue = g.loadSettings()
 		case "saveSettings":
@@ -133,7 +151,7 @@ func (g *GUI) Start() {
 		case "updateLocalLibrary":
 			localDB, err := g.buildLocalDB()
 			if err != nil {
-				logger.Error(err)
+				g.sugarLogger.Error(err)
 				g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
 				return ""
 			}
@@ -146,7 +164,7 @@ func (g *GUI) Start() {
 								Icon:    title.Attributes.IconUrl,
 								Name:    title.Attributes.Name,
 								TitleId: v.File.Metadata.TitleId,
-								Path:    v.File.Info.Name(),
+								Path:    path.Join(v.File.BaseFolder, v.File.Info.Name()),
 							})
 					} else {
 						response = append(response,
@@ -165,22 +183,32 @@ func (g *GUI) Start() {
 			if g.state.switchDB == nil {
 				switchDb, err := g.buildSwitchDb()
 				if err != nil {
-					logger.Error(err)
+					g.sugarLogger.Error(err)
 					g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
 					return ""
 				}
 				g.state.switchDB = switchDb
 			}
 		case "missingUpdates":
-			return g.getMissingUpdates()
+			retValue = g.getMissingUpdates()
 		case "missingDlc":
-			return g.getMissingDLC()
+			retValue = g.getMissingDLC()
+		case "checkUpdate":
+			newUpdate, err := settings.CheckForUpdates(g.baseFolder)
+			if err != nil {
+				g.sugarLogger.Error(err)
+			}
+			retValue = strconv.FormatBool(newUpdate)
 		}
+
+		g.sugarLogger.Debugf("Server response [%v]", retValue)
 
 		return retValue
 	})
 
-	//w.OpenDevTools()
+	/*if settings.ReadSettings(g.baseFolder).Debug {
+		w.OpenDevTools()
+	}*/
 
 	// Blocking pattern
 	a.Wait()
@@ -223,7 +251,7 @@ func (g *GUI) saveSettings(settingsJson string) {
 }
 
 func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
-	settingsObj := settings.ReadSettings()
+	settingsObj := settings.ReadSettings(g.baseFolder)
 	//1. load the titles JSON object
 	g.UpdateProgress(1, 4, "Downloading titles.json")
 	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, settings.TITLE_JSON_FILENAME, settingsObj.TitlesEtag)
@@ -248,8 +276,8 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 }
 
 func (g *GUI) buildLocalDB() (*db.LocalSwitchFilesDB, error) {
-	folderToScan := settings.ReadSettings().Folder
-	recursiveMode := settings.ReadSettings().ScanRecursively
+	folderToScan := settings.ReadSettings(g.baseFolder).Folder
+	recursiveMode := settings.ReadSettings(g.baseFolder).ScanRecursively
 
 	files, err := ioutil.ReadDir(folderToScan)
 	if err != nil {
@@ -262,16 +290,18 @@ func (g *GUI) buildLocalDB() (*db.LocalSwitchFilesDB, error) {
 }
 
 func (g *GUI) organizeLibrary() {
-	folderToScan := settings.ReadSettings().Folder
+	folderToScan := settings.ReadSettings(g.baseFolder).Folder
 	process.OrganizeByFolders(folderToScan, g.state.localDB, g.state.switchDB, g)
 
 }
 
 func (g *GUI) UpdateProgress(curr int, total int, message string) {
 	progressMessage := ProgressUpdate{curr, total, message}
+	g.sugarLogger.Debugf("process %v (%v/%v)", message, curr, total)
 	msg, err := json.Marshal(progressMessage)
 	if err != nil {
-		g.state.logger.Error(err)
+		g.sugarLogger.Error(err)
+		return
 	}
 
 	g.state.window.SendMessage(Message{Name: "updateProgress", Payload: string(msg)}, func(m *astilectron.EventMessage) {})

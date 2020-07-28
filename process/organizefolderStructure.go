@@ -1,9 +1,9 @@
 package process
 
 import (
-	"fmt"
 	"github.com/giwty/switch-backup-manager/db"
 	"github.com/giwty/switch-backup-manager/settings"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
 	"path"
@@ -37,10 +37,10 @@ func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB) {
 					continue
 				}
 				fileToRemove := filepath.Join(v.Updates[localVersions[i]].BaseFolder, v.Updates[localVersions[i]].Info.Name())
-				fmt.Printf("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, localVersions[len(localVersions)-1])
+				zap.S().Infof("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, localVersions[len(localVersions)-1])
 				err := os.Remove(fileToRemove)
 				if err != nil {
-					fmt.Printf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
+					zap.S().Errorf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
 				}
 			}
 			v.Updates = map[int]db.ExtendedFileInfo{localVersions[len(localVersions)-1]: v.Updates[localVersions[len(localVersions)-1]]}
@@ -51,7 +51,7 @@ func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB) {
 
 func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, updateProgress db.ProgressUpdater) {
 
-	options := settings.ReadSettings().OrganizeOptions
+	options := settings.ReadSettings(baseFolder).OrganizeOptions
 	i := 0
 	for k, v := range localDB.TitlesMap {
 		i++
@@ -80,7 +80,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 			if _, err := os.Stat(destinationPath); os.IsNotExist(err) {
 				err = os.Mkdir(destinationPath, os.ModePerm)
 				if err != nil {
-					fmt.Printf("Failed to create folder %v - %v\n", folderToCreate, err)
+					zap.S().Errorf("Failed to create folder %v - %v\n", folderToCreate, err)
 					continue
 				}
 			}
@@ -91,7 +91,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 		to := filepath.Join(destinationPath, getFileName(options, v.File.Info.Name(), templateData))
 		err := moveFile(from, to)
 		if err != nil {
-			fmt.Printf("Failed to move file [%v]\n", err)
+			zap.S().Errorf("Failed to move file [%v]\n", err)
 			continue
 		}
 
@@ -110,7 +110,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 			}
 			err := moveFile(from, to)
 			if err != nil {
-				fmt.Printf("Failed to move file [%v]\n", err)
+				zap.S().Errorf("Failed to move file [%v]\n", err)
 				continue
 			}
 		}
@@ -131,7 +131,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 			}
 			err = moveFile(from, to)
 			if err != nil {
-				fmt.Printf("Failed to move file [%v]\n", err)
+				zap.S().Errorf("Failed to move file [%v]\n", err)
 				continue
 			}
 		}
@@ -140,7 +140,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 	if options.DeleteEmptyFolders {
 		err := deleteEmptyFolders(baseFolder)
 		if err != nil {
-			fmt.Printf("Failed to delete empty folders [%v]\n", err)
+			zap.S().Errorf("Failed to delete empty folders [%v]\n", err)
 		}
 	}
 }
@@ -230,7 +230,7 @@ func deleteEmptyFolder(path string) error {
 		return nil
 	}
 
-	fmt.Printf("\nDeleting empty folder [%v]", path)
+	zap.S().Infof("\nDeleting empty folder [%v]", path)
 	_ = os.Remove(path)
 
 	return nil

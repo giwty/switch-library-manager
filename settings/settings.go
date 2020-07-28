@@ -3,9 +3,12 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mcuadros/go-version"
+	"go.uber.org/zap"
 	"io/ioutil"
-	"log"
+	"net/http"
 	"os"
+	"path"
 )
 
 var (
@@ -13,11 +16,13 @@ var (
 )
 
 const (
-	SETTINGS_FILENAME      = "./settings.json"
-	TITLE_JSON_FILENAME    = "./titles.json"
-	VERSIONS_JSON_FILENAME = "./versions.json"
+	SETTINGS_FILENAME      = "settings.json"
+	TITLE_JSON_FILENAME    = "titles.json"
+	VERSIONS_JSON_FILENAME = "versions.json"
+	SLM_VERSION_FILE       = "slm.json"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
 	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
+	SLM_VERSION_URL        = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
 )
 
 const (
@@ -42,10 +47,12 @@ type AppSettings struct {
 	TitlesEtag             string          `json:"titles_etag"`
 	Folder                 string          `json:"folder"`
 	GUI                    bool            `json:"gui"`
+	Debug                  bool            `json:"debug"`
 	CheckForMissingUpdates bool            `json:"check_for_missing_updates"`
 	CheckForMissingDLC     bool            `json:"check_for_missing_dlc"`
 	OrganizeOptions        OrganizeOptions `json:"organize_options"`
 	ScanRecursively        bool            `json:"scan_recursively"`
+	GuiPagingSize          int             `json:"gui_page_size"`
 }
 
 func ReadSettingsAsJSON() string {
@@ -57,15 +64,15 @@ func ReadSettingsAsJSON() string {
 	return string(bytes)
 }
 
-func ReadSettings() *AppSettings {
+func ReadSettings(baseFolder string) *AppSettings {
 	if settingsInstance != nil {
 		return settingsInstance
 	}
-	settingsInstance = &AppSettings{}
+	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100}
 	if _, err := os.Stat(SETTINGS_FILENAME); err == nil {
-		file, err := os.Open("./" + SETTINGS_FILENAME)
+		file, err := os.Open(path.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {
-			log.Print("Missing or corrupted config file, creating a new one")
+			zap.S().Warnf("Missing or corrupted config file, creating a new one")
 			return saveDefaultSettings()
 		} else {
 			_ = json.NewDecoder(file).Decode(&settingsInstance)
@@ -78,13 +85,15 @@ func ReadSettings() *AppSettings {
 
 func saveDefaultSettings() *AppSettings {
 	settingsInstance = &AppSettings{
-		TitlesEtag:             "W/\"632e97dc252d61:0\"",
-		VersionsEtag:           "W/\"a29caa7bf52d61:0\"",
+		TitlesEtag:             "W/\"7cda5dea264d61:0\"",
+		VersionsEtag:           "W/\"413d981bf65ed61:0\"",
 		Folder:                 "",
 		GUI:                    true,
+		GuiPagingSize:          100,
 		CheckForMissingUpdates: true,
 		CheckForMissingDLC:     true,
 		ScanRecursively:        true,
+		Debug:                  false,
 		OrganizeOptions: OrganizeOptions{
 			RenameFiles:         false,
 			CreateFolderPerGame: false,
@@ -103,4 +112,43 @@ func SaveSettings(settings *AppSettings) *AppSettings {
 	_ = ioutil.WriteFile(SETTINGS_FILENAME, file, 0644)
 	settingsInstance = settings
 	return settings
+}
+
+func CheckForUpdates(workingFolder string) (bool, error) {
+	file, err := os.Open(path.Join(workingFolder, SLM_VERSION_FILE))
+	if err != nil {
+		return false, err
+	}
+	localValues := map[string]string{}
+	err = json.NewDecoder(file).Decode(&localValues)
+	if err != nil {
+		return false, err
+	}
+
+	localVer := localValues["version"]
+
+	res, err := http.Get(SLM_VERSION_URL)
+	if err != nil {
+		return false, err
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+
+	remoteValues := map[string]string{}
+	err = json.Unmarshal(body, &remoteValues)
+	if err != nil {
+		return false, err
+	}
+
+	remoteVer := remoteValues["version"]
+
+	if version.CompareSimple(remoteVer, localVer) > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }

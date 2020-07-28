@@ -2,9 +2,9 @@ package db
 
 import (
 	"errors"
-	"fmt"
 	"github.com/giwty/switch-backup-manager/settings"
 	"github.com/giwty/switch-backup-manager/switchfs"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -75,14 +75,14 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 			folder := filePath
 			innerFiles, err := ioutil.ReadDir(folder)
 			if err != nil {
-				fmt.Printf("\nfailed scanning NSP folder [%v]", err)
+				zap.S().Errorf("failed scanning NSP folder [%v]", err)
 				continue
 			}
 			scanLocalFiles(folder, innerFiles, progress, recurse, titles, skipped)
 		}
 
 		//only handle NSZ and NSP files
-		if !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
+		if !strings.HasSuffix(file.Name(), "xci") && !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
 			skipped[file] = "non supported File"
 			continue
 		}
@@ -105,7 +105,7 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 		if strings.HasSuffix(metadata.TitleId, "800") {
 			metadata.Type = "Update"
 			if update, ok := switchTitle.Updates[metadata.Version]; ok {
-				fmt.Printf("\n-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
+				zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
 			}
 			switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 			continue
@@ -115,15 +115,21 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 		if strings.HasSuffix(metadata.TitleId, "000") {
 			metadata.Type = "Base"
 			if switchTitle.BaseExist {
-				fmt.Printf("\n-->Duplicate base file found [%v] and [%v]", file.Name(), switchTitle.File.Info.Name())
+				zap.S().Warnf("-->Duplicate base file found [%v] and [%v]", file.Name(), switchTitle.File.Info.Name())
 			}
 			switchTitle.File = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 			switchTitle.BaseExist = true
+
+			//handle XCI
+			if metadata.Version != 0 {
+				metadata.Type = "Update"
+				switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
+			}
 			continue
 		}
 
 		if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
-			fmt.Printf("\n-->Duplicate DLC file found [%v] and [%v]", file.Name(), dlc.Info.Name())
+			zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.Name(), dlc.Info.Name())
 			if dlc.Metadata.Version > metadata.Version {
 				continue
 			}
@@ -140,12 +146,19 @@ func GetGameMetadata(file os.FileInfo, filePath string) (*switchfs.ContentMetaAt
 	keys, _ := settings.SwitchKeys()
 	var err error
 
-	//currently only NSP files are supported
-	if keys != nil && keys.GetKey("header_key") != "" && strings.HasSuffix(file.Name(), "nsp") {
-		metadata, err = switchfs.ReadNspMetadata(filePath)
-		if err != nil {
-			fmt.Printf("\n[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)
+	if keys != nil && keys.GetKey("header_key") != "" {
+		if strings.HasSuffix(file.Name(), "nsp") {
+			metadata, err = switchfs.ReadNspMetadata(filePath)
+			if err != nil {
+				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)
+			}
+		} else if strings.HasSuffix(file.Name(), "xci") {
+			metadata, err = switchfs.ReadXciMetadata(filePath)
+			if err != nil {
+				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)
+			}
 		}
+
 	}
 
 	if metadata != nil {

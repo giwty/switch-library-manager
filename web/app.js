@@ -1,10 +1,11 @@
-const {dialog} = require('electron').remote;
+const {dialog,shell} = require('electron').remote;
 
 
 $(function () {
 
     let state = {
-        settings:{}
+        settings:{},
+        keys:false
     };
 
     //handle tabs action
@@ -19,6 +20,24 @@ $(function () {
 
         sendMessage("loadSettings", "", function (message) {
             state.settings = JSON.parse(message);
+        });
+
+        sendMessage("isKeysFileAvailable", "", function (message) {
+            state.keys = message
+        });
+
+        sendMessage("checkUpdate", "", function (message) {
+            if (message === "false"){
+                return
+            }
+            dialog.showMessageBox(null, {
+                type: 'info',
+                buttons: ['Ok'],
+                defaultId: 0,
+                title: 'New update available',
+                message: 'There is a new update available, please download from Github',
+                detail: message.payload
+            });
         });
 
         $(".progress-container").show();
@@ -129,17 +148,17 @@ $(function () {
                     let table = new Tabulator("#updates-table", {
                         layout:"fitDataStretch",
                         pagination: "local",
-                        paginationSize: 100,
+                        paginationSize: state.settings.gui_page_size,
                         data: state.updates,
                         columns: [
                             {formatter:"rownum"},
                             {field: "Attributes.bannerUrl",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
-                            {title: "Title", field: "Attributes.name", headerFilter:"input"},
+                            {title: "Title", field: "Attributes.name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Type", field: "Meta.type", headerFilter:"input"},
                             {title: "Title id", headerSort:false, field: "Attributes.id", hozAlign: "right", sorter: "number"},
                             {title: "Local version", headerSort:false, field: "local_update", hozAlign: "right", sorter: "number"},
                             {title: "Available version", headerSort:false, field: "latest_update", hozAlign: "right"},
-                            {title: "Update date", headerSort:false, field: "latest_update_date", widthGrow: 2}
+                            {title: "Update date", headerSort:true, field: "latest_update_date",sorter:"date", sorterParams:{format:"YY-MM-DD"}}
                         ],
                     });
                 }
@@ -160,12 +179,12 @@ $(function () {
                     let table = new Tabulator("#dlc-table", {
                         layout:"fitDataStretch",
                         pagination: "local",
-                        paginationSize: 100,
+                        paginationSize: state.settings.gui_page_size,
                         data: state.dlc,
                         columns: [
                             {formatter:"rownum"},
                             {field: "Attributes.bannerUrl",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
-                            {title: "Title", field: "Attributes.name", headerFilter:"input"},
+                            {title: "Title", field: "Attributes.name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "# Missing", field: "missing_dlc.length"},
                             {title: "Missing DLC", headerSort:false, field: "missing_dlc",formatter:function(cell, formatterParams, onRendered){
                                     value = ""
@@ -182,20 +201,26 @@ $(function () {
                 if (state.settings.folder && !state.library){
                     return
                 }
-                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library})
+                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library,keys:state.keys})
                 $(target).html(html);
                 if (state.library && state.library.length) {
                     var table = new Tabulator("#library-table", {
                         layout:"fitDataStretch",
                         pagination: "local",
-                        paginationSize: 100,
+                        paginationSize: state.settings.gui_page_size,
                         data: state.library,
                         columns: [
                             {formatter:"rownum"},
                             {field: "icon",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
-                            {title: "Title", field: "name", headerFilter:"input"},
+                            {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Title id", headerSort:false, field: "titleId", hozAlign: "right", sorter: "number"},
-                            {title: "File name", headerSort:false, field: "path", widthGrow: 2}
+                            {title: "File name", headerSort:false, field: "path",formatter:"textarea",cellClick:function(e, cell){
+                                    //e - the click event object
+                                    //cell - cell component
+                                    console.log(cell)
+                                    shell.showItemInFolder(cell.getData().path)
+                                }
+                            }
                         ],
                     });
                 }

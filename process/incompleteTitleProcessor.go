@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/giwty/switch-backup-manager/db"
 	"github.com/giwty/switch-backup-manager/switchfs"
+	"go.uber.org/zap"
 	"sort"
 	"strconv"
 )
@@ -24,7 +25,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 	for idPrefix, switchFile := range localDB {
 
 		if switchFile.BaseExist == false {
-			fmt.Println("==== missing base " + switchDB[idPrefix].Attributes.Name + " " + switchDB[idPrefix].Attributes.Id)
+			zap.S().Infof("!Missing base " + switchDB[idPrefix].Attributes.Name + " " + switchDB[idPrefix].Attributes.Id)
 			continue
 		}
 
@@ -81,11 +82,13 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 					continue
 				}
 				if localDlc.Metadata.Version < int(latestDlcVersion) {
+					updateDate := strconv.Itoa(availableDlc.ReleaseDate)
+					updateDate = updateDate[0:4] + "-" + updateDate[4:6] + "-" + updateDate[6:]
 					result[availableDlc.Id] = IncompleteTitle{
 						Attributes:       availableDlc,
 						LatestUpdate:     int(latestDlcVersion),
 						LocalUpdate:      localDlc.Metadata.Version,
-						LatestUpdateDate: strconv.Itoa(availableDlc.ReleaseDate),
+						LatestUpdateDate: updateDate,
 						Meta:             localDlc.Metadata}
 				}
 			}
