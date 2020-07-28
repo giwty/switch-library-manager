@@ -10,11 +10,11 @@ Easily manage your switch game backups
 #### Features:
 - Cross platform, works on Windows / Mac / Linux
 - GUI and command line interfaces 
-- Scan your local switch backup library (NSP/NSZ)
+- Scan your local switch backup library (NSP/NSZ/XCI)
+- Read titleId/version by decrypting NSP/XCI/NSZ (requires prod.keys)
+- If no prod.keys present, fallback to read titleId/version by parsing file name  (example: `Super Mario Odyssey [0100000000010000][v0].nsp`).
 - Lists missing update files (for games and DLC)
 - Lists missing DLCs
-- Read titleId/version by decrypting NSPs (requires prod.keys)
-- Read titleId/version by parsing file name  (example: `Super Mario Odyssey [0100000000010000][v0].nsp`).
 - Automatically organize games per folder
 - Rename files based on metadata read from NSP
 - Delete old update files (in case you have multiple update files for the same game, only the latest will remain)
@@ -37,6 +37,8 @@ You can customize the folder/file re-naming, as well as turn on/off features.
  "versions_etag": "",
  "titles_etag": "",
  "folder": "",
+ "gui": true,
+ "debug": false,
  "check_for_missing_updates": true,
  "check_for_missing_dlc": true,
  "organize_options": {
@@ -48,6 +50,7 @@ You can customize the folder/file re-naming, as well as turn on/off features.
   "file_name_template": "{TITLE_NAME} [{DLC_NAME}][{TITLE_ID}][v{VERSION}]"
  },
  "scan_recursively": true
+ "gui_page_size": 100
 }
 ```
 
@@ -58,6 +61,10 @@ The following template elements are supported:
 - {VERSION} - version id (only applicable to files)
 - {TYPE} - impacts DLCs/updates, will appear as ["UPD","DLC"]
 - {DLC_NAME} - DLC name (only applicable to DLCs)
+
+## Reporting issues
+Please set debug mode to 'true', and attach the slm.log to allow for quicker resolution.
+
 ## Usage
 ##### Windows
 - Extract the zip file
