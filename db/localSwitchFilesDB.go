@@ -147,7 +147,7 @@ func GetGameMetadata(file os.FileInfo, filePath string) (*switchfs.ContentMetaAt
 	var err error
 
 	if keys != nil && keys.GetKey("header_key") != "" {
-		if strings.HasSuffix(file.Name(), "nsp") {
+		if strings.HasSuffix(file.Name(), "nsp") || strings.HasSuffix(file.Name(), "nsz") {
 			metadata, err = switchfs.ReadNspMetadata(filePath)
 			if err != nil {
 				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)

@@ -9,7 +9,7 @@ import (
 
 func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
 
-	if !strings.HasSuffix(filePath, "nsp") {
+	if !strings.HasSuffix(filePath, "nsp") && !strings.HasSuffix(filePath, "nsz") {
 		return nil, errors.New("only NSP file type is supported")
 	}
 
