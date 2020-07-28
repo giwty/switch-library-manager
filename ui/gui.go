@@ -92,6 +92,7 @@ func (g *GUI) Start() {
 
 	// Start
 	zap.S().Infof("Downloading/Validating electron files (web/vendor)")
+	fmt.Println("Downloading/Validating electron files .. (can take 1-2min)")
 	if err = a.Start(); err != nil {
 		g.sugarLogger.Error("Failed to start astilectron (Electorn), please try to delete the web/vendor folder and try again\n", err)
 		return

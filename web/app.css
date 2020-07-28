@@ -1,6 +1,5 @@
 
 .wrapper {
-    margin: 5px 5px 5px 5px;
     font-family: sans-serif;
     color: #555;
     font-size: 14px;
@@ -26,6 +25,10 @@ h1 + p {
     padding: 0;
     border: 0;
     vertical-align: baseline;
+    position: fixed; /* Set the navbar to fixed position */
+    top: 0; /* Position the navbar at the top of the page */
+    width: 100%; /* Full width */
+    z-index: 99;
 }
 
 .tabs li {
@@ -44,11 +47,15 @@ h1 + p {
     background: #f7f7f7;
 }
 
-.tabs a:hover,
-.tabs a.active {
-    background: #ddd;
+.tabs a{
+    background-color: white !important;
+    text-decoration:none !important;
 }
 
+.tabs a:hover,
+.tabs a.active {
+    background: #2ae475 !important;
+}
 .clearfix:after {
     content: "";
     display: table;
@@ -56,7 +63,8 @@ h1 + p {
 }
 
 .tabgroup {
-    margin-top: 5px;
+    margin-top: 70px;
+    z-index: 0;
 }
 
 h1 {

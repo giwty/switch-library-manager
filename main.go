@@ -7,19 +7,30 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"path"
+	"path/filepath"
 )
 
 func main() {
 
 	exePath, err := os.Executable()
 	if err != nil {
-		fmt.Print("failed to get executable directory, please ensure app has sufficient permissions. aborting")
+		fmt.Println("failed to get executable directory, please ensure app has sufficient permissions. aborting")
 		return
 	}
 
 	workingFolder, err := os.Getwd()
 	if err != nil {
-		fmt.Print("failed to get working directory, please ensure app has sufficient permissions. aborting")
+		fmt.Println("failed to get working directory, please ensure app has sufficient permissions. aborting")
+	}
+
+	webResourcesPath := path.Join(workingFolder, "web")
+	if _, err := os.Stat(webResourcesPath); err != nil {
+		workingFolder = filepath.Dir(exePath)
+		webResourcesPath = path.Join(workingFolder, "web")
+		if _, err := os.Stat(webResourcesPath); err != nil {
+			fmt.Println("Missing web folder, please re-download latest release, and extract all files. aborting", err)
+			return
+		}
 	}
 
 	appSettings := settings.ReadSettings(workingFolder)
@@ -46,7 +57,8 @@ func createLogger(workingFolder string, debug bool) *zap.Logger {
 	if debug {
 		config = zap.NewDevelopmentConfig()
 	} else {
-		config = zap.NewProductionConfig()
+		config = zap.NewDevelopmentConfig()
+		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
 	logPath := path.Join(workingFolder, "slm.log")
 

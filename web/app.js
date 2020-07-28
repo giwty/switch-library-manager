@@ -217,7 +217,6 @@ $(function () {
                             {title: "File name", headerSort:false, field: "path",formatter:"textarea",cellClick:function(e, cell){
                                     //e - the click event object
                                     //cell - cell component
-                                    console.log(cell)
                                     shell.showItemInFolder(cell.getData().path)
                                 }
                             }
