@@ -64,7 +64,7 @@ The following template elements are supported:
 - Double click the Exe file
 - If you want to use command line mode, update the settings.json with `'GUI':false`
     - Open `cmd`
-    - Run `switch-backup-manager.exe`
+    - Run `switch-library-manager.exe`
     - Optionally -f `X:\folder\containing\nsp\files"`
     - Optionally add  `-r` to recursively scan for nested folders
     - Edit the settings.json file for additional options
@@ -75,18 +75,18 @@ The following template elements are supported:
 - Double click the App file
 - If you want to use command line mode, update the settings.json with `'GUI':false`
     - Open your Terminal
-    - `cd` to the folder containing `switch-backup-manager`
-    - `chmod +x switch-backup-manager` to make it executable
-    - Run `./switch-backup-manager'
+    - `cd` to the folder containing `switch-library-manager`
+    - `chmod +x switch-library-manager` to make it executable
+    - Run `./switch-library-manager'
     - Optionally -f `X:\folder\containing\nsp\files"`
     - Optionally add  `-r` to recursively scan for nested folders
     - Edit the settings.json file for additional options
 
 ## Building
 - Install and setup latest Go
-- Get the module and its dependencies: `go get -u github.com/giwty/switch-backup-manager`
+- Get the module and its dependencies: `go get -u github.com/giwty/switch-library-manager`
 - Build it for the OS you need, and make sure to choose `amd64` architecture:
-    - `env GOOS=target-OS GOARCH=amd64 go build github.com/giwty/switch-backup-manager`
+    - `env GOOS=target-OS GOARCH=amd64 go build github.com/giwty/switch-library-manager`
     - `target-OS` can be `windows`, `darwin` (mac OS), `linux`, or any other (check the Go documentation for a complete list).
 
 #### Thanks

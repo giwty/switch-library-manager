@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/briandowns/spinner"
-	"github.com/giwty/switch-backup-manager/db"
-	"github.com/giwty/switch-backup-manager/process"
-	"github.com/giwty/switch-backup-manager/settings"
+	"github.com/giwty/switch-library-manager/db"
+	"github.com/giwty/switch-library-manager/process"
+	"github.com/giwty/switch-library-manager/settings"
 	"github.com/jedib0t/go-pretty/table"
 	"go.uber.org/zap"
 	"io/ioutil"
@@ -64,7 +64,7 @@ func (c *Console) Start() {
 	}
 
 	//3. update the config file with new etag
-	settings.SaveSettings(settingsObj)
+	settings.SaveSettings(settingsObj, c.baseFolder)
 
 	//4. create switch title db
 	titlesDB, err := db.CreateSwitchTitleDB(titleFile, versionsFile)

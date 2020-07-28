@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/asticode/go-astilog"
-	"github.com/giwty/switch-backup-manager/db"
-	"github.com/giwty/switch-backup-manager/process"
-	"github.com/giwty/switch-backup-manager/settings"
+	"github.com/giwty/switch-library-manager/db"
+	"github.com/giwty/switch-library-manager/process"
+	"github.com/giwty/switch-library-manager/settings"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
@@ -63,17 +63,9 @@ func (g *GUI) Start() {
 		return
 	}
 
-	logFilePath := path.Join(g.baseFolder, "slm-gui.log")
-	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		g.sugarLogger.Error("Failed to create log file", err)
-	}
-	defer file.Close()
-
 	//l := log.New(file, log.Prefix(), log.Flags())
 	logger := astilog.New(astilog.Configuration{
-		Filename: logFilePath,
-		Level:    astilog.LevelWarn,
+		Level: astilog.LevelInfo,
 	})
 
 	// Create astilectron
@@ -242,33 +234,35 @@ func (g *GUI) getMissingUpdates() string {
 }
 
 func (g *GUI) loadSettings() string {
-	return settings.ReadSettingsAsJSON()
+	return settings.ReadSettingsAsJSON(g.baseFolder)
 }
 
 func (g *GUI) saveSettings(settingsJson string) {
 	s := settings.AppSettings{}
 	json.Unmarshal([]byte(settingsJson), &s)
-	settings.SaveSettings(&s)
+	settings.SaveSettings(&s, g.baseFolder)
 }
 
 func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	settingsObj := settings.ReadSettings(g.baseFolder)
 	//1. load the titles JSON object
 	g.UpdateProgress(1, 4, "Downloading titles.json")
-	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, settings.TITLE_JSON_FILENAME, settingsObj.TitlesEtag)
+	filename := path.Join(g.baseFolder, settings.TITLE_JSON_FILENAME)
+	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, filename, settingsObj.TitlesEtag)
 	if err != nil {
 		return nil, err
 	}
 	settingsObj.TitlesEtag = titlesEtag
 
 	g.UpdateProgress(2, 4, "Downloading versions.json")
-	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, settings.VERSIONS_JSON_FILENAME, settingsObj.VersionsEtag)
+	filename = path.Join(g.baseFolder, settings.VERSIONS_JSON_FILENAME)
+	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, filename, settingsObj.VersionsEtag)
 	if err != nil {
 		return nil, err
 	}
 	settingsObj.VersionsEtag = versionsEtag
 
-	settings.SaveSettings(settingsObj)
+	settings.SaveSettings(settingsObj, g.baseFolder)
 
 	g.UpdateProgress(3, 4, "Building titles DB ...")
 	switchTitleDB, err := db.CreateSwitchTitleDB(titleFile, versionsFile)

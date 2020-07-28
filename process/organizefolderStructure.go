@@ -1,8 +1,8 @@
 package process
 
 import (
-	"github.com/giwty/switch-backup-manager/db"
-	"github.com/giwty/switch-backup-manager/settings"
+	"github.com/giwty/switch-library-manager/db"
+	"github.com/giwty/switch-library-manager/settings"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"

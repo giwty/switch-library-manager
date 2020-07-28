@@ -55,11 +55,11 @@ type AppSettings struct {
 	GuiPagingSize          int             `json:"gui_page_size"`
 }
 
-func ReadSettingsAsJSON() string {
-	if _, err := os.Stat(SETTINGS_FILENAME); err != nil {
-		saveDefaultSettings()
+func ReadSettingsAsJSON(baseFolder string) string {
+	if _, err := os.Stat(path.Join(baseFolder, SETTINGS_FILENAME)); err != nil {
+		saveDefaultSettings(baseFolder)
 	}
-	file, _ := os.Open("./" + SETTINGS_FILENAME)
+	file, _ := os.Open(path.Join(baseFolder, SETTINGS_FILENAME))
 	bytes, _ := ioutil.ReadAll(file)
 	return string(bytes)
 }
@@ -69,21 +69,21 @@ func ReadSettings(baseFolder string) *AppSettings {
 		return settingsInstance
 	}
 	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100}
-	if _, err := os.Stat(SETTINGS_FILENAME); err == nil {
+	if _, err := os.Stat(path.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
 		file, err := os.Open(path.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {
 			zap.S().Warnf("Missing or corrupted config file, creating a new one")
-			return saveDefaultSettings()
+			return saveDefaultSettings(baseFolder)
 		} else {
 			_ = json.NewDecoder(file).Decode(&settingsInstance)
 			return settingsInstance
 		}
 	} else {
-		return saveDefaultSettings()
+		return saveDefaultSettings(baseFolder)
 	}
 }
 
-func saveDefaultSettings() *AppSettings {
+func saveDefaultSettings(baseFolder string) *AppSettings {
 	settingsInstance = &AppSettings{
 		TitlesEtag:             "W/\"7cda5dea264d61:0\"",
 		VersionsEtag:           "W/\"413d981bf65ed61:0\"",
@@ -104,12 +104,12 @@ func saveDefaultSettings() *AppSettings {
 			DeleteOldUpdateFiles: false,
 		},
 	}
-	return SaveSettings(settingsInstance)
+	return SaveSettings(settingsInstance, baseFolder)
 }
 
-func SaveSettings(settings *AppSettings) *AppSettings {
+func SaveSettings(settings *AppSettings, baseFolder string) *AppSettings {
 	file, _ := json.MarshalIndent(settings, "", " ")
-	_ = ioutil.WriteFile(SETTINGS_FILENAME, file, 0644)
+	_ = ioutil.WriteFile(path.Join(baseFolder, SETTINGS_FILENAME), file, 0644)
 	settingsInstance = settings
 	return settings
 }

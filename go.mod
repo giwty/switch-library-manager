@@ -1,4 +1,4 @@
-module github.com/giwty/switch-backup-manager
+module github.com/giwty/switch-library-manager
 
 go 1.12
 

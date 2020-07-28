@@ -2,8 +2,8 @@ package db
 
 import (
 	"errors"
-	"github.com/giwty/switch-backup-manager/settings"
-	"github.com/giwty/switch-backup-manager/switchfs"
+	"github.com/giwty/switch-library-manager/settings"
+	"github.com/giwty/switch-library-manager/switchfs"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"

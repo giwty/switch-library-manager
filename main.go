@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/giwty/switch-backup-manager/settings"
-	"github.com/giwty/switch-backup-manager/ui"
+	"github.com/giwty/switch-library-manager/settings"
+	"github.com/giwty/switch-library-manager/ui"
 	"go.uber.org/zap"
 	"os"
 	"path"

@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/giwty/switch-backup-manager/switchfs/_crypto"
+	"github.com/giwty/switch-library-manager/switchfs/_crypto"
 	"strconv"
 )
 
