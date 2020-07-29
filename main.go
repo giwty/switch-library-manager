@@ -5,9 +5,10 @@ import (
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/giwty/switch-library-manager/ui"
 	"go.uber.org/zap"
+	"net/url"
 	"os"
-	"path"
 	"path/filepath"
+	"runtime"
 )
 
 func main() {
@@ -23,10 +24,10 @@ func main() {
 		fmt.Println("failed to get working directory, please ensure app has sufficient permissions. aborting")
 	}
 
-	webResourcesPath := path.Join(workingFolder, "web")
+	webResourcesPath := filepath.Join(workingFolder, "web")
 	if _, err := os.Stat(webResourcesPath); err != nil {
 		workingFolder = filepath.Dir(exePath)
-		webResourcesPath = path.Join(workingFolder, "web")
+		webResourcesPath = filepath.Join(workingFolder, "web")
 		if _, err := os.Stat(webResourcesPath); err != nil {
 			fmt.Println("Missing web folder, please re-download latest release, and extract all files. aborting", err)
 			return
@@ -60,14 +61,25 @@ func createLogger(workingFolder string, debug bool) *zap.Logger {
 		config = zap.NewDevelopmentConfig()
 		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
-	logPath := path.Join(workingFolder, "slm.log")
-
+	logPath := filepath.Join(workingFolder, "slm.log")
 	// delete old file
 	os.Remove(logPath)
 
+	if runtime.GOOS == "windows" {
+		zap.RegisterSink("winfile", func(u *url.URL) (zap.Sink, error) {
+			// Remove leading slash left by url.Parse()
+			return os.OpenFile(u.Path[1:], os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+		})
+		logPath = "winfile:///" + logPath
+	}
+
 	config.OutputPaths = []string{logPath}
 	config.ErrorOutputPaths = []string{logPath}
-	logger, _ := config.Build()
+	logger, err := config.Build()
+	if err != nil {
+		fmt.Printf("failed to create logger - %v", err)
+		panic(1)
+	}
 	zap.ReplaceGlobals(logger)
 	return logger
 }

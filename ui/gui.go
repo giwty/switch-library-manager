@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -57,7 +56,7 @@ func CreateGUI(baseFolder string, sugarLogger *zap.SugaredLogger) *GUI {
 }
 func (g *GUI) Start() {
 
-	webResourcesPath := path.Join(g.baseFolder, "web")
+	webResourcesPath := filepath.Join(g.baseFolder, "web")
 	if _, err := os.Stat(webResourcesPath); err != nil {
 		g.sugarLogger.Error("Missing web folder, please re-download latest release, and extract all files. aborting")
 		return
@@ -157,7 +156,7 @@ func (g *GUI) Start() {
 								Icon:    title.Attributes.IconUrl,
 								Name:    title.Attributes.Name,
 								TitleId: v.File.Metadata.TitleId,
-								Path:    path.Join(v.File.BaseFolder, v.File.Info.Name()),
+								Path:    filepath.Join(v.File.BaseFolder, v.File.Info.Name()),
 							})
 					} else {
 						response = append(response,
@@ -247,7 +246,7 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	settingsObj := settings.ReadSettings(g.baseFolder)
 	//1. load the titles JSON object
 	g.UpdateProgress(1, 4, "Downloading titles.json")
-	filename := path.Join(g.baseFolder, settings.TITLE_JSON_FILENAME)
+	filename := filepath.Join(g.baseFolder, settings.TITLE_JSON_FILENAME)
 	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, filename, settingsObj.TitlesEtag)
 	if err != nil {
 		return nil, err
@@ -255,7 +254,7 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	settingsObj.TitlesEtag = titlesEtag
 
 	g.UpdateProgress(2, 4, "Downloading versions.json")
-	filename = path.Join(g.baseFolder, settings.VERSIONS_JSON_FILENAME)
+	filename = filepath.Join(g.baseFolder, settings.VERSIONS_JSON_FILENAME)
 	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, filename, settingsObj.VersionsEtag)
 	if err != nil {
 		return nil, err

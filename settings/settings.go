@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 var (
@@ -56,10 +56,10 @@ type AppSettings struct {
 }
 
 func ReadSettingsAsJSON(baseFolder string) string {
-	if _, err := os.Stat(path.Join(baseFolder, SETTINGS_FILENAME)); err != nil {
+	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err != nil {
 		saveDefaultSettings(baseFolder)
 	}
-	file, _ := os.Open(path.Join(baseFolder, SETTINGS_FILENAME))
+	file, _ := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
 	bytes, _ := ioutil.ReadAll(file)
 	return string(bytes)
 }
@@ -69,8 +69,8 @@ func ReadSettings(baseFolder string) *AppSettings {
 		return settingsInstance
 	}
 	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100}
-	if _, err := os.Stat(path.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
-		file, err := os.Open(path.Join(baseFolder, SETTINGS_FILENAME))
+	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
+		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {
 			zap.S().Warnf("Missing or corrupted config file, creating a new one")
 			return saveDefaultSettings(baseFolder)
@@ -109,13 +109,13 @@ func saveDefaultSettings(baseFolder string) *AppSettings {
 
 func SaveSettings(settings *AppSettings, baseFolder string) *AppSettings {
 	file, _ := json.MarshalIndent(settings, "", " ")
-	_ = ioutil.WriteFile(path.Join(baseFolder, SETTINGS_FILENAME), file, 0644)
+	_ = ioutil.WriteFile(filepath.Join(baseFolder, SETTINGS_FILENAME), file, 0644)
 	settingsInstance = settings
 	return settings
 }
 
 func CheckForUpdates(workingFolder string) (bool, error) {
-	file, err := os.Open(path.Join(workingFolder, SLM_VERSION_FILE))
+	file, err := os.Open(filepath.Join(workingFolder, SLM_VERSION_FILE))
 	if err != nil {
 		return false, err
 	}

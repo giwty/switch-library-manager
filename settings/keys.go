@@ -3,7 +3,7 @@ package settings
 import (
 	"errors"
 	"github.com/magiconair/properties"
-	"path"
+	"path/filepath"
 )
 
 var (
@@ -25,7 +25,7 @@ func SwitchKeys() (*switchKeys, error) {
 func InitSwitchKeys(baseFolder string) (*switchKeys, error) {
 
 	// init from a file
-	p, err := properties.LoadFile(path.Join(baseFolder, "prod.keys"), properties.UTF8)
+	p, err := properties.LoadFile(filepath.Join(baseFolder, "prod.keys"), properties.UTF8)
 	if err != nil {
 		p, err = properties.LoadFile("${HOME}/.switch/prod.keys", properties.UTF8)
 	}
