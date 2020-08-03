@@ -27,14 +27,9 @@ func ReadXciMetadata(filePath string) (*ContentMetaAttributes, error) {
 	}
 
 	rootPartitionOffset := binary.LittleEndian.Uint64(header[0x130:0x138])
-	rootPartitionSize := binary.LittleEndian.Uint64(header[0x138:0x140])
+	//rootPartitionSize := binary.LittleEndian.Uint64(header[0x138:0x140])
 
-	rootPartionBytes := make([]byte, rootPartitionSize)
-	_, err = file.ReadAt(rootPartionBytes, int64(rootPartitionOffset))
-	if err != nil {
-		return nil, err
-	}
-	rootHfs0, err := readPfs0(bytes.NewReader(rootPartionBytes))
+	rootHfs0, err := readPfs0(file, int64(rootPartitionOffset))
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +50,7 @@ func ReadXciMetadata(filePath string) (*ContentMetaAttributes, error) {
 			if err != nil {
 				return nil, err
 			}
-			pfs0, err := readPfs0(bytes.NewReader(section))
+			pfs0, err := readPfs0(bytes.NewReader(section), 0x0)
 			if err != nil {
 				return nil, err
 			}
@@ -100,12 +95,7 @@ func readSecurePartition(file *os.File, hfs0 *PFS0, rootPartitionOffset uint64) 
 		offset := int64(rootPartitionOffset) + int64(hfs0File.StartOffset)
 
 		if hfs0File.Name == "secure" {
-			securePartitionBytes := make([]byte, hfs0File.Size)
-			_, err := file.ReadAt(securePartitionBytes, offset)
-			if err != nil {
-				return nil, 0, err
-			}
-			securePartition, err := readPfs0(bytes.NewReader(securePartitionBytes))
+			securePartition, err := readPfs0(file, offset)
 			if err != nil {
 				return nil, 0, err
 			}

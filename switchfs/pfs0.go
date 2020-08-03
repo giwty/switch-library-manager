@@ -38,7 +38,7 @@ func ReadPfs0File(filePath string) (*PFS0, error) {
 
 	defer file.Close()
 
-	p, err := readPfs0(file)
+	p, err := readPfs0(file, 0x0)
 	if err != nil {
 		return nil, err
 	}
@@ -46,10 +46,10 @@ func ReadPfs0File(filePath string) (*PFS0, error) {
 	return p, nil
 }
 
-func readPfs0(reader io.ReaderAt) (*PFS0, error) {
+func readPfs0(reader io.ReaderAt, offset int64) (*PFS0, error) {
 
 	header := make([]byte, 0xC)
-	n, err := reader.ReadAt(header, 0x0)
+	n, err := reader.ReadAt(header, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func readPfs0(reader io.ReaderAt) (*PFS0, error) {
 	stringsLen := binary.LittleEndian.Uint16(header[0x8:0xC])
 	p.HeaderLen = fileEntryTableOffset + stringsLen
 	fileNamesBuffer := make([]byte, stringsLen)
-	_, err = reader.ReadAt(fileNamesBuffer, int64(fileEntryTableOffset))
+	_, err = reader.ReadAt(fileNamesBuffer, offset+int64(fileEntryTableOffset))
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func readPfs0(reader io.ReaderAt) (*PFS0, error) {
 	// go over the fileEntries
 	for i := uint16(0); i < fileCount; i++ {
 		fileEntryTable := make([]byte, fileEntryTableSize)
-		_, err = reader.ReadAt(fileEntryTable, int64(0x10+(fileEntryTableSize*i)))
+		_, err = reader.ReadAt(fileEntryTable, offset+int64(0x10+(fileEntryTableSize*i)))
 		if err != nil {
 			return nil, err
 		}
