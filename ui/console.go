@@ -97,7 +97,14 @@ func (c *Console) Start() {
 		recursiveMode = *recursive
 	}
 
-	localDB, err := db.CreateLocalSwitchFilesDB(files, folderToScan, nil, recursiveMode)
+	localDbManager, err := db.NewLocalSwitchDBManager(c.baseFolder)
+	if err != nil {
+		fmt.Printf("failed to create local files db :%v\n", err)
+		return
+	}
+	defer localDbManager.Close()
+
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(files, folderToScan, nil, recursiveMode)
 	if err != nil {
 		fmt.Printf("\nfailed to process local folder\n %v", err)
 		return
@@ -113,7 +120,7 @@ func (c *Console) Start() {
 	if settingsObj.OrganizeOptions.DeleteOldUpdateFiles {
 		s.Restart()
 		fmt.Printf("\nDeleting old updates\n")
-		process.DeleteOldUpdates(localDB)
+		process.DeleteOldUpdates(localDB, nil)
 		s.Stop()
 	}
 

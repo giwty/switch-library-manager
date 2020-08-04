@@ -2,6 +2,8 @@ package db
 
 import (
 	"errors"
+	//"github.com/dgraph-io/badger/v2"
+	//	badger "github.com/dgraph-io/badger/v2"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/giwty/switch-library-manager/switchfs"
 	"go.uber.org/zap"
@@ -16,12 +18,28 @@ import (
 var (
 	versionRegex = regexp.MustCompile(`\[[vV]?(?P<version>[0-9]{1,10})]`)
 	titleIdRegex = regexp.MustCompile(`\[(?P<titleId>[A-Z,a-z0-9]{16})]`)
+	total        = 0
+	globalInd    = 0
 )
 
-var (
-	total     = 0
-	globalInd = 0
-)
+type LocalSwitchDBManager struct {
+	//db *badger.DB
+}
+
+func NewLocalSwitchDBManager(baseFolder string) (*LocalSwitchDBManager, error) {
+	// Open the Badger database located in the /tmp/badger directory.
+	// It will be created if it doesn't exist.
+	/*db, err := badger.Open(badger.DefaultOptions(baseFolder))
+	if err != nil {
+		log.Fatal(err)
+	}*/
+
+	return &LocalSwitchDBManager{}, nil
+}
+
+func (ldb *LocalSwitchDBManager) Close() {
+	//ldb.db.Close()
+}
 
 type ExtendedFileInfo struct {
 	Info       os.FileInfo
@@ -36,22 +54,46 @@ type SwitchFile struct {
 	Dlc       map[string]ExtendedFileInfo
 }
 
+func (sf *SwitchFile) String() string {
+	var sb strings.Builder
+	if sf.BaseExist {
+		sb.WriteString("base:")
+		sb.WriteString(sf.File.Info.Name())
+		sb.WriteString("\n")
+	}
+	if sf.Updates != nil && len(sf.Updates) != 0 {
+		sb.WriteString("Updates:")
+		for _, update := range sf.Updates {
+			sb.WriteString(update.Info.Name())
+			sb.WriteString("\n")
+		}
+	}
+	if sf.Dlc != nil && len(sf.Dlc) != 0 {
+		sb.WriteString("Dlc:")
+		for _, dlc := range sf.Dlc {
+			sb.WriteString(dlc.Info.Name())
+			sb.WriteString("\n")
+		}
+	}
+	return sb.String()
+}
+
 type LocalSwitchFilesDB struct {
 	TitlesMap map[string]*SwitchFile
 	Skipped   map[os.FileInfo]string
 }
 
-func CreateLocalSwitchFilesDB(files []os.FileInfo, parentFolder string, progress ProgressUpdater, recursive bool) (*LocalSwitchFilesDB, error) {
+func (ldb *LocalSwitchDBManager) CreateLocalSwitchFilesDB(files []os.FileInfo, parentFolder string, progress ProgressUpdater, recursive bool) (*LocalSwitchFilesDB, error) {
 	titles := map[string]*SwitchFile{}
 	skipped := map[os.FileInfo]string{}
 	globalInd = 0
 	total = 0
-	scanLocalFiles(parentFolder, files, progress, recursive, titles, skipped)
+	ldb.scanLocalFiles(parentFolder, files, progress, recursive, titles, skipped)
 
 	return &LocalSwitchFilesDB{TitlesMap: titles, Skipped: skipped}, nil
 }
 
-func scanLocalFiles(parentFolder string, files []os.FileInfo,
+func (ldb *LocalSwitchDBManager) scanLocalFiles(parentFolder string, files []os.FileInfo,
 	progress ProgressUpdater,
 	recurse bool, titles map[string]*SwitchFile,
 	skipped map[os.FileInfo]string) {
@@ -78,11 +120,15 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 				zap.S().Errorf("failed scanning NSP folder [%v]", err)
 				continue
 			}
-			scanLocalFiles(folder, innerFiles, progress, recurse, titles, skipped)
+			ldb.scanLocalFiles(folder, innerFiles, progress, recurse, titles, skipped)
+			continue
 		}
 
 		//only handle NSZ and NSP files
-		if !strings.HasSuffix(file.Name(), "xci") && !strings.HasSuffix(file.Name(), "nsp") && !strings.HasSuffix(file.Name(), "nsz") {
+		if !strings.HasSuffix(strings.ToLower(file.Name()), "xci") &&
+			!strings.HasSuffix(strings.ToLower(file.Name()), "nsp") &&
+			!strings.HasSuffix(strings.ToLower(file.Name()), "nsz") &&
+			!strings.HasSuffix(strings.ToLower(file.Name()), "xcz") {
 			skipped[file] = "non supported File"
 			continue
 		}
@@ -142,20 +188,23 @@ func scanLocalFiles(parentFolder string, files []os.FileInfo,
 }
 
 func GetGameMetadata(file os.FileInfo, filePath string) (*switchfs.ContentMetaAttributes, error) {
+
 	var metadata *switchfs.ContentMetaAttributes = nil
 	keys, _ := settings.SwitchKeys()
 	var err error
 
 	if keys != nil && keys.GetKey("header_key") != "" {
-		if strings.HasSuffix(file.Name(), "nsp") || strings.HasSuffix(file.Name(), "nsz") {
+		if strings.HasSuffix(strings.ToLower(file.Name()), "nsp") ||
+			strings.HasSuffix(strings.ToLower(file.Name()), "nsz") {
 			metadata, err = switchfs.ReadNspMetadata(filePath)
 			if err != nil {
 				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)
 			}
-		} else if strings.HasSuffix(file.Name(), "xci") {
+		} else if strings.HasSuffix(strings.ToLower(file.Name()), "xci") ||
+			strings.HasSuffix(strings.ToLower(file.Name()), "xcz") {
 			metadata, err = switchfs.ReadXciMetadata(filePath)
 			if err != nil {
-				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Name(), err)
+				zap.S().Errorf("[file:%v] failed to read file [reason: %v]\n", file.Name(), err)
 			}
 		}
 

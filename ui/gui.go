@@ -113,6 +113,13 @@ func (g *GUI) Start() {
 
 	settings.InitSwitchKeys(g.baseFolder)
 
+	localDbManager, err := db.NewLocalSwitchDBManager(g.baseFolder)
+	if err != nil {
+		g.sugarLogger.Error("Failed to create local files db\n", err)
+		return
+	}
+	defer localDbManager.Close()
+
 	// This will listen to messages sent by Javascript
 	w.OnMessage(func(m *astilectron.EventMessage) interface{} {
 
@@ -141,7 +148,7 @@ func (g *GUI) Start() {
 		case "saveSettings":
 			g.saveSettings(msg.Payload)
 		case "updateLocalLibrary":
-			localDB, err := g.buildLocalDB()
+			localDB, err := g.buildLocalDB(localDbManager)
 			if err != nil {
 				g.sugarLogger.Error(err)
 				g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
@@ -269,7 +276,7 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	return switchTitleDB, err
 }
 
-func (g *GUI) buildLocalDB() (*db.LocalSwitchFilesDB, error) {
+func (g *GUI) buildLocalDB(localDbManager *db.LocalSwitchDBManager) (*db.LocalSwitchFilesDB, error) {
 	folderToScan := settings.ReadSettings(g.baseFolder).Folder
 	recursiveMode := settings.ReadSettings(g.baseFolder).ScanRecursively
 
@@ -278,7 +285,7 @@ func (g *GUI) buildLocalDB() (*db.LocalSwitchFilesDB, error) {
 		return nil, err
 	}
 
-	localDB, err := db.CreateLocalSwitchFilesDB(files, folderToScan, g, recursiveMode)
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(files, folderToScan, g, recursiveMode)
 	g.state.localDB = localDB
 	return localDB, err
 }
