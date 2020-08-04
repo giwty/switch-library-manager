@@ -25,7 +25,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 	for idPrefix, switchFile := range localDB {
 
 		if switchFile.BaseExist == false {
-			zap.S().Infof("!Missing base " + switchDB[idPrefix].Attributes.Name + " " + switchDB[idPrefix].Attributes.Id)
+			zap.S().Infof("!Missing base for game %v", switchFile)
 			continue
 		}
 
