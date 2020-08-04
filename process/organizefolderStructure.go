@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"robpike.io/nihongo"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,9 +19,12 @@ var (
 	folderIllegalCharsRegex = regexp.MustCompile(`[/\\?%*:|"<>]`)
 )
 
-func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB) {
+func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
+	i := 0
 	for _, v := range localDB.TitlesMap {
-
+		if updateProgress != nil {
+			updateProgress.UpdateProgress(i, len(localDB.TitlesMap), v.File.Info.Name())
+		}
 		if len(v.Updates) > 1 {
 			//sort the available local versions
 			localVersions := make([]int, len(v.Updates))
@@ -53,13 +57,14 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 
 	options := settings.ReadSettings(baseFolder).OrganizeOptions
 	i := 0
+	tasksSize := len(localDB.TitlesMap) + 2
 	for k, v := range localDB.TitlesMap {
 		i++
 		if v.BaseExist == false {
 			continue
 		}
 		if updateProgress != nil {
-			updateProgress.UpdateProgress(i, len(localDB.TitlesMap), v.File.Info.Name())
+			updateProgress.UpdateProgress(i, tasksSize, v.File.Info.Name())
 		}
 
 		titleName := getTitleName(titlesDB.TitlesMap[k], v)
@@ -138,9 +143,22 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 	}
 
 	if options.DeleteEmptyFolders {
+		if updateProgress != nil {
+			i += 1
+			updateProgress.UpdateProgress(i, tasksSize, "deleting empty folders... (can take 1-2min)")
+		}
 		err := deleteEmptyFolders(baseFolder)
 		if err != nil {
 			zap.S().Errorf("Failed to delete empty folders [%v]\n", err)
+		}
+		if updateProgress != nil {
+			i += 1
+			updateProgress.UpdateProgress(i, tasksSize, "done")
+		}
+	} else {
+		if updateProgress != nil {
+			i += 2
+			updateProgress.UpdateProgress(i, tasksSize, "done")
 		}
 	}
 }
@@ -203,7 +221,7 @@ func applyTemplate(templateData map[string]string, template string) string {
 	if strings.HasSuffix(result, ".") {
 		result = result[:len(result)-1]
 	}
-	return result
+	return nihongo.RomajiString(result)
 }
 
 func deleteEmptyFolders(path string) error {
