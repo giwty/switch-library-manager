@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
+func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error) {
 
 	if !strings.HasSuffix(strings.ToLower(filePath), "nsp") &&
 		!strings.HasSuffix(strings.ToLower(filePath), "nsz") {
@@ -25,6 +25,9 @@ func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
 	}
 
 	defer file.Close()
+
+	contentMap := map[string]*ContentMetaAttributes{}
+
 	for _, pfs0File := range pfs0.Files {
 
 		fileOffset := int64(pfs0File.StartOffset)
@@ -38,11 +41,11 @@ func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
 			if err != nil {
 				return nil, err
 			}
-			cnmt, err := readBinaryCnmt(pfs0, section)
+			currCnmt, err := readBinaryCnmt(pfs0, section)
 			if err != nil {
 				return nil, err
 			}
-			return cnmt, err
+			contentMap[currCnmt.TitleId] = currCnmt
 
 		} else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
 			xmlBytes := make([]byte, pfs0File.Size)
@@ -51,13 +54,13 @@ func ReadNspMetadata(filePath string) (*ContentMetaAttributes, error) {
 				return nil, err
 			}
 
-			cnmt, err := readXmlCnmt(xmlBytes)
+			currCnmt, err := readXmlCnmt(xmlBytes)
 			if err != nil {
 				return nil, err
 			}
-			return cnmt, err
+			contentMap[currCnmt.TitleId] = currCnmt
 		}
 	}
-	return nil, errors.New("could not generate metadata")
+	return contentMap, nil
 
 }

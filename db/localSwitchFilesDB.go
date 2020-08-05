@@ -133,63 +133,61 @@ func (ldb *LocalSwitchDBManager) scanLocalFiles(parentFolder string, files []os.
 			continue
 		}
 
-		metadata, err := GetGameMetadata(file, filePath)
+		contentMap, err := GetGameMetadata(file, filePath)
 
-		if err != nil {
-			skipped[file] = "unable to determine titileId / version"
-			continue
-		}
+		for _, metadata := range contentMap {
 
-		idPrefix := metadata.TitleId[0 : len(metadata.TitleId)-4]
-		switchTitle := &SwitchFile{Updates: map[int]ExtendedFileInfo{}, Dlc: map[string]ExtendedFileInfo{}, BaseExist: false}
-		if t, ok := titles[idPrefix]; ok {
-			switchTitle = t
-		}
-		titles[idPrefix] = switchTitle
-
-		//process Updates
-		if strings.HasSuffix(metadata.TitleId, "800") {
-			metadata.Type = "Update"
-			if update, ok := switchTitle.Updates[metadata.Version]; ok {
-				zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
-			}
-			switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
-			continue
-		}
-
-		//process base
-		if strings.HasSuffix(metadata.TitleId, "000") {
-			metadata.Type = "Base"
-			if switchTitle.BaseExist {
-				zap.S().Warnf("-->Duplicate base file found [%v] and [%v]", file.Name(), switchTitle.File.Info.Name())
-			}
-			switchTitle.File = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
-			switchTitle.BaseExist = true
-
-			//handle XCI
-			if metadata.Version != 0 {
-				metadata.Type = "Update"
-				switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
-			}
-			continue
-		}
-
-		if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
-			zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.Name(), dlc.Info.Name())
-			if dlc.Metadata.Version > metadata.Version {
+			if err != nil {
+				skipped[file] = "unable to determine titileId / version"
 				continue
 			}
+
+			idPrefix := metadata.TitleId[0 : len(metadata.TitleId)-4]
+			switchTitle := &SwitchFile{Updates: map[int]ExtendedFileInfo{}, Dlc: map[string]ExtendedFileInfo{}, BaseExist: false}
+			if t, ok := titles[idPrefix]; ok {
+				switchTitle = t
+			}
+			titles[idPrefix] = switchTitle
+
+			//process Updates
+			if strings.HasSuffix(metadata.TitleId, "800") {
+				metadata.Type = "Update"
+				if update, ok := switchTitle.Updates[metadata.Version]; ok {
+					zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
+				}
+				switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
+				continue
+			}
+
+			//process base
+			if strings.HasSuffix(metadata.TitleId, "000") {
+				metadata.Type = "Base"
+				if switchTitle.BaseExist {
+					zap.S().Warnf("-->Duplicate base file found [%v] and [%v]", file.Name(), switchTitle.File.Info.Name())
+				}
+				switchTitle.File = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
+				switchTitle.BaseExist = true
+
+				continue
+			}
+
+			if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
+				zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.Name(), dlc.Info.Name())
+				if dlc.Metadata.Version > metadata.Version {
+					continue
+				}
+			}
+			//not an update, and not main TitleAttributes, so treat it as a DLC
+			metadata.Type = "DLC"
+			switchTitle.Dlc[metadata.TitleId] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 		}
-		//not an update, and not main TitleAttributes, so treat it as a DLC
-		metadata.Type = "DLC"
-		switchTitle.Dlc[metadata.TitleId] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
 	}
 
 }
 
-func GetGameMetadata(file os.FileInfo, filePath string) (*switchfs.ContentMetaAttributes, error) {
+func GetGameMetadata(file os.FileInfo, filePath string) (map[string]*switchfs.ContentMetaAttributes, error) {
 
-	var metadata *switchfs.ContentMetaAttributes = nil
+	var metadata map[string]*switchfs.ContentMetaAttributes = nil
 	keys, _ := settings.SwitchKeys()
 	var err error
 
@@ -224,7 +222,9 @@ func GetGameMetadata(file os.FileInfo, filePath string) (*switchfs.ContentMetaAt
 		return nil, errors.New("unable to determine titileId / version")
 	}
 
-	return &switchfs.ContentMetaAttributes{TitleId: *titleId, Version: *version}, nil
+	metadata[*titleId] = &switchfs.ContentMetaAttributes{TitleId: *titleId, Version: *version}
+
+	return metadata, nil
 }
 
 func parseVersionFromFileName(fileName string) (*int, error) {
