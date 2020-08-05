@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
 type ProgressUpdater interface {
@@ -74,7 +75,10 @@ func downloadBytesFromUrl(url string, etag string) ([]byte, string, error) {
 		return nil, "", err
 	}
 	req.Header.Set("If-None-Match", etag)
-	resp, err := http.DefaultClient.Do(req)
+	client := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
