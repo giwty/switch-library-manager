@@ -213,7 +213,9 @@ $(function () {
                             {formatter:"rownum"},
                             {field: "icon",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",width:350},
-                            {title: "Title id", headerSort:false, field: "titleId", hozAlign: "right", sorter: "number"},
+                            {title: "Title id", headerSort:false, field: "titleId"},
+                            {title: "Multi content", headerSort:false, field: "multi_content"},
+                            {title: "Latest update", headerSort:false, field: "update"},
                             {title: "File name", headerSort:false, field: "path",formatter:"textarea",cellClick:function(e, cell){
                                     //e - the click event object
                                     //cell - cell component

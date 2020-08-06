@@ -19,13 +19,15 @@ import (
 )
 
 type LibraryTemplateData struct {
-	Id      int    `json:"id"`
-	Name    string `json:"name"`
-	Version int    `json:"version"`
-	Dlc     string `json:"dlc"`
-	TitleId string `json:"titleId"`
-	Path    string `json:"path"`
-	Icon    string `json:"icon"`
+	Id           int    `json:"id"`
+	Name         string `json:"name"`
+	Version      int    `json:"version"`
+	Dlc          string `json:"dlc"`
+	TitleId      string `json:"titleId"`
+	Path         string `json:"path"`
+	Icon         string `json:"icon"`
+	Update       int    `json:"update"`
+	MultiContent bool   `json:"multi_content"`
 }
 
 type ProgressUpdate struct {
@@ -160,10 +162,12 @@ func (g *GUI) Start() {
 					if title, ok := g.state.switchDB.TitlesMap[k]; ok {
 						response = append(response,
 							LibraryTemplateData{
-								Icon:    title.Attributes.IconUrl,
-								Name:    title.Attributes.Name,
-								TitleId: v.File.Metadata.TitleId,
-								Path:    filepath.Join(v.File.BaseFolder, v.File.Info.Name()),
+								Icon:         title.Attributes.IconUrl,
+								Name:         title.Attributes.Name,
+								TitleId:      v.File.Metadata.TitleId,
+								Update:       v.LatestUpdate,
+								MultiContent: v.MultiContent,
+								Path:         filepath.Join(v.File.BaseFolder, v.File.Info.Name()),
 							})
 					} else {
 						response = append(response,
