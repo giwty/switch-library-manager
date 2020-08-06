@@ -85,8 +85,8 @@ func ReadSettings(baseFolder string) *AppSettings {
 
 func saveDefaultSettings(baseFolder string) *AppSettings {
 	settingsInstance = &AppSettings{
-		TitlesEtag:             "W/\"91bd18a45869d61:0\"",
-		VersionsEtag:           "W/\"413d981bf65ed61:0\"",
+		TitlesEtag:             "W/\"695350c8106bd61:0\"",
+		VersionsEtag:           "W/\"f28b82cc956ad61:0\"",
 		Folder:                 "",
 		GUI:                    true,
 		GuiPagingSize:          100,
