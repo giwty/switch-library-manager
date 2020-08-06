@@ -10,6 +10,8 @@ github.com/asticode/go-astilectron v0.16.0 h1:zBZEoqiFo9pT9xwGZq7GtT2t0gJuDjHoo/
 github.com/asticode/go-astilectron v0.16.0/go.mod h1:bF7zkk11IwP8lBPhEl3cCtkKIwsRRR6264OFM1v3Yso=
 github.com/asticode/go-astilog v1.7.0 h1:4wr84gUcy/72E0TscT+NakSCh4+OcBI6XicGdGS8Qxs=
 github.com/asticode/go-astilog v1.7.0/go.mod h1:J1v/h9covqLlta1Nq5Fd+Gl4GICXyx3yXihux0iJmPo=
+github.com/boltdb/bolt v1.3.1 h1:JQmyP4ZBrce+ZQu0dY660FMfatumYDLun9hBCUVIkF4=
+github.com/boltdb/bolt v1.3.1/go.mod h1:clJnj/oiGkjum5o1McbSZDSLxVThjynRyGBgiAx27Ps=
 github.com/briandowns/spinner v1.6.1 h1:LBxHu5WLyVuVEtTD72xegiC7QJGx598LBpo3ywKTapA=
 github.com/briandowns/spinner v1.6.1/go.mod h1://Zf9tMcxfRUA36V23M6YGEAv+kECGfvpnLTnb8n4XQ=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
