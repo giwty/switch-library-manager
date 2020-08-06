@@ -1,18 +1,22 @@
 package db
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
-	//"github.com/dgraph-io/badger/v2"
-	//	badger "github.com/dgraph-io/badger/v2"
+	"fmt"
+	"github.com/boltdb/bolt"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/giwty/switch-library-manager/switchfs"
 	"go.uber.org/zap"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	. "time"
 )
 
 var (
@@ -23,22 +27,23 @@ var (
 )
 
 type LocalSwitchDBManager struct {
-	//db *badger.DB
+	db *bolt.DB
 }
 
 func NewLocalSwitchDBManager(baseFolder string) (*LocalSwitchDBManager, error) {
-	// Open the Badger database located in the /tmp/badger directory.
+	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
-	/*db, err := badger.Open(badger.DefaultOptions(baseFolder))
+	db, err := bolt.Open(filepath.Join(baseFolder, "slm.db"), 0600, &bolt.Options{Timeout: 1 * Second})
 	if err != nil {
 		log.Fatal(err)
-	}*/
+		return nil, err
+	}
 
-	return &LocalSwitchDBManager{}, nil
+	return &LocalSwitchDBManager{db: db}, nil
 }
 
 func (ldb *LocalSwitchDBManager) Close() {
-	//ldb.db.Close()
+	ldb.db.Close()
 }
 
 type ExtendedFileInfo struct {
@@ -48,10 +53,12 @@ type ExtendedFileInfo struct {
 }
 
 type SwitchFile struct {
-	File      ExtendedFileInfo
-	BaseExist bool
-	Updates   map[int]ExtendedFileInfo
-	Dlc       map[string]ExtendedFileInfo
+	File         ExtendedFileInfo
+	BaseExist    bool
+	Updates      map[int]ExtendedFileInfo
+	Dlc          map[string]ExtendedFileInfo
+	MultiContent bool
+	LatestUpdate int
 }
 
 func (sf *SwitchFile) String() string {
@@ -133,17 +140,25 @@ func (ldb *LocalSwitchDBManager) scanLocalFiles(parentFolder string, files []os.
 			continue
 		}
 
-		contentMap, err := GetGameMetadata(file, filePath)
+		contentMap, err := ldb.getGameMetadata(file, filePath)
 
 		for _, metadata := range contentMap {
 
 			if err != nil {
-				skipped[file] = "unable to determine titileId / version"
+				skipped[file] = "unable to determine title-Id / version"
 				continue
 			}
 
 			idPrefix := metadata.TitleId[0 : len(metadata.TitleId)-4]
-			switchTitle := &SwitchFile{Updates: map[int]ExtendedFileInfo{}, Dlc: map[string]ExtendedFileInfo{}, BaseExist: false}
+
+			multiContent := len(contentMap) > 1
+			switchTitle := &SwitchFile{
+				MultiContent: multiContent,
+				Updates:      map[int]ExtendedFileInfo{},
+				Dlc:          map[string]ExtendedFileInfo{},
+				BaseExist:    false,
+				LatestUpdate: 0,
+			}
 			if t, ok := titles[idPrefix]; ok {
 				switchTitle = t
 			}
@@ -156,6 +171,9 @@ func (ldb *LocalSwitchDBManager) scanLocalFiles(parentFolder string, files []os.
 					zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.Info.Name(), file.Name())
 				}
 				switchTitle.Updates[metadata.Version] = ExtendedFileInfo{Info: file, BaseFolder: parentFolder, Metadata: metadata}
+				if metadata.Version > switchTitle.LatestUpdate {
+					switchTitle.LatestUpdate = metadata.Version
+				}
 				continue
 			}
 
@@ -185,13 +203,41 @@ func (ldb *LocalSwitchDBManager) scanLocalFiles(parentFolder string, files []os.
 
 }
 
-func GetGameMetadata(file os.FileInfo, filePath string) (map[string]*switchfs.ContentMetaAttributes, error) {
+func (ldb *LocalSwitchDBManager) getGameMetadata(file os.FileInfo, filePath string) (map[string]*switchfs.ContentMetaAttributes, error) {
 
 	var metadata map[string]*switchfs.ContentMetaAttributes = nil
 	keys, _ := settings.SwitchKeys()
 	var err error
-
+	fileKey := filePath + "|" + file.Name() + "|" + strconv.Itoa(int(file.Size()))
 	if keys != nil && keys.GetKey("header_key") != "" {
+
+		err = ldb.db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("deep-scan"))
+			if b == nil {
+				return nil
+			}
+			v := b.Get([]byte(fileKey))
+			if v == nil {
+				return nil
+			}
+			d := gob.NewDecoder(bytes.NewReader(v))
+
+			// Decoding the serialized data
+			err = d.Decode(&metadata)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
+			zap.S().Warnf("%v", err)
+		}
+
+		if metadata != nil {
+			return metadata, nil
+		}
+
 		if strings.HasSuffix(strings.ToLower(file.Name()), "nsp") ||
 			strings.HasSuffix(strings.ToLower(file.Name()), "nsz") {
 			metadata, err = switchfs.ReadNspMetadata(filePath)
@@ -205,10 +251,29 @@ func GetGameMetadata(file os.FileInfo, filePath string) (map[string]*switchfs.Co
 				zap.S().Errorf("[file:%v] failed to read file [reason: %v]\n", file.Name(), err)
 			}
 		}
-
 	}
 
 	if metadata != nil {
+		err = ldb.db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("deep-scan"))
+			if b == nil {
+				b, err = tx.CreateBucket([]byte("deep-scan"))
+				if b == nil || err != nil {
+					return fmt.Errorf("create bucket: %s", err)
+				}
+			}
+			var bytesBuff bytes.Buffer
+			encoder := gob.NewEncoder(&bytesBuff)
+			err = encoder.Encode(metadata)
+			if err != nil {
+				return err
+			}
+			err := b.Put([]byte(fileKey), bytesBuff.Bytes())
+			return err
+		})
+		if err != nil {
+			zap.S().Warnf("%v", err)
+		}
 		return metadata, nil
 	}
 
@@ -221,7 +286,7 @@ func GetGameMetadata(file os.FileInfo, filePath string) (map[string]*switchfs.Co
 	if titleId == nil || version == nil {
 		return nil, errors.New("unable to determine titileId / version")
 	}
-
+	metadata = map[string]*switchfs.ContentMetaAttributes{}
 	metadata[*titleId] = &switchfs.ContentMetaAttributes{TitleId: *titleId, Version: *version}
 
 	return metadata, nil
