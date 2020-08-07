@@ -24,13 +24,16 @@ func main() {
 		fmt.Println("failed to get working directory, please ensure app has sufficient permissions. aborting")
 	}
 
+	overrideConsoleOnly := false
+
 	webResourcesPath := filepath.Join(workingFolder, "web")
 	if _, err := os.Stat(webResourcesPath); err != nil {
 		workingFolder = filepath.Dir(exePath)
 		webResourcesPath = filepath.Join(workingFolder, "web")
 		if _, err := os.Stat(webResourcesPath); err != nil {
-			fmt.Println("Missing web folder, please re-download latest release, and extract all files. aborting", err)
-			return
+			fmt.Println("Missing web folder, will launch in console only mode", err)
+			workingFolder, _ = os.Getwd()
+			overrideConsoleOnly = true
 		}
 	}
 
@@ -45,7 +48,7 @@ func main() {
 	sugar.Infof("[Executable: %v]", exePath)
 	sugar.Infof("[Working directory: %v]", workingFolder)
 
-	if appSettings.GUI {
+	if !overrideConsoleOnly && appSettings.GUI {
 		ui.CreateGUI(workingFolder, sugar).Start()
 	} else {
 		ui.CreateConsole(workingFolder, sugar).Start()
