@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -57,7 +58,7 @@ func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, stri
 		fileInfo, err := os.Stat(filePath)
 		if err != nil || fileInfo.Size() == 0 {
 			zap.S().Infof("Local file is empty, or corrupted")
-			return nil, "", err
+			return nil, "", errors.New("unable to download switch titles db")
 		}
 	}
 
@@ -75,8 +76,13 @@ func downloadBytesFromUrl(url string, etag string) ([]byte, string, error) {
 		return nil, "", err
 	}
 	req.Header.Set("If-None-Match", etag)
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: 3 * time.Second,
+		}).DialContext,
+	}
 	client := http.Client{
-		Timeout: 3 * time.Second,
+		Transport: transport,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -103,12 +109,12 @@ func downloadBytesFromUrl(url string, etag string) ([]byte, string, error) {
 
 func saveFile(bytes []byte, fileName string) (*os.File, error) {
 
-	err := ioutil.WriteFile("./"+fileName, bytes, 0644)
+	err := ioutil.WriteFile(fileName, bytes, 0644)
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := os.Open("./" + fileName)
+	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
 	}
