@@ -53,9 +53,18 @@ func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.Progress
 	}
 }
 
-func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, updateProgress db.ProgressUpdater) {
+func OrganizeByFolders(baseFolder string,
+	localDB *db.LocalSwitchFilesDB,
+	titlesDB *db.SwitchTitlesDB,
+	updateProgress db.ProgressUpdater) {
+
+	//validate template rules
 
 	options := settings.ReadSettings(baseFolder).OrganizeOptions
+	if !isOptionsValid(options) {
+		zap.S().Error("the organize options in settings.json are not valid, please check that the template contains file/folder name")
+		return
+	}
 	i := 0
 	tasksSize := len(localDB.TitlesMap) + 2
 	for k, v := range localDB.TitlesMap {
@@ -161,6 +170,34 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 			updateProgress.UpdateProgress(i, tasksSize, "done")
 		}
 	}
+}
+
+func isOptionsValid(options settings.OrganizeOptions) bool {
+	if options.RenameFiles {
+		if options.FileNameTemplate == "" {
+			zap.S().Error("file name template cannot be empty")
+			return false
+		}
+		if !strings.Contains(options.FileNameTemplate, settings.TEMPLATE_TITLE_NAME) &&
+			!strings.Contains(options.FileNameTemplate, settings.TEMPLATE_TITLE_ID) {
+			zap.S().Error("file name template needs to contain one of the following - titleId or title name")
+			return false
+		}
+
+	}
+
+	if options.CreateFolderPerGame {
+		if options.FolderNameTemplate == "" {
+			zap.S().Error("folder name template cannot be empty")
+			return false
+		}
+		if !strings.Contains(options.FolderNameTemplate, settings.TEMPLATE_TITLE_NAME) &&
+			!strings.Contains(options.FolderNameTemplate, settings.TEMPLATE_TITLE_ID) {
+			zap.S().Error("folder name template needs to contain one of the following - titleId or title name")
+			return false
+		}
+	}
+	return true
 }
 
 func getDlcName(switchTitle *db.SwitchTitle, file db.ExtendedFileInfo) string {
