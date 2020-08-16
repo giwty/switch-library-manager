@@ -82,8 +82,14 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 					continue
 				}
 				if localDlc.Metadata.Version < int(latestDlcVersion) {
-					updateDate := strconv.Itoa(availableDlc.ReleaseDate)
-					updateDate = updateDate[0:4] + "-" + updateDate[4:6] + "-" + updateDate[6:]
+					updateDate := "-"
+					if availableDlc.ReleaseDate != 0 {
+						updateDate = strconv.Itoa(availableDlc.ReleaseDate)
+						if len(updateDate) > 7 {
+							updateDate = updateDate[0:4] + "-" + updateDate[4:6] + "-" + updateDate[6:]
+						}
+					}
+
 					result[availableDlc.Id] = IncompleteTitle{
 						Attributes:       availableDlc,
 						LatestUpdate:     int(latestDlcVersion),
