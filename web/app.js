@@ -83,12 +83,12 @@ $(function () {
             }
         });
 
-        let openFolderPicker = function () {
+        let openFolderPicker = function (mode) {
             //show info
             dialog.showOpenDialog({
                 properties: ['openDirectory'],
                 message:"Select games folder"
-            }).then(updateFolder)
+            }).then(partial(updateFolder,mode))
                 .catch(error => console.log(error))
         };
 
@@ -104,7 +104,7 @@ $(function () {
             sendMessage("updateLocalLibrary", "", (r => {}))
         };
 
-        let updateFolder = function (result) {
+        let updateFolder = function (mode,result) {
             if (result.canceled) {
                 console.log("user aborted");
                 return
@@ -112,12 +112,23 @@ $(function () {
             if (!result.filePaths || !result.filePaths.length){
                 return
             }
+
+            if (mode === "add"){
+                state.settings.scan_folders = state.settings.scan_folders || []
+                if (!state.settings.scan_folders.includes(result.filePaths[0])){
+                    state.settings.scan_folders.push(result.filePaths[0]);
+                }else{
+                    return;
+                }
+
+            }else{
+                state.settings.folder = result.filePaths[0];
+            }
+            $('.tabgroup > div').hide();
+            console.log("selected folder:"+result.filePaths[0]);
             state.library = undefined;
             state.updates = undefined;
             state.dlc = undefined;
-            $('.tabgroup > div').hide();
-            console.log("selected folder:"+result.filePaths[0])
-            state.settings.folder = result.filePaths[0]
             sendMessage("saveSettings", JSON.stringify(state.settings), scanLocalFolder);
         };
 
@@ -201,7 +212,7 @@ $(function () {
                 if (state.settings.folder && !state.library){
                     return
                 }
-                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library,keys:state.keys})
+                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library,keys:state.keys,scanFolders:state.settings.scan_folders})
                 $(target).html(html);
                 if (state.library && state.library.length) {
                     var table = new Tabulator("#library-table", {
@@ -229,7 +240,7 @@ $(function () {
         }
 
         $("body").on("click", ".folder-set", e => {
-            openFolderPicker()
+            openFolderPicker(e.target.textContent)
         });
 
         $("body").on("click", ".library-organize-action", e => {
@@ -278,6 +289,14 @@ $(function () {
             $(tabgroup).children('div').hide();
             loadTab(target)
         });
+
+        function partial(func /*, 0..n args */) {
+            var args = Array.prototype.slice.call(arguments, 1);
+            return function() {
+                var allArguments = args.concat(Array.prototype.slice.call(arguments));
+                return func.apply(this, allArguments);
+            };
+        }
     })
 
 });

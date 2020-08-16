@@ -46,6 +46,7 @@ type AppSettings struct {
 	VersionsEtag           string          `json:"versions_etag"`
 	TitlesEtag             string          `json:"titles_etag"`
 	Folder                 string          `json:"folder"`
+	ScanFolders            []string        `json:"scan_folders"`
 	GUI                    bool            `json:"gui"`
 	Debug                  bool            `json:"debug"`
 	CheckForMissingUpdates bool            `json:"check_for_missing_updates"`
@@ -68,7 +69,7 @@ func ReadSettings(baseFolder string) *AppSettings {
 	if settingsInstance != nil {
 		return settingsInstance
 	}
-	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100}
+	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{}}
 	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
 		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {
@@ -88,6 +89,7 @@ func saveDefaultSettings(baseFolder string) *AppSettings {
 		TitlesEtag:             "W/\"a5b02845cf6bd61:0\"",
 		VersionsEtag:           "W/\"2ef50d1cb6bd61:0\"",
 		Folder:                 "",
+		ScanFolders:            []string{},
 		GUI:                    true,
 		GuiPagingSize:          100,
 		CheckForMissingUpdates: true,

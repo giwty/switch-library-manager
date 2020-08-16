@@ -90,19 +90,27 @@ type LocalSwitchFilesDB struct {
 	Skipped   map[os.FileInfo]string
 }
 
-func (ldb *LocalSwitchDBManager) CreateLocalSwitchFilesDB(files []os.FileInfo, parentFolder string, progress ProgressUpdater, recursive bool) (*LocalSwitchFilesDB, error) {
+func (ldb *LocalSwitchDBManager) CreateLocalSwitchFilesDB(folders []string, progress ProgressUpdater, recursive bool) (*LocalSwitchFilesDB, error) {
 	titles := map[string]*SwitchFile{}
 	skipped := map[os.FileInfo]string{}
 	globalInd = 0
-	total = 0
-	ldb.scanLocalFiles(parentFolder, files, progress, recursive, titles, skipped)
+	total = 1
+	for _, folder := range folders {
+		files, err := ioutil.ReadDir(folder)
+		if err != nil {
+			return nil, err
+		}
+		ldb.scanLocalFiles(folder, files, progress, recursive, titles, skipped)
+	}
+	progress.UpdateProgress(total, total, "Complete")
 
 	return &LocalSwitchFilesDB{TitlesMap: titles, Skipped: skipped}, nil
 }
 
 func (ldb *LocalSwitchDBManager) scanLocalFiles(parentFolder string, files []os.FileInfo,
 	progress ProgressUpdater,
-	recurse bool, titles map[string]*SwitchFile,
+	recurse bool,
+	titles map[string]*SwitchFile,
 	skipped map[os.FileInfo]string) {
 	total += len(files)
 	for _, file := range files {

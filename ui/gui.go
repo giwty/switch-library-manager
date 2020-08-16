@@ -8,7 +8,6 @@ import (
 	"github.com/giwty/switch-library-manager/process"
 	"github.com/giwty/switch-library-manager/settings"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -274,9 +273,9 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 
 	settings.SaveSettings(settingsObj, g.baseFolder)
 
-	g.UpdateProgress(3, 4, "Building titles DB ...")
+	g.UpdateProgress(3, 4, "Processing switch titles and updates ...")
 	switchTitleDB, err := db.CreateSwitchTitleDB(titleFile, versionsFile)
-	g.UpdateProgress(4, 4, "Done")
+	g.UpdateProgress(4, 4, "Finishing up...")
 	return switchTitleDB, err
 }
 
@@ -284,12 +283,9 @@ func (g *GUI) buildLocalDB(localDbManager *db.LocalSwitchDBManager) (*db.LocalSw
 	folderToScan := settings.ReadSettings(g.baseFolder).Folder
 	recursiveMode := settings.ReadSettings(g.baseFolder).ScanRecursively
 
-	files, err := ioutil.ReadDir(folderToScan)
-	if err != nil {
-		return nil, err
-	}
-
-	localDB, err := localDbManager.CreateLocalSwitchFilesDB(files, folderToScan, g, recursiveMode)
+	scanFolders := settings.ReadSettings(g.baseFolder).ScanFolders
+	scanFolders = append(scanFolders, folderToScan)
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, g, recursiveMode)
 	g.state.localDB = localDB
 	return localDB, err
 }

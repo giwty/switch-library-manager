@@ -9,7 +9,6 @@ import (
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/jedib0t/go-pretty/table"
 	"go.uber.org/zap"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -81,11 +80,6 @@ func (c *Console) Start() {
 	}
 	s.Restart()
 	fmt.Printf("\n\nScanning folder [%v]", folderToScan)
-	files, err := ioutil.ReadDir(folderToScan)
-	if err != nil {
-		fmt.Printf("\nfailed accessing NSP folder\n %v", err)
-		return
-	}
 
 	keys, _ := settings.InitSwitchKeys(c.baseFolder)
 	if keys == nil || keys.GetKey("header_key") == "" {
@@ -104,7 +98,10 @@ func (c *Console) Start() {
 	}
 	defer localDbManager.Close()
 
-	localDB, err := localDbManager.CreateLocalSwitchFilesDB(files, folderToScan, nil, recursiveMode)
+	scanFolders := settingsObj.ScanFolders
+	scanFolders = append(scanFolders, folderToScan)
+
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, nil, recursiveMode)
 	if err != nil {
 		fmt.Printf("\nfailed to process local folder\n %v", err)
 		return

@@ -52,7 +52,12 @@
     {{if folder}}
         {{if library && library.length}}
             <div class="alert center alert-info" role="alert">
-                Selected folder: ({{:folder}}) <button type="button" class="btn btn-link folder-set">change</button>
+                Selected folder: ({{:folder}}) {{if scanFolders && scanFolders.length}}
+                (and {{:scanFolders.length}} additional folders)
+                {{/if}}
+                <button type="button" class="btn btn-link folder-set">change</button>
+                <button type="button" class="btn btn-link folder-set">add</button>
+
             </div>
             {{if keys === "false"}}
             <div id="missingkeys" class="alert center alert-danger" role="alert" >
