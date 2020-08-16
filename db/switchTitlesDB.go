@@ -31,7 +31,7 @@ type SwitchTitlesDB struct {
 }
 
 func CreateSwitchTitleDB(titlesFile, versionsFile io.Reader) (*SwitchTitlesDB, error) {
-	//parge the titles objects
+	//parse the titles objects
 	var titles = map[string]TitleAttributes{}
 	err := decodeToJsonObject(titlesFile, &titles)
 	if err != nil {
