@@ -19,20 +19,21 @@ func main() {
 		return
 	}
 
-	workingFolder, err := os.Getwd()
+	pwd, err := os.Getwd()
 	if err != nil {
 		fmt.Println("failed to get working directory, please ensure app has sufficient permissions. aborting")
 	}
+
+	workingFolder := filepath.Dir(exePath)
 
 	overrideConsoleOnly := false
 
 	webResourcesPath := filepath.Join(workingFolder, "web")
 	if _, err := os.Stat(webResourcesPath); err != nil {
-		workingFolder = filepath.Dir(exePath)
+		workingFolder = pwd
 		webResourcesPath = filepath.Join(workingFolder, "web")
 		if _, err := os.Stat(webResourcesPath); err != nil {
 			fmt.Println("Missing web folder, will launch in console only mode", err)
-			workingFolder, _ = os.Getwd()
 			overrideConsoleOnly = true
 		}
 	}
