@@ -249,7 +249,12 @@ func applyTemplate(templateData map[string]string, template string) string {
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TITLE_ID+"}", strings.ToUpper(templateData[settings.TEMPLATE_TITLE_ID]), 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", templateData[settings.TEMPLATE_VERSION], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TYPE+"}", templateData[settings.TEMPLATE_TYPE], 1)
-	result = strings.Replace(result, "{"+settings.TEMPLATE_DLC_NAME+"}", templateData[settings.TEMPLATE_DLC_NAME], 1)
+	//remove title name from dlc name
+	dlcName := strings.Replace(templateData[settings.TEMPLATE_DLC_NAME], templateData[settings.TEMPLATE_TITLE_NAME], "", 1)
+	dlcName = strings.TrimSpace(dlcName)
+	dlcName = strings.TrimPrefix(dlcName, "-")
+	dlcName = strings.TrimSpace(dlcName)
+	result = strings.Replace(result, "{"+settings.TEMPLATE_DLC_NAME+"}", dlcName, 1)
 	result = strings.ReplaceAll(result, "[]", "")
 	result = strings.ReplaceAll(result, "()", "")
 	result = strings.ReplaceAll(result, "<>", "")
