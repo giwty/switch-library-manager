@@ -102,7 +102,9 @@ func (ldb *LocalSwitchDBManager) CreateLocalSwitchFilesDB(folders []string, prog
 		}
 		ldb.scanLocalFiles(folder, files, progress, recursive, titles, skipped)
 	}
-	progress.UpdateProgress(total, total, "Complete")
+	if progress != nil {
+		progress.UpdateProgress(total, total, "Complete")
+	}
 
 	return &LocalSwitchFilesDB{TitlesMap: titles, Skipped: skipped}, nil
 }
