@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/giwty/switch-library-manager/settings"
-	"github.com/giwty/switch-library-manager/ui"
 	"go.uber.org/zap"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func main() {
@@ -19,22 +19,13 @@ func main() {
 		return
 	}
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println("failed to get working directory, please ensure app has sufficient permissions. aborting")
-	}
-
 	workingFolder := filepath.Dir(exePath)
 
-	overrideConsoleOnly := false
-
-	webResourcesPath := filepath.Join(workingFolder, "web")
-	if _, err := os.Stat(webResourcesPath); err != nil {
-		workingFolder = pwd
-		webResourcesPath = filepath.Join(workingFolder, "web")
-		if _, err := os.Stat(webResourcesPath); err != nil {
-			fmt.Println("Missing web folder, will launch in console only mode", err)
-			overrideConsoleOnly = true
+	if runtime.GOOS == "darwin" {
+		if strings.Contains(workingFolder, ".app") {
+			appIndex := strings.Index(workingFolder, ".app")
+			sepIndex := strings.LastIndex(workingFolder[:appIndex], string(os.PathSeparator))
+			workingFolder = workingFolder[:sepIndex]
 		}
 	}
 
@@ -49,10 +40,10 @@ func main() {
 	sugar.Infof("[Executable: %v]", exePath)
 	sugar.Infof("[Working directory: %v]", workingFolder)
 
-	if !overrideConsoleOnly && appSettings.GUI {
-		ui.CreateGUI(workingFolder, sugar).Start()
+	if appSettings.GUI {
+		CreateGUI(workingFolder, sugar).Start()
 	} else {
-		ui.CreateConsole(workingFolder, sugar).Start()
+		CreateConsole(workingFolder, sugar).Start()
 	}
 
 }

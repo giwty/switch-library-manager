@@ -18,7 +18,7 @@ type IncompleteTitle struct {
 	MissingDLC       []string `json:"missing_dlc"`
 }
 
-func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
 	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
@@ -104,7 +104,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchFile, switchDB map[strin
 	return result
 }
 
-func ScanForMissingDLC(localDB map[string]*db.SwitchFile, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
 	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
@@ -134,8 +134,8 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchFile, switchDB map[string]*d
 	return result
 }
 
-func ScanForBrokenFiles(localDB map[string]*db.SwitchFile) []db.ExtendedFileInfo {
-	var result []db.ExtendedFileInfo
+func ScanForBrokenFiles(localDB map[string]*db.SwitchGameFiles) []db.SwitchFileInfo {
+	var result []db.SwitchFileInfo
 
 	//iterate over local files, and compare to remote versions
 	for _, switchFile := range localDB {

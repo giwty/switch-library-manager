@@ -50,19 +50,23 @@ $(function () {
         astilectron.onMessage(function (message) {
             // Process message
             // console.log(message)
+            let pcg = 0
             if (message.name === "updateProgress") {
                 let pp = JSON.parse(message.payload);
                 let count = pp.curr;
                 let total = pp.total;
-                let pcg = Math.floor(count / total * 100);
-                $('.progress-bar').attr('aria-valuenow', pcg);
-                $('.progress-bar').attr('style', 'width:' + Number(pcg) + '%');
-                $('.progress-bar').text(pcg + "%");
                 $('.progress-msg').text(pp.message + " ...");
+                if (count !== -1 && total !== -1){
+                    pcg = Math.floor(count / total * 100);
+                    $('.progress-bar').attr('aria-valuenow', pcg);
+                    $('.progress-bar').attr('style', 'width:' + Number(pcg) + '%');
+                    $('.progress-bar').text(pcg + "%");
+                }
                 if (pcg === 100){
                     $(".progress-container").hide();
+                }else{
+                    $(".progress-container").show();
                 }
-                return
             }
             else if (message.name === "libraryLoaded") {
                 state.library = JSON.parse(message.payload);
@@ -245,6 +249,18 @@ $(function () {
 
         $("body").on("click", ".library-organize-action", e => {
             e.preventDefault();
+            if (state.settings.organize_options.create_folder_per_game === false &&
+                state.settings.organize_options.rename_files === false){
+                dialog.showMessageBox(null, {
+                    type: 'info',
+                    buttons: ['Ok'],
+                    defaultId: 0,
+                    title: 'Library organization is turned off',
+                    message: 'Please update settings.json to enable this feature',
+                    detail: "You should set 'rename_files' and/or 'create_folder_per_game' to 'true' "
+                });
+                return
+            }
             const options = {
                 type: 'warning',
                 buttons: ['Yes', 'No'],

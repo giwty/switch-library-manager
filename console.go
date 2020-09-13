@@ -1,24 +1,25 @@
-package ui
+package main
 
 import (
 	"flag"
 	"fmt"
-	"github.com/briandowns/spinner"
 	"github.com/giwty/switch-library-manager/db"
 	"github.com/giwty/switch-library-manager/process"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/jedib0t/go-pretty/table"
+	"github.com/schollz/progressbar/v2"
 	"go.uber.org/zap"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
-	"time"
 )
 
 var (
-	nspFolder = flag.String("f", "", "path to NSP folder")
-	recursive = flag.Bool("r", true, "recursively scan sub folders")
-	mode      = flag.String("m", "", "**deprecated**")
-	s         = spinner.New(spinner.CharSets[26], 100*time.Millisecond)
+	nspFolder   = flag.String("f", "", "path to NSP folder")
+	recursive   = flag.Bool("r", true, "recursively scan sub folders")
+	mode        = flag.String("m", "", "**deprecated**")
+	progressBar *progressbar.ProgressBar
 )
 
 type Console struct {
@@ -41,22 +42,27 @@ func (c *Console) Start() {
 
 	//1. load the titles JSON object
 	fmt.Printf("Downlading latest switch titles json file")
-	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, settings.TITLE_JSON_FILENAME, settingsObj.TitlesEtag)
+	progressBar = progressbar.New(2)
+
+	filename := filepath.Join(c.baseFolder, settings.TITLE_JSON_FILENAME)
+	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, filename, settingsObj.TitlesEtag)
 	if err != nil {
 		fmt.Printf("title json file doesn't exist\n")
 		return
 	}
 	settingsObj.TitlesEtag = titlesEtag
-
+	progressBar.Add(1)
 	//2. load the versions JSON object
-	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, settings.VERSIONS_JSON_FILENAME, settingsObj.VersionsEtag)
+	filename = filepath.Join(c.baseFolder, settings.VERSIONS_JSON_FILENAME)
+	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, filename, settingsObj.VersionsEtag)
 	if err != nil {
 		fmt.Printf("version json file doesn't exist\n")
 		return
 	}
 	settingsObj.VersionsEtag = versionsEtag
-
-	newUpdate, err := settings.CheckForUpdates(c.baseFolder)
+	progressBar.Add(1)
+	progressBar.Finish()
+	newUpdate, err := settings.CheckForUpdates()
 
 	if newUpdate {
 		fmt.Printf("\n=== New version available, download from Github ===\n")
@@ -75,12 +81,11 @@ func (c *Console) Start() {
 	}
 
 	if folderToScan == "" {
-		fmt.Printf("\n\nNo folder to scan was defined.\n")
+		fmt.Printf("\n\nNo folder to scan was defined, please edit settings.json with the folder path\n")
 		return
 	}
-	s.Restart()
 	fmt.Printf("\n\nScanning folder [%v]", folderToScan)
-
+	progressBar = progressbar.New(2000)
 	keys, _ := settings.InitSwitchKeys(c.baseFolder)
 	if keys == nil || keys.GetKey("header_key") == "" {
 		fmt.Printf("\n!!NOTE!!: keys file was not found, deep scan is disabled, library will be based on file tags.\n %v", err)
@@ -101,48 +106,63 @@ func (c *Console) Start() {
 	scanFolders := settingsObj.ScanFolders
 	scanFolders = append(scanFolders, folderToScan)
 
-	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, nil, recursiveMode)
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, c, recursiveMode)
 	if err != nil {
 		fmt.Printf("\nfailed to process local folder\n %v", err)
 		return
 	}
+	progressBar.Finish()
 
-	fmt.Printf("\nFinished scan\n ")
-
-	s.Stop()
 	p := (float32(len(localDB.TitlesMap)) / float32(len(titlesDB.TitlesMap))) * 100
 
 	fmt.Printf("Local library completion status: %.2f%% (have %d titles, out of %d titles)\n", p, len(localDB.TitlesMap), len(titlesDB.TitlesMap))
 
+	processIssues(localDB)
+
 	if settingsObj.OrganizeOptions.DeleteOldUpdateFiles {
-		s.Restart()
+		progressBar = progressbar.New(2000)
 		fmt.Printf("\nDeleting old updates\n")
-		process.DeleteOldUpdates(localDB, nil)
-		s.Stop()
+		process.DeleteOldUpdates(localDB, c)
+		progressBar.Finish()
 	}
 
 	if settingsObj.OrganizeOptions.RenameFiles || settingsObj.OrganizeOptions.CreateFolderPerGame {
-		s.Restart()
+		progressBar = progressbar.New(2000)
 		fmt.Printf("\nStarting library organization\n")
-		process.OrganizeByFolders(folderToScan, localDB, titlesDB, nil)
-		s.Stop()
+		process.OrganizeByFolders(folderToScan, localDB, titlesDB, c)
+		progressBar.Finish()
 	}
 
 	if settingsObj.CheckForMissingUpdates {
-		s.Restart()
 		fmt.Printf("\nChecking for missing updates\n")
 		processMissingUpdates(localDB, titlesDB)
-		s.Stop()
 	}
 
 	if settingsObj.CheckForMissingDLC {
-		s.Restart()
 		fmt.Printf("\nChecking for missing DLC\n")
 		processMissingDLC(localDB, titlesDB)
-		s.Stop()
 	}
 
 	fmt.Printf("Completed")
+}
+
+func processIssues(localDB *db.LocalSwitchFilesDB) {
+	if len(localDB.Skipped) != 0 {
+		fmt.Print("\nSkipped files:\n\n")
+	} else {
+		return
+	}
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.SetStyle(table.StyleColoredBright)
+	t.AppendHeader(table.Row{"#", "Skipped file", "Reason"})
+	i := 0
+	for k, v := range localDB.Skipped {
+		t.AppendRow([]interface{}{i, path.Join(k.BaseFolder, k.Info.Name()), v})
+		i++
+	}
+	t.AppendFooter(table.Row{"", "", "", "", "Total", len(localDB.Skipped)})
+	t.Render()
 }
 
 func processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
@@ -185,4 +205,10 @@ func processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitles
 	}
 	t.AppendFooter(table.Row{"", "", "", "", "Total", len(incompleteTitles)})
 	t.Render()
+}
+
+func (c *Console) UpdateProgress(curr int, total int, message string) {
+	progressBar.ChangeMax(total)
+	progressBar.Set(curr)
+
 }

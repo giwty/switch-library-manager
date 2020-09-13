@@ -19,7 +19,7 @@ const (
 	SETTINGS_FILENAME      = "settings.json"
 	TITLE_JSON_FILENAME    = "titles.json"
 	VERSIONS_JSON_FILENAME = "versions.json"
-	SLM_VERSION_FILE       = "slm.json"
+	SLM_VERSION            = "1.2.5"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
 	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
 	SLM_VERSION_URL        = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
@@ -39,6 +39,7 @@ type OrganizeOptions struct {
 	DeleteEmptyFolders   bool   `json:"delete_empty_folders"`
 	DeleteOldUpdateFiles bool   `json:"delete_old_update_files"`
 	FolderNameTemplate   string `json:"folder_name_template"`
+	SwitchSafeFileNames  bool   `json:"switch_safe_file_names"`
 	FileNameTemplate     string `json:"file_name_template"`
 }
 
@@ -69,7 +70,7 @@ func ReadSettings(baseFolder string) *AppSettings {
 	if settingsInstance != nil {
 		return settingsInstance
 	}
-	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{}}
+	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{}, OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}}
 	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
 		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {
@@ -100,9 +101,10 @@ func saveDefaultSettings(baseFolder string) *AppSettings {
 			RenameFiles:         false,
 			CreateFolderPerGame: false,
 			FolderNameTemplate:  fmt.Sprintf("{%v}", TEMPLATE_TITLE_NAME),
-			FileNameTemplate: fmt.Sprintf("{%v} [{%v}][{%v}][{%v}]", TEMPLATE_TITLE_NAME, TEMPLATE_DLC_NAME,
+			FileNameTemplate: fmt.Sprintf("{%v} ({%v})[{%v}][v{%v}]", TEMPLATE_TITLE_NAME, TEMPLATE_DLC_NAME,
 				TEMPLATE_TITLE_ID, TEMPLATE_VERSION),
 			DeleteEmptyFolders:   false,
+			SwitchSafeFileNames:  true,
 			DeleteOldUpdateFiles: false,
 		},
 	}
@@ -116,18 +118,9 @@ func SaveSettings(settings *AppSettings, baseFolder string) *AppSettings {
 	return settings
 }
 
-func CheckForUpdates(workingFolder string) (bool, error) {
-	file, err := os.Open(filepath.Join(workingFolder, SLM_VERSION_FILE))
-	if err != nil {
-		return false, err
-	}
-	localValues := map[string]string{}
-	err = json.NewDecoder(file).Decode(&localValues)
-	if err != nil {
-		return false, err
-	}
+func CheckForUpdates() (bool, error) {
 
-	localVer := localValues["version"]
+	localVer := SLM_VERSION
 
 	res, err := http.Get(SLM_VERSION_URL)
 	if err != nil {
