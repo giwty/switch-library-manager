@@ -314,7 +314,9 @@ func (g *GUI) buildLocalDB(localDbManager *db.LocalSwitchDBManager) (*db.LocalSw
 func (g *GUI) organizeLibrary() {
 	folderToScan := settings.ReadSettings(g.baseFolder).Folder
 	process.OrganizeByFolders(folderToScan, g.state.localDB, g.state.switchDB, g)
-
+	if settings.ReadSettings(g.baseFolder).OrganizeOptions.DeleteOldUpdateFiles {
+		process.DeleteOldUpdates(g.state.localDB, g)
+	}
 }
 
 func (g *GUI) UpdateProgress(curr int, total int, message string) {

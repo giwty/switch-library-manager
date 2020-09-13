@@ -96,12 +96,12 @@ func scanFolder(folder string, recursive bool, files *[]ExtendedFileInfo, progre
 		if path == folder {
 			return nil
 		}
-		if info.IsDir() {
+		if err != nil {
+			zap.S().Error("Error while scanning folders", err)
 			return nil
 		}
 
-		if err != nil {
-			zap.S().Error("Error while scanning folders", err)
+		if info.IsDir() {
 			return nil
 		}
 
@@ -184,6 +184,9 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				}
 				switchTitle.Updates[metadata.Version] = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
 				if metadata.Version > switchTitle.LatestUpdate {
+					if switchTitle.LatestUpdate != 0 {
+						skipped[switchTitle.Updates[switchTitle.LatestUpdate].ExtendedInfo] = "old update file, newer update exist locally"
+					}
 					switchTitle.LatestUpdate = metadata.Version
 				} else {
 					skipped[file] = "old update file, newer update exist locally"

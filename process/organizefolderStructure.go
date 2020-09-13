@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"robpike.io/nihongo"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -22,33 +21,28 @@ var (
 
 func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
 	i := 0
-	for _, v := range localDB.TitlesMap {
+	for k, v := range localDB.TitlesMap {
+		if !v.BaseExist {
+			continue
+		}
+		i++
 		if updateProgress != nil {
-			updateProgress.UpdateProgress(i, len(localDB.TitlesMap), v.File.ExtendedInfo.Info.Name())
+			updateProgress.UpdateProgress(i, len(localDB.TitlesMap), v.File.ExtendedInfo.Info.Name()+k)
 		}
 		if len(v.Updates) > 1 {
-			//sort the available local versions
-			localVersions := make([]int, len(v.Updates))
-			i := 0
-			for k := range v.Updates {
-				localVersions[i] = k
-				i++
-			}
-			sort.Ints(localVersions)
 
-			for i := 0; i < len(localVersions)-1; i++ {
-				if localVersions[i] == 0 {
-					//should not happen, but make sure we do not delete base
-					continue
+			for version, update := range v.Updates {
+				if version < v.LatestUpdate && version != 0 {
+					fileToRemove := filepath.Join(update.ExtendedInfo.BaseFolder, update.ExtendedInfo.Info.Name())
+					zap.S().Infof("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, v.LatestUpdate)
+					/*err := os.Remove(fileToRemove)
+					if err != nil {
+						zap.S().Errorf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
+					}*/
 				}
-				fileToRemove := filepath.Join(v.Updates[localVersions[i]].ExtendedInfo.BaseFolder, v.Updates[localVersions[i]].ExtendedInfo.Info.Name())
-				zap.S().Infof("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, localVersions[len(localVersions)-1])
-				err := os.Remove(fileToRemove)
-				if err != nil {
-					zap.S().Errorf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
-				}
+
 			}
-			v.Updates = map[int]db.SwitchFileInfo{localVersions[len(localVersions)-1]: v.Updates[localVersions[len(localVersions)-1]]}
+			//v.Updates = map[int]db.SwitchFileInfo{localVersions[len(localVersions)-1]: v.Updates[localVersions[len(localVersions)-1]]}
 		}
 
 	}
