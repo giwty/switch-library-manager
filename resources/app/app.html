@@ -21,6 +21,7 @@
         <li><a href="#updates">Updates</a></li>
         <li><a href="#dlc">DLC</a></li>
         <li><a href="#organize">Organize</a></li>
+        <li><a href="#status">Issues</a></li>
         <li><a href="#settings">Settings</a></li>
     </ul>
     <div class="progress-container">
@@ -36,6 +37,7 @@
         <div id="updates"></div>
         <div id="dlc"></div>
         <div id="organize"></div>
+        <div id="status"></div>
         <div id="settings"></div>
     </section>
 </div>
@@ -138,11 +140,34 @@
 
 </script>
 
+<script id="statusTemplate" type="text/x-jsrender">
+   {{if folder}}
+        {{if library && library.length}}
+            <div class="alert center alert-warning" role="alert">
+                There are {{:library.length}} issues found across {{:numFiles}} scanned files:
+            </div>
+            <section id="status-table" class="content"></section>
+        {{else}}
+            <div class="alert center alert-success" role="alert">
+                No issues found
+            </div>
+        {{/if}}
+    {{else}}
+        <div class="alert center alert-warning" role="alert">
+            Local games folder is not set, please set the folder to get started
+        </div>
+        <div class="center">
+              <button type="button" class="btn btn-outline-primary folder-set">Set Folder</button>
+        </div>
+    {{/if}}
+
+</script>
+
 <script id="organizeTemplate" type="text/x-jsrender">
   {{if folder}}
    <div class="alert center alert-info" role="alert">
        You can automatically organize your library into a folder per game structure,
-       Or just rename the files to a standard way, please see below the available options
+       Or just rename the files to a standard way, the options below can be customize through the settings.json file.
    </div>
    <div class="container">
       <form>

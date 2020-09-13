@@ -212,18 +212,42 @@ $(function () {
                         ],
                     });
                 }
-            } else if (target === "#library") {
+            } else if (target === "#status") {
                 if (state.settings.folder && !state.library){
                     return
                 }
-                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library,keys:state.keys,scanFolders:state.settings.scan_folders})
+                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library ? state.library.issues: undefined,numFiles:state.library ? state.library.num_files:-1});
                 $(target).html(html);
-                if (state.library && state.library.length) {
+                if (state.library.issues && state.library.issues.length) {
+                    let table = new Tabulator("#status-table", {
+                        layout:"fitDataStretch",
+                        pagination: "local",
+                        paginationSize: state.settings.gui_page_size,
+                        data: state.library.issues,
+                        columns: [
+                            {formatter:"rownum"},
+                            {title: "File name",width:500, headerSort:false, field: "key",formatter:"textarea",cellClick:function(e, cell){
+                                    //e - the click event object
+                                    //cell - cell component
+                                    shell.showItemInFolder(cell.getData().key)
+                                }
+                            },
+                            {title: "Issue", field: "value",width:350}
+                        ],
+                    });
+                }
+            }else if (target === "#library") {
+                if (state.settings.folder && !state.library){
+                    return
+                }
+                let html = $(target + "Template").render({folder: state.settings.folder,library:state.library ?state.library.library_data : undefined,keys:state.keys,scanFolders:state.settings.scan_folders})
+                $(target).html(html);
+                if (state.library && state.library.library_data.length) {
                     var table = new Tabulator("#library-table", {
                         layout:"fitDataStretch",
                         pagination: "local",
                         paginationSize: state.settings.gui_page_size,
-                        data: state.library,
+                        data: state.library.library_data,
                         columns: [
                             {formatter:"rownum"},
                             {field: "icon",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
