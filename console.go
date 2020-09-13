@@ -7,7 +7,7 @@ import (
 	"github.com/giwty/switch-library-manager/process"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/schollz/progressbar/v2"
+	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
 	"os"
 	"path"
