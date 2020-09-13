@@ -90,11 +90,13 @@ Please set debug mode to 'true', and attach the slm.log to allow for quicker res
     - Edit the settings.json file for additional options
 
 ## Building
-- Install and setup latest Go
-- Get the module and its dependencies: `go get -u github.com/giwty/switch-library-manager`
-- Build it for the OS you need, and make sure to choose `amd64` architecture:
-    - `env GOOS=target-OS GOARCH=amd64 go build github.com/giwty/switch-library-manager`
-    - `target-OS` can be `windows`, `darwin` (mac OS), `linux`, or any other (check the Go documentation for a complete list).
+- Install and setup Go
+- Clone the repo: `git clone https://github.com/giwty/switch-library-manager.git`
+- Get the bundler `go get -u github.com/asticode/go-astilectron-bundler/...`
+- Install bundler `go install github.com/asticode/go-astilectron-bundler/astilectron-bundler`
+- Copy bundler binary to the source folder `cd switch-library-manager` and then `mv $HOME/go/bin/astilectron-bundler .`
+- Execute `./astilectron-bundler`
+- Binaries will be available under output
 
 #### Thanks
 This program relies on [blawar's titledb](https://github.com/blawar/titledb), to get the latest titles and versions.
