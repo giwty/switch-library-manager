@@ -106,7 +106,8 @@ func scanFolder(folder string, recursive bool, files *[]ExtendedFileInfo, progre
 		}
 
 		base := strings.Replace(path, info.Name(), "", 1)
-		if base != folder && !recursive {
+		if strings.TrimSuffix(base, string(os.PathSeparator)) != strings.TrimSuffix(folder, string(os.PathSeparator)) &&
+			!recursive {
 			return nil
 		}
 		if progress != nil {
