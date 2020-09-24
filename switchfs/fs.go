@@ -10,7 +10,7 @@ import (
 type fsHeader struct {
 	encType       byte //(0 = Auto, 1 = None, 2 = AesCtrOld, 3 = AesCtr, 4 = AesCtrEx)
 	fsType        byte //(0 = RomFs, 1 = PartitionFs)
-	hashType      byte // (0 = Auto, 2 = HierarchicalSha256, 3 = HierarchicalIntegrity)
+	hashType      byte // (0 = Auto, 2 = HierarchicalSha256, 3 = HierarchicalIntegrity (Ivfc))
 	fsHeaderBytes []byte
 	generation    uint32
 }
@@ -62,12 +62,16 @@ func getFsHeader(ncaHeader *ncaHeader, index int) (*fsHeader, error) {
 }
 
 func (fh *fsHeader) getHashInfo() (*hashInfo, error) {
-
+	hashInfoBytes := fh.fsHeaderBytes[0x8:0x100]
+	result := hashInfo{}
 	if fh.hashType == 2 {
-		hashInfoBytes := fh.fsHeaderBytes[0x8:0x100]
-		result := hashInfo{}
+
 		result.pfs0HeaderOffset = binary.LittleEndian.Uint64(hashInfoBytes[0x38 : 0x38+0x8])
 		result.pfs0size = binary.LittleEndian.Uint64(hashInfoBytes[0x40 : 0x40+0x8])
+		return &result, nil
+	} else if fh.hashType == 3 {
+		result.pfs0HeaderOffset = binary.LittleEndian.Uint64(hashInfoBytes[0x88 : 0x88+0x8])
+		result.pfs0size = binary.LittleEndian.Uint64(hashInfoBytes[0x90 : 0x90+0x8])
 		return &result, nil
 	}
 	return nil, errors.New("non supported hash type")

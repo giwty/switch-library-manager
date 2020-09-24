@@ -3,6 +3,7 @@ package switchfs
 import (
 	"bytes"
 	"errors"
+	"go.uber.org/zap"
 	"os"
 	"strings"
 )
@@ -33,21 +34,29 @@ func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 		fileOffset := int64(pfs0File.StartOffset)
 
 		if strings.Contains(pfs0File.Name, "cnmt.nca") {
-			section, err := openMetaNcaDataSection(file, fileOffset)
+			_, section, err := openMetaNcaDataSection(file, fileOffset)
 			if err != nil {
 				return nil, err
 			}
-			pfs0, err := readPfs0(bytes.NewReader(section), 0x0)
+			currpfs0, err := readPfs0(bytes.NewReader(section), 0x0)
 			if err != nil {
 				return nil, err
 			}
-			currCnmt, err := readBinaryCnmt(pfs0, section)
+			currCnmt, err := readBinaryCnmt(currpfs0, section)
 			if err != nil {
 				return nil, err
 			}
+			if currCnmt.Type != "DLC" {
+				nacp, err := ExtractNacp(currCnmt, file, pfs0, 0)
+				if err != nil {
+					zap.S().Debug("Failed to extract nacp [%v]\n", err.Error())
+				}
+				currCnmt.Ncap = nacp
+			}
+
 			contentMap[currCnmt.TitleId] = currCnmt
 
-		} else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
+		} /*else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
 			xmlBytes := make([]byte, pfs0File.Size)
 			_, err = file.ReadAt(xmlBytes, fileOffset)
 			if err != nil {
@@ -59,7 +68,7 @@ func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 				return nil, err
 			}
 			contentMap[currCnmt.TitleId] = currCnmt
-		}
+		}*/
 	}
 	return contentMap, nil
 

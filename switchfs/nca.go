@@ -26,76 +26,76 @@ const (
 	NcaContentType_PublicData
 )
 
-func openMetaNcaDataSection(reader io.ReaderAt, ncaOffset int64) ([]byte, error) {
+func openMetaNcaDataSection(reader io.ReaderAt, ncaOffset int64) (*fsHeader, []byte, error) {
 	//read the NCA headerBytes
 	encNcaHeader := make([]byte, 0xC00)
 	n, err := reader.ReadAt(encNcaHeader, ncaOffset)
 
 	if err != nil {
-		return nil, errors.New("failed to read NCA header")
+		return nil, nil, errors.New("failed to read NCA header")
 	}
 	if n != 0xC00 {
-		return nil, errors.New("failed to read NCA header")
+		return nil, nil, errors.New("failed to read NCA header")
 	}
 
 	keys, err := settings.SwitchKeys()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	headerKey := keys.GetKey("header_key")
 	if headerKey == "" {
-		return nil, errors.New("missing key - header_key")
+		return nil, nil, errors.New("missing key - header_key")
 	}
 	ncaHeader, err := DecryptNcaHeader(headerKey, encNcaHeader)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if ncaHeader.HasRightsId() {
 		//fail - need title keys
-		return nil, errors.New("non standard encryption is not supported")
+		return nil, nil, errors.New("non standard encryption is not supported")
 	}
 
-	if ncaHeader.contentType != NcaContentType_Meta {
+	/*if ncaHeader.contentType != NcaContentType_Meta {
 		return nil, errors.New("not a meta NCA")
-	}
+	}*/
 
 	dataSectionIndex := 0
 
 	fsHeader, err := getFsHeader(ncaHeader, dataSectionIndex)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	entry := getFsEntry(ncaHeader, dataSectionIndex)
 
 	if entry.Size == 0 {
-		return nil, errors.New("empty section")
+		return nil, nil, errors.New("empty section")
 	}
 
 	encodedEntryContent := make([]byte, entry.Size)
 	entryOffset := ncaOffset + int64(entry.StartOffset)
 	_, err = reader.ReadAt(encodedEntryContent, entryOffset)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if fsHeader.encType != 3 {
-		return nil, errors.New("non supported encryption type [encryption type:" + string(fsHeader.encType))
+		return nil, nil, errors.New("non supported encryption type [encryption type:" + string(fsHeader.encType))
 	}
 
-	if fsHeader.hashType != 2 { //Sha256 (FS_TYPE_PFS0)
+	/*if fsHeader.hashType != 2 { //Sha256 (FS_TYPE_PFS0)
 		return nil, errors.New("non FS_TYPE_PFS0")
-	}
+	}*/
 	decoded, err := decryptAesCtr(ncaHeader, fsHeader, entry.StartOffset, entry.Size, encodedEntryContent)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	hashInfo, err := fsHeader.getHashInfo()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return decoded[hashInfo.pfs0HeaderOffset:], nil
+	return fsHeader, decoded[hashInfo.pfs0HeaderOffset:], nil
 }
 
 func decryptAesCtr(ncaHeader *ncaHeader, fsHeader *fsHeader, offset uint32, size uint32, encoded []byte) ([]byte, error) {

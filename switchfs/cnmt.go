@@ -20,10 +20,21 @@ const (
 	ContentMetaType_Delta                = 0x83
 )
 
+type Content struct {
+	Text          string `xml:",chardata"`
+	Type          string `xml:"Type"`
+	ID            string `xml:"Id"`
+	Size          string `xml:"Size"`
+	Hash          string `xml:"Hash"`
+	KeyGeneration string `xml:"KeyGeneration"`
+}
+
 type ContentMetaAttributes struct {
-	TitleId string `json:"title_id"`
-	Version int    `json:"version"`
-	Type    string `json:"type"`
+	TitleId  string `json:"title_id"`
+	Version  int    `json:"version"`
+	Type     string `json:"type"`
+	Contents map[string]Content
+	Ncap     *Nacp
 }
 
 type ContentMeta struct {
@@ -55,6 +66,33 @@ func readBinaryCnmt(pfs0 *PFS0, data []byte) (*ContentMetaAttributes, error) {
 	cnmt := data[int64(cnmtFile.StartOffset):]
 	titleId := binary.LittleEndian.Uint64(cnmt[0:0x8])
 	version := binary.LittleEndian.Uint32(cnmt[0x8:0xC])
+	tableOffset := binary.LittleEndian.Uint16(cnmt[0xE:0x10])
+	contentEntryCount := binary.LittleEndian.Uint16(cnmt[0x10:0x12])
+	//metaEntryCount := binary.LittleEndian.Uint16(cnmt[0x12:0x14])
+	contents := map[string]Content{}
+	for i := uint16(0); i < contentEntryCount; i++ {
+		position := 0x20 /*size of cnmt header*/ + tableOffset + (i * uint16(0x38))
+		ncaId := cnmt[position+0x20 : position+0x20+0x10]
+		//fmt.Println(fmt.Sprintf("0%x", ncaId))
+		contentType := ""
+		switch cnmt[position+0x36 : position+0x36+1][0] {
+		case 0:
+			contentType = "Meta"
+		case 1:
+			contentType = "Program"
+		case 2:
+			contentType = "Data"
+		case 3:
+			contentType = "Control"
+		case 4:
+			contentType = "HtmlDocument"
+		case 5:
+			contentType = "LegalInformation"
+		case 6:
+			contentType = "DeltaFragment"
+		}
+		contents[contentType] = Content{ID: fmt.Sprintf("%x", ncaId)}
+	}
 	metaType := ""
 	switch cnmt[0xC:0xD][0] {
 	case ContentMetaType_Application:
@@ -64,7 +102,8 @@ func readBinaryCnmt(pfs0 *PFS0, data []byte) (*ContentMetaAttributes, error) {
 	case ContentMetaType_Patch:
 		metaType = "UPD"
 	}
-	return &ContentMetaAttributes{Version: int(version), TitleId: fmt.Sprintf("0%x", titleId), Type: metaType}, nil
+
+	return &ContentMetaAttributes{Contents: contents, Version: int(version), TitleId: fmt.Sprintf("0%x", titleId), Type: metaType}, nil
 }
 
 func readXmlCnmt(xmlBytes []byte) (*ContentMetaAttributes, error) {

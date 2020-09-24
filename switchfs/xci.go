@@ -46,21 +46,27 @@ func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 		fileOffset := secureOffset + int64(pfs0File.StartOffset)
 
 		if strings.Contains(pfs0File.Name, "cnmt.nca") {
-			section, err := openMetaNcaDataSection(file, fileOffset)
+			_, section, err := openMetaNcaDataSection(file, fileOffset)
 			if err != nil {
 				return nil, err
 			}
-			pfs0, err := readPfs0(bytes.NewReader(section), 0x0)
+			currPfs0, err := readPfs0(bytes.NewReader(section), 0x0)
 			if err != nil {
 				return nil, err
 			}
-			currCnmt, err := readBinaryCnmt(pfs0, section)
+			currCnmt, err := readBinaryCnmt(currPfs0, section)
 			if err != nil {
 				return nil, err
 			}
+
+			nacp, err := ExtractNacp(currCnmt, file, secureHfs0, secureOffset)
+			if err != nil {
+				return nil, err
+			}
+			currCnmt.Ncap = nacp
 			contentMap[currCnmt.TitleId] = currCnmt
 
-		} else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
+		} /* else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
 			xmlBytes := make([]byte, pfs0File.Size)
 			_, err = file.ReadAt(xmlBytes, fileOffset)
 			if err != nil {
@@ -72,10 +78,19 @@ func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 				return nil, err
 			}
 			contentMap[currCnmt.TitleId] = currCnmt
-		}
+		}*/
 	}
 
 	return contentMap, nil
+}
+
+func getNcaById(hfs0 *PFS0, id string) *fileEntry {
+	for _, fileEntry := range hfs0.Files {
+		if strings.Contains(fileEntry.Name, id) {
+			return &fileEntry
+		}
+	}
+	return nil
 }
 
 func readSecurePartition(file *os.File, hfs0 *PFS0, rootPartitionOffset uint64) (*PFS0, int64, error) {
