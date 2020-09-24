@@ -30,7 +30,7 @@ type LocalLibraryData struct {
 type LibraryTemplateData struct {
 	Id           int    `json:"id"`
 	Name         string `json:"name"`
-	Version      int    `json:"version"`
+	Version      string `json:"version"`
 	Dlc          string `json:"dlc"`
 	TitleId      string `json:"titleId"`
 	Path         string `json:"path"`

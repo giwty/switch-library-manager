@@ -254,7 +254,8 @@ $(function () {
                             {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Title id", headerSort:false, field: "titleId"},
                             {title: "Multi content", headerSort:false, field: "multi_content"},
-                            {title: "Latest update", headerSort:false, field: "update"},
+                            {title: "Update", headerSort:false, field: "update"},
+                            {title: "Version", headerSort:false, field: "version"},
                             {title: "File name", headerSort:false, field: "path",formatter:"textarea",cellClick:function(e, cell){
                                     //e - the click event object
                                     //cell - cell component
