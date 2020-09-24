@@ -118,6 +118,14 @@ func (g *GUI) Start() {
 						return
 					},
 				},
+				{
+					Accelerator: &astilectron.Accelerator{"CommandOrControl", "C"},
+					Role:        astilectron.MenuItemRoleCopy,
+				},
+				{
+					Accelerator: &astilectron.Accelerator{"CommandOrControl", "V"},
+					Role:        astilectron.MenuItemRolePaste,
+				},
 				{Role: astilectron.MenuItemRoleClose},
 			},
 		}},
@@ -167,22 +175,44 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 		issues := []Pair{}
 		for k, v := range localDB.TitlesMap {
 			if v.BaseExist {
+				version := ""
+				name := ""
+				if v.File.Metadata.Ncap != nil {
+					version = v.File.Metadata.Ncap.DisplayVersion
+					name = v.File.Metadata.Ncap.TitleName["AmericanEnglish"].Title
+				}
+
+				if v.Updates != nil && len(v.Updates) != 0 {
+					if v.Updates[v.LatestUpdate].Metadata.Ncap != nil {
+						version = v.Updates[v.LatestUpdate].Metadata.Ncap.DisplayVersion
+					} else {
+						version = ""
+					}
+				}
 				if title, ok := g.state.switchDB.TitlesMap[k]; ok {
+
 					libraryData = append(libraryData,
 						LibraryTemplateData{
 							Icon:         title.Attributes.IconUrl,
 							Name:         title.Attributes.Name,
 							TitleId:      v.File.Metadata.TitleId,
 							Update:       v.LatestUpdate,
+							Version:      version,
 							MultiContent: v.MultiContent,
 							Path:         filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.Info.Name()),
 						})
 				} else {
+					if name == "" {
+						name = db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name())
+					}
 					libraryData = append(libraryData,
 						LibraryTemplateData{
-							Name:    db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name()),
-							TitleId: v.File.Metadata.TitleId,
-							Path:    v.File.ExtendedInfo.Info.Name(),
+							Name:         name,
+							Update:       v.LatestUpdate,
+							Version:      version,
+							MultiContent: v.MultiContent,
+							TitleId:      v.File.Metadata.TitleId,
+							Path:         v.File.ExtendedInfo.Info.Name(),
 						})
 				}
 
