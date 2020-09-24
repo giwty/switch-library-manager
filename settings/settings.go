@@ -19,7 +19,7 @@ const (
 	SETTINGS_FILENAME      = "settings.json"
 	TITLE_JSON_FILENAME    = "titles.json"
 	VERSIONS_JSON_FILENAME = "versions.json"
-	SLM_VERSION            = "1.2.5"
+	SLM_VERSION            = "1.3.0"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
 	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
 	SLM_VERSION_URL        = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
@@ -47,6 +47,7 @@ type OrganizeOptions struct {
 type AppSettings struct {
 	VersionsEtag           string          `json:"versions_etag"`
 	TitlesEtag             string          `json:"titles_etag"`
+	Prodkeys               string          `json:"prod_keys"`
 	Folder                 string          `json:"folder"`
 	ScanFolders            []string        `json:"scan_folders"`
 	GUI                    bool            `json:"gui"`
@@ -71,7 +72,8 @@ func ReadSettings(baseFolder string) *AppSettings {
 	if settingsInstance != nil {
 		return settingsInstance
 	}
-	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{}, OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}}
+	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{},
+		OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}, Prodkeys: ""}
 	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
 		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {

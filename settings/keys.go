@@ -30,7 +30,13 @@ func InitSwitchKeys(baseFolder string) (*switchKeys, error) {
 		p, err = properties.LoadFile("${HOME}/.switch/prod.keys", properties.UTF8)
 	}
 	if err != nil {
-		return nil, errors.New("couldn't find keys.prod")
+		prodKeysPath := ReadSettings(baseFolder).Prodkeys
+		if prodKeysPath != "" {
+			p, err = properties.LoadFile(filepath.Join(prodKeysPath, "prod.keys"), properties.UTF8)
+		}
+	}
+	if err != nil {
+		return nil, errors.New("couldn't find prod.keys")
 	}
 	keysInstance = &switchKeys{keys: map[string]string{}}
 	for _, key := range p.Keys() {
