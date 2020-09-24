@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	folderIllegalCharsRegex = regexp.MustCompile(`[./\\?%*:;=|"<>]`)
-	nonAscii                = regexp.MustCompile("[[:^ascii:]]")
+	folderIllegalCharsRegex = regexp.MustCompile(`[/\\?%*:;=|"<>]`)
+	nonAscii                = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-]")
 )
 
 func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
@@ -35,14 +35,12 @@ func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.Progress
 				if version < v.LatestUpdate && version != 0 {
 					fileToRemove := filepath.Join(update.ExtendedInfo.BaseFolder, update.ExtendedInfo.Info.Name())
 					zap.S().Infof("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, v.LatestUpdate)
-					/*err := os.Remove(fileToRemove)
+					err := os.Remove(fileToRemove)
 					if err != nil {
 						zap.S().Errorf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
-					}*/
+					}
 				}
-
 			}
-			//v.Updates = map[int]db.SwitchFileInfo{localVersions[len(localVersions)-1]: v.Updates[localVersions[len(localVersions)-1]]}
 		}
 
 	}
@@ -78,7 +76,12 @@ func OrganizeByFolders(baseFolder string,
 		templateData[settings.TEMPLATE_TITLE_ID] = v.File.Metadata.TitleId
 		//templateData[settings.TEMPLATE_TYPE] = "BASE"
 		templateData[settings.TEMPLATE_TITLE_NAME] = titleName
+		templateData[settings.TEMPLATE_VERSION_TXT] = ""
 		templateData[settings.TEMPLATE_VERSION] = "0"
+
+		if v.File.Metadata.Ncap != nil {
+			templateData[settings.TEMPLATE_VERSION_TXT] = v.File.Metadata.Ncap.DisplayVersion
+		}
 
 		var destinationPath = v.File.ExtendedInfo.BaseFolder
 
@@ -111,6 +114,12 @@ func OrganizeByFolders(baseFolder string,
 			}
 			templateData[settings.TEMPLATE_VERSION] = strconv.Itoa(update)
 			templateData[settings.TEMPLATE_TYPE] = "UPD"
+			if updateInfo.Metadata.Ncap != nil {
+				templateData[settings.TEMPLATE_VERSION_TXT] = updateInfo.Metadata.Ncap.DisplayVersion
+			} else {
+				templateData[settings.TEMPLATE_VERSION_TXT] = ""
+			}
+
 			from = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, updateInfo.ExtendedInfo.Info.Name())
 			if options.CreateFolderPerGame {
 				to = filepath.Join(destinationPath, getFileName(options, updateInfo.ExtendedInfo.Info.Name(), templateData))
@@ -211,6 +220,13 @@ func getTitleName(switchTitle *db.SwitchTitle, v *db.SwitchGameFiles) string {
 	if switchTitle != nil && switchTitle.Attributes.Name != "" {
 		return switchTitle.Attributes.Name
 	} else {
+
+		if v.File.Metadata.Ncap != nil {
+			name := v.File.Metadata.Ncap.TitleName["AmericanEnglish"].Title
+			if name != "" {
+				return name
+			}
+		}
 		//for non eshop games (cartridge only), grab the name from the file
 		return db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name())
 	}
@@ -243,6 +259,7 @@ func applyTemplate(templateData map[string]string, useSafeNames bool, template s
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TITLE_ID+"}", strings.ToUpper(templateData[settings.TEMPLATE_TITLE_ID]), 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", templateData[settings.TEMPLATE_VERSION], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TYPE+"}", templateData[settings.TEMPLATE_TYPE], 1)
+	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION_TXT+"}", templateData[settings.TEMPLATE_VERSION_TXT], 1)
 	//remove title name from dlc name
 	dlcName := strings.Replace(templateData[settings.TEMPLATE_DLC_NAME], templateData[settings.TEMPLATE_TITLE_NAME], "", 1)
 	dlcName = strings.TrimSpace(dlcName)
@@ -258,7 +275,8 @@ func applyTemplate(templateData map[string]string, useSafeNames bool, template s
 
 	if useSafeNames {
 		result = nihongo.RomajiString(result)
-		result = nonAscii.ReplaceAllLiteralString(result, "")
+		safe := nonAscii.FindAllString(result, -1)
+		result = strings.Join(safe, "")
 	}
 	result = strings.ReplaceAll(result, "  ", " ")
 	result = strings.TrimSpace(result)
