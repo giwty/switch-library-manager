@@ -108,27 +108,55 @@ func (g *GUI) Start() {
 				Width:           astikit.IntPtr(1200),
 			},
 		}},
-		MenuOptions: []*astilectron.MenuItemOptions{{
-			Label: astikit.StrPtr("Debug"),
-			SubMenu: []*astilectron.MenuItemOptions{
-				{
-					Label: astikit.StrPtr("Open DevTools"),
-					OnClick: func(e astilectron.Event) (deleteListener bool) {
-						g.state.window.OpenDevTools()
-						return
+		MenuOptions: []*astilectron.MenuItemOptions{
+			{
+				SubMenu: []*astilectron.MenuItemOptions{
+					{
+						Accelerator: &astilectron.Accelerator{"CommandOrControl", "C"},
+						Role:        astilectron.MenuItemRoleCopy,
+					},
+					{
+						Accelerator: &astilectron.Accelerator{"CommandOrControl", "V"},
+						Role:        astilectron.MenuItemRolePaste,
+					},
+					{Role: astilectron.MenuItemRoleClose},
+				},
+			},
+			{
+				Label: astikit.StrPtr("File"),
+				SubMenu: []*astilectron.MenuItemOptions{
+					{
+						Label:       astikit.StrPtr("Rescan"),
+						Accelerator: &astilectron.Accelerator{"CommandOrControl", "R"},
+						OnClick: func(e astilectron.Event) (deleteListener bool) {
+							g.state.window.SendMessage(Message{Name: "rescan", Payload: ""}, func(m *astilectron.EventMessage) {})
+							return
+						},
+					},
+					{
+						Label: astikit.StrPtr("Hard rescan"),
+						OnClick: func(e astilectron.Event) (deleteListener bool) {
+							_ = localDbManager.ClearDB()
+							g.state.window.SendMessage(Message{Name: "rescan", Payload: ""}, func(m *astilectron.EventMessage) {})
+							return
+						},
 					},
 				},
-				{
-					Accelerator: &astilectron.Accelerator{"CommandOrControl", "C"},
-					Role:        astilectron.MenuItemRoleCopy,
-				},
-				{
-					Accelerator: &astilectron.Accelerator{"CommandOrControl", "V"},
-					Role:        astilectron.MenuItemRolePaste,
-				},
-				{Role: astilectron.MenuItemRoleClose},
 			},
-		}},
+			{
+				Label: astikit.StrPtr("Debug"),
+				SubMenu: []*astilectron.MenuItemOptions{
+					{
+						Label:       astikit.StrPtr("Open DevTools"),
+						Accelerator: &astilectron.Accelerator{"CommandOrControl", "D"},
+						OnClick: func(e astilectron.Event) (deleteListener bool) {
+							g.state.window.OpenDevTools()
+							return
+						},
+					},
+				},
+			},
+		},
 	}); err != nil {
 		g.sugarLogger.Error(fmt.Errorf("running bootstrap failed: %w", err))
 	}

@@ -85,6 +85,9 @@ $(function () {
                 $(".progress-container").hide();
                 loadTab("#library")
             }
+            else if (message.name === "rescan") {
+                scanLocalFolder()
+            }
         });
 
         let openFolderPicker = function (mode) {
