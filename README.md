@@ -23,9 +23,10 @@ Easily manage your switch game backups
 
 ## Keys (optional)
 Having a prod.keys file will allow you to ensure the files you have a correctly classified.
-The keys are expected to be in the traditional format, names as "prod.keys", and found in the app folder or under ${HOME}/.switch/
+The app will look for the "prod.keys" file in the app folder or under ${HOME}/.switch/
+You can also specify a custom location in the settings.json (see below)
 
-Note: Only the header_key, and the key_area_key_application_XX are needed.
+Note: Only the header_key, and the key_area_key_application_XX keys are required.
 
 ## Settings  
 During the App first launch a "settings.json" file will be created, that allows for granular control over the Apps execution.
@@ -34,22 +35,25 @@ You can customize the folder/file re-naming, as well as turn on/off features.
 
 ```
 {
- "versions_etag": "",
- "titles_etag": "",
+ "versions_etag": "W/\"c3f5ecb3392d61:0\"",
+ "titles_etag": "W/\"4a4fcc163a92d61:0\"",
+ "prod_keys": "",
  "folder": "",
- "gui": true,
- "debug": false,
+ "scan_folders": [],
+ "gui": false,
+ "debug": false, # Deprecated, no longer works
  "check_for_missing_updates": true,
  "check_for_missing_dlc": true,
  "organize_options": {
   "create_folder_per_game": false,
-  "rename_files": true,
-  "delete_empty_folders": true,
+  "rename_files": false,
+  "delete_empty_folders": false,
   "delete_old_update_files": false,
   "folder_name_template": "{TITLE_NAME}",
-  "file_name_template": "{TITLE_NAME} [{DLC_NAME}][{TITLE_ID}][v{VERSION}]"
+  "switch_safe_file_names": true,
+  "file_name_template": "{TITLE_NAME} ({DLC_NAME})[{TITLE_ID}][v{VERSION}]"
  },
- "scan_recursively": true
+ "scan_recursively": true,
  "gui_page_size": 100
 }
 ```
@@ -59,6 +63,7 @@ The following template elements are supported:
 - {TITLE_NAME} - game name
 - {TITLE_ID} - title id
 - {VERSION} - version id (only applicable to files)
+- {VERSION_TXT} - version number (like 1.0.0) (only applicable to files)
 - {TYPE} - impacts DLCs/updates, will appear as ["UPD","DLC"]
 - {DLC_NAME} - DLC name (only applicable to DLCs)
 
