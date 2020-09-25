@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"go.uber.org/zap"
 	"os"
 	"strings"
 )
@@ -59,11 +60,14 @@ func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 				return nil, err
 			}
 
-			nacp, err := ExtractNacp(currCnmt, file, secureHfs0, secureOffset)
-			if err != nil {
-				return nil, err
+			if currCnmt.Type == "BASE" || currCnmt.Type == "UPD" {
+				nacp, err := ExtractNacp(currCnmt, file, secureHfs0, secureOffset)
+				if err != nil {
+					zap.S().Debug("Failed to extract nacp [%v]\n", err.Error())
+				}
+				currCnmt.Ncap = nacp
 			}
-			currCnmt.Ncap = nacp
+
 			contentMap[currCnmt.TitleId] = currCnmt
 
 		} /* else if strings.Contains(pfs0File.Name, ".cnmt.xml") {
