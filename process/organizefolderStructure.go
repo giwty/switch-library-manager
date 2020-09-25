@@ -16,7 +16,7 @@ import (
 
 var (
 	folderIllegalCharsRegex = regexp.MustCompile(`[/\\?%*:;=|"<>]`)
-	nonAscii                = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-]")
+	nonAscii                = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-\\[\\]\\(\\)\\+]")
 )
 
 func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
