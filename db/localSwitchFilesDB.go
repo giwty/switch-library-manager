@@ -36,6 +36,31 @@ func NewLocalSwitchDBManager(baseFolder string) (*LocalSwitchDBManager, error) {
 		return nil, err
 	}
 
+	//get DB version
+	appVersion := ""
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("deep-scan"))
+		if b == nil {
+			return nil
+		}
+		v := b.Get([]byte("app_version"))
+		if v == nil {
+			err := db.Update(func(tx *bolt.Tx) error {
+				err = tx.DeleteBucket([]byte("deep-scan"))
+				return err
+			})
+			return err
+		}
+		d := gob.NewDecoder(bytes.NewReader(v))
+
+		err = d.Decode(&appVersion)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	return &LocalSwitchDBManager{db: db}, nil
 }
 
@@ -227,6 +252,14 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 
 }
 
+func (ldb *LocalSwitchDBManager) ClearDB() error {
+	err := ldb.db.Update(func(tx *bolt.Tx) error {
+		err := tx.DeleteBucket([]byte("deep-scan"))
+		return err
+	})
+	return err
+}
+
 func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo, filePath string, skipped map[ExtendedFileInfo]string) (map[string]*switchfs.ContentMetaAttributes, error) {
 
 	var metadata map[string]*switchfs.ContentMetaAttributes = nil
@@ -286,6 +319,10 @@ func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo, filePath
 				b, err = tx.CreateBucket([]byte("deep-scan"))
 				if b == nil || err != nil {
 					return fmt.Errorf("create bucket: %s", err)
+				}
+				err := b.Put([]byte("app_version"), []byte(settings.SLM_VERSION))
+				if err != nil {
+					zap.S().Warnf("failed to save app_version - %v", err)
 				}
 			}
 			var bytesBuff bytes.Buffer

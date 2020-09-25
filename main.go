@@ -40,6 +40,13 @@ func main() {
 	sugar.Infof("[Executable: %v]", exePath)
 	sugar.Infof("[Working directory: %v]", workingFolder)
 
+	appSettings.GUI = true
+
+	files, err := AssetDir(workingFolder)
+	if files == nil && err == nil {
+		appSettings.GUI = false
+	}
+
 	if appSettings.GUI {
 		CreateGUI(workingFolder, sugar).Start()
 	} else {
