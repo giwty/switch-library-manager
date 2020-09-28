@@ -22,7 +22,7 @@ var (
 func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
 	i := 0
 	for k, v := range localDB.TitlesMap {
-		if !v.BaseExist {
+		if !v.BaseExist || v.IsSplit {
 			continue
 		}
 		i++

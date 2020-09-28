@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Pair struct {
@@ -37,6 +38,7 @@ type LibraryTemplateData struct {
 	Icon         string `json:"icon"`
 	Update       int    `json:"update"`
 	MultiContent bool   `json:"multi_content"`
+	Split        bool   `json:"split"`
 }
 
 type ProgressUpdate struct {
@@ -81,10 +83,12 @@ func (g *GUI) Start() {
 	defer localDbManager.Close()
 	// Run bootstrap
 	if err := bootstrap.Run(bootstrap.Options{
-		Asset:    Asset,
+		Asset: Asset,
+
 		AssetDir: AssetDir,
 		AstilectronOptions: astilectron.Options{
 			AppName:            "Switch Library Manager",
+			AcceptTCPTimeout:   time.Duration(5) * time.Second,
 			AppIconDarwinPath:  "resources/icon.icns",
 			AppIconDefaultPath: "resources/icon.png",
 			SingleInstance:     true,
@@ -227,6 +231,7 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 							Update:       v.LatestUpdate,
 							Version:      version,
 							MultiContent: v.MultiContent,
+							Split:        v.IsSplit,
 							Path:         filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.Info.Name()),
 						})
 				} else {

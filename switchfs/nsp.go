@@ -4,23 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"go.uber.org/zap"
-	"os"
 	"strings"
 )
 
 func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error) {
-
-	if !strings.HasSuffix(strings.ToLower(filePath), "nsp") &&
-		!strings.HasSuffix(strings.ToLower(filePath), "nsz") {
-		return nil, errors.New("only NSP file type is supported")
-	}
 
 	pfs0, err := ReadPfs0File(filePath)
 	if err != nil {
 		return nil, errors.New("Invalid NSP file, reason - [" + err.Error() + "]")
 	}
 
-	file, err := os.Open(filePath)
+	file, err := OpenFile(filePath)
 	if err != nil {
 		return nil, err
 	}

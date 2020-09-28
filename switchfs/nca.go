@@ -32,7 +32,7 @@ func openMetaNcaDataSection(reader io.ReaderAt, ncaOffset int64) (*fsHeader, []b
 	n, err := reader.ReadAt(encNcaHeader, ncaOffset)
 
 	if err != nil {
-		return nil, nil, errors.New("failed to read NCA header")
+		return nil, nil, errors.New("failed to read NCA header " + err.Error())
 	}
 	if n != 0xC00 {
 		return nil, nil, errors.New("failed to read NCA header")

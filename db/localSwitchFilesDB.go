@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/boltdb/bolt"
+	"github.com/giwty/switch-library-manager/fileio"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/giwty/switch-library-manager/switchfs"
 	"go.uber.org/zap"
@@ -85,6 +86,7 @@ type SwitchGameFiles struct {
 	Dlc          map[string]SwitchFileInfo
 	MultiContent bool
 	LatestUpdate int
+	IsSplit      bool
 }
 
 type LocalSwitchFilesDB struct {
@@ -130,7 +132,11 @@ func scanFolder(folder string, recursive bool, files *[]ExtendedFileInfo, progre
 			return nil
 		}
 
-		base := strings.Replace(path, info.Name(), "", 1)
+		//skip mac hidden files
+		if info.Name()[0:1] == "." {
+			return nil
+		}
+		base := path[0 : len(path)-len(info.Name())]
 		if strings.TrimSuffix(base, string(os.PathSeparator)) != strings.TrimSuffix(folder, string(os.PathSeparator)) &&
 			!recursive {
 			return nil
@@ -156,10 +162,6 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 		if progress != nil {
 			progress.UpdateProgress(ind, total, "process:"+file.Info.Name())
 		}
-		//skip mac hidden files
-		if file.Info.Name()[0:1] == "." {
-			continue
-		}
 
 		//scan sub-folders if flag is present
 		filePath := filepath.Join(file.BaseFolder, file.Info.Name())
@@ -167,23 +169,39 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 			continue
 		}
 
+		fileName := strings.ToLower(file.Info.Name())
+		isSplit := false
+
+		if partNum, err := strconv.Atoi(fileName[len(fileName)-2:]); err == nil {
+			if partNum == 0 {
+				isSplit = true
+			} else {
+				continue
+			}
+
+		}
+
 		//only handle NSZ and NSP files
-		if !strings.HasSuffix(strings.ToLower(file.Info.Name()), "xci") &&
-			!strings.HasSuffix(strings.ToLower(file.Info.Name()), "nsp") &&
-			!strings.HasSuffix(strings.ToLower(file.Info.Name()), "nsz") &&
-			!strings.HasSuffix(strings.ToLower(file.Info.Name()), "xcz") {
+
+		if !isSplit &&
+			!strings.HasSuffix(fileName, "xci") &&
+			!strings.HasSuffix(fileName, "nsp") &&
+			!strings.HasSuffix(fileName, "nsz") &&
+			!strings.HasSuffix(fileName, "xcz") {
 			skipped[file] = "file type is not supported"
 			continue
 		}
 
 		contentMap, err := ldb.getGameMetadata(file, filePath, skipped)
 
-		for _, metadata := range contentMap {
-
-			if err != nil {
+		if err != nil {
+			if _, ok := skipped[file]; !ok {
 				skipped[file] = "unable to determine title-Id / version - " + err.Error()
-				continue
 			}
+			continue
+		}
+
+		for _, metadata := range contentMap {
 
 			idPrefix := metadata.TitleId[0 : len(metadata.TitleId)-4]
 
@@ -193,6 +211,7 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				Updates:      map[int]SwitchFileInfo{},
 				Dlc:          map[string]SwitchFileInfo{},
 				BaseExist:    false,
+				IsSplit:      true,
 				LatestUpdate: 0,
 			}
 			if t, ok := titles[idPrefix]; ok {
@@ -205,8 +224,9 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				metadata.Type = "Update"
 
 				if update, ok := switchTitle.Updates[metadata.Version]; ok {
-					skipped[file] = "duplicate update file"
+					skipped[file] = "duplicate update file (" + update.ExtendedInfo.Info.Name() + ")"
 					zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.ExtendedInfo.Info.Name(), file.Info.Name())
+					continue
 				}
 				switchTitle.Updates[metadata.Version] = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
 				if metadata.Version > switchTitle.LatestUpdate {
@@ -224,8 +244,9 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 			if strings.HasSuffix(metadata.TitleId, "000") {
 				metadata.Type = "Base"
 				if switchTitle.BaseExist {
-					skipped[file] = "duplicate base file"
+					skipped[file] = "duplicate base file (" + switchTitle.File.ExtendedInfo.Info.Name() + ")"
 					zap.S().Warnf("-->Duplicate base file found [%v] and [%v]", file.Info.Name(), switchTitle.File.ExtendedInfo.Info.Name())
+					continue
 				}
 				switchTitle.File = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
 				switchTitle.BaseExist = true
@@ -239,7 +260,7 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 					zap.S().Warnf("-->Old DLC file found [%v] and [%v]", file.Info.Name(), dlc.ExtendedInfo.Info.Name())
 					continue
 				} else if metadata.Version == dlc.Metadata.Version {
-					skipped[file] = "duplicate DLC file"
+					skipped[file] = "duplicate DLC file (" + dlc.ExtendedInfo.Info.Name() + ")"
 					zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.Info.Name(), dlc.ExtendedInfo.Info.Name())
 					continue
 				}
@@ -295,19 +316,26 @@ func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo, filePath
 			return metadata, nil
 		}
 
-		if strings.HasSuffix(strings.ToLower(file.Info.Name()), "nsp") ||
-			strings.HasSuffix(strings.ToLower(file.Info.Name()), "nsz") {
+		fileName := strings.ToLower(file.Info.Name())
+		if strings.HasSuffix(fileName, "nsp") ||
+			strings.HasSuffix(fileName, "nsz") {
 			metadata, err = switchfs.ReadNspMetadata(filePath)
 			if err != nil {
 				skipped[file] = fmt.Sprintf("failed to read NSP [reason: %v]", err)
 				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Info.Name(), err)
 			}
-		} else if strings.HasSuffix(strings.ToLower(file.Info.Name()), "xci") ||
-			strings.HasSuffix(strings.ToLower(file.Info.Name()), "xcz") {
+		} else if strings.HasSuffix(fileName, "xci") ||
+			strings.HasSuffix(fileName, "xcz") {
 			metadata, err = switchfs.ReadXciMetadata(filePath)
 			if err != nil {
 				skipped[file] = fmt.Sprintf("failed to read NSP [reason: %v]", err)
 				zap.S().Errorf("[file:%v] failed to read file [reason: %v]\n", file.Info.Name(), err)
+			}
+		} else if strings.HasSuffix(fileName, "00") {
+			metadata, err = fileio.ReadSplitFileMetadata(filePath)
+			if err != nil {
+				skipped[file] = fmt.Sprintf("failed to read split files [reason: %v]", err)
+				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Info.Name(), err)
 			}
 		}
 	}

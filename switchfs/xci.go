@@ -5,12 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"go.uber.org/zap"
-	"os"
+	"io"
 	"strings"
 )
 
 func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error) {
-	file, err := os.Open(filePath)
+	file, err := OpenFile(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -18,7 +18,7 @@ func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 	defer file.Close()
 
 	header := make([]byte, 0x200)
-	_, err = file.Read(header)
+	_, err = file.ReadAt(header, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func getNcaById(hfs0 *PFS0, id string) *fileEntry {
 	return nil
 }
 
-func readSecurePartition(file *os.File, hfs0 *PFS0, rootPartitionOffset uint64) (*PFS0, int64, error) {
+func readSecurePartition(file io.ReaderAt, hfs0 *PFS0, rootPartitionOffset uint64) (*PFS0, int64, error) {
 	for _, hfs0File := range hfs0.Files {
 		offset := int64(rootPartitionOffset) + int64(hfs0File.StartOffset)
 

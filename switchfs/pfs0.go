@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"os"
 )
 
 const (
@@ -31,7 +30,7 @@ type PFS0 struct {
 // https://wiki.oatmealdome.me/PFS0_(File_Format)
 func ReadPfs0File(filePath string) (*PFS0, error) {
 
-	file, err := os.Open(filePath)
+	file, err := OpenFile(filePath)
 	if err != nil {
 		return nil, err
 	}
