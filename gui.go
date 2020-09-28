@@ -83,11 +83,10 @@ func (g *GUI) Start() {
 	defer localDbManager.Close()
 	// Run bootstrap
 	if err := bootstrap.Run(bootstrap.Options{
-		Asset: Asset,
-
+		Asset:    Asset,
 		AssetDir: AssetDir,
 		AstilectronOptions: astilectron.Options{
-			AppName:            "Switch Library Manager",
+			AppName:            "Switch Library Manager (" + settings.SLM_VERSION + ")",
 			AcceptTCPTimeout:   time.Duration(5) * time.Second,
 			AppIconDarwinPath:  "resources/icon.icns",
 			AppIconDefaultPath: "resources/icon.png",
