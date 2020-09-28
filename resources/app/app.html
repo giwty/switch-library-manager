@@ -68,14 +68,14 @@
             {{/if}}
             {{if num_skipped != 0}}
                  <div class="alert center alert-warning" role="alert">
-                {{:num_skipped}} files out of {{:num_files}} were skipped during scan, click on the issues tab to learn more
+                {{:num_skipped}} out of {{:num_files}} files were skipped during scan, click on the issues tab to learn more
                   </div>
             {{/if}}
             <section id="library-table" class="content"></section>
         {{else}}
             <div class="alert center alert-warning" role="alert">
             {{if num_skipped != 0}}}
-                 {{:num_skipped}} files out of {{:num_files}} were skipped during scan, click on the issues tab to learn more
+                 {{:num_skipped}} out of {{:num_files}} files were skipped during scan, click on the issues tab to learn more
             {{else}}
                 The selected folder ({{:folder}}) is empty. please set a different folder
             {{/if}}
@@ -153,7 +153,7 @@
    {{if folder}}
         {{if library && library.length}}
             <div class="alert center alert-warning" role="alert">
-                There are {{:library.length}} files that were skipped during scan, below you can find more info
+                {{:library.length}} files were skipped during scan, additional details below:
             </div>
             <section id="status-table" class="content"></section>
         {{else}}
