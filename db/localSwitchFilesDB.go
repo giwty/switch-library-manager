@@ -211,7 +211,7 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				Updates:      map[int]SwitchFileInfo{},
 				Dlc:          map[string]SwitchFileInfo{},
 				BaseExist:    false,
-				IsSplit:      true,
+				IsSplit:      isSplit,
 				LatestUpdate: 0,
 			}
 			if t, ok := titles[idPrefix]; ok {
