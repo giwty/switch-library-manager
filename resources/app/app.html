@@ -64,11 +64,17 @@
             {{if keys === "false"}}
             <div id="missingkeys" class="alert center alert-danger" role="alert" >
                 Prod.keys was not found, deep NSP scan is disabled, library content is based on file names tags.
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close" onClick='$("#missingkeys").hide()'>
+                   <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             {{/if}}
             {{if num_skipped != 0}}
-                 <div class="alert center alert-warning" role="alert">
+                 <div id="scan_issues" class="alert center alert-warning" role="alert">
                 {{:num_skipped}} out of {{:num_files}} files were skipped during scan, click on the issues tab to learn more
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close" onClick='$("#scan_issues").hide()'>
+                   <span aria-hidden="true">&times;</span>
+                </button>
                   </div>
             {{/if}}
             <section id="library-table" class="content"></section>

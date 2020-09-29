@@ -166,7 +166,7 @@ $(function () {
                     let table = new Tabulator("#updates-table", {
                         layout:"fitDataStretch",
                         initialSort:[
-                            {column:"Update date", dir:"desc"}, //sort by this first
+                            {column:"latest_update_date", dir:"desc"}, //sort by this first
                         ],
                         pagination: "local",
                         paginationSize: state.settings.gui_page_size,
@@ -200,7 +200,7 @@ $(function () {
                     let table = new Tabulator("#dlc-table", {
                         layout:"fitDataStretch",
                         initialSort:[
-                            {column:"Title", dir:"desc"}, //sort by this first
+                            {column:"name", dir:"desc"}, //sort by this first
                         ],
                         pagination: "local",
                         paginationSize: state.settings.gui_page_size,
@@ -262,7 +262,7 @@ $(function () {
                 if (state.library && state.library.library_data.length) {
                     var table = new Tabulator("#library-table", {
                         initialSort:[
-                            {column:"Title", dir:"desc"}, //sort by this first
+                            {column:"name", dir:"desc"}, //sort by this first
                         ],
                         layout:"fitDataStretch",
                         pagination: "local",
