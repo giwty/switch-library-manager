@@ -252,9 +252,9 @@ $(function () {
                 let html = $(target + "Template").render(
                     {
                         folder: state.settings.folder,
-                        library:state.library.library_data,
-                        num_skipped:state.library.issues ? state.library.issues.length : 0,
-                        num_files:state.library.num_files,
+                        library: state.library ? state.library.library_data : [] ,
+                        num_skipped:state.library ? (state.library.issues ? state.library.issues.length : 0) : 0,
+                        num_files:state.library ? state.library.num_files : 0,
                         keys:state.keys,
                         scanFolders:state.settings.scan_folders
                     })
