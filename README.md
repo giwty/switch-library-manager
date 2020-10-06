@@ -64,6 +64,7 @@ The following template elements are supported:
 - {TITLE_ID} - title id
 - {VERSION} - version id (only applicable to files)
 - {VERSION_TXT} - version number (like 1.0.0) (only applicable to files)
+- {REGION} - region
 - {TYPE} - impacts DLCs/updates, will appear as ["UPD","DLC"]
 - {DLC_NAME} - DLC name (only applicable to DLCs)
 
