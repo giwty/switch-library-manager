@@ -19,10 +19,12 @@ const (
 	SETTINGS_FILENAME      = "settings.json"
 	TITLE_JSON_FILENAME    = "titles.json"
 	VERSIONS_JSON_FILENAME = "versions.json"
-	SLM_VERSION            = "1.3.5"
+	SLM_VERSION            = "1.3.7"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
-	VERSIONS_JSON_URL      = "https://tinfoil.media/repo/db/versions.json"
-	SLM_VERSION_URL        = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
+	//TITLES_JSON_URL    = "https://raw.githubusercontent.com/blawar/titledb/master/titles.US.en.json"
+	VERSIONS_JSON_URL = "https://tinfoil.media/repo/db/versions.json"
+	//VERSIONS_JSON_URL = "https://raw.githubusercontent.com/blawar/titledb/master/versions.json"
+	SLM_VERSION_URL = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
 )
 
 const (
@@ -30,6 +32,7 @@ const (
 	TEMPLATE_TITLE_NAME  = "TITLE_NAME"
 	TEMPLATE_DLC_NAME    = "DLC_NAME"
 	TEMPLATE_VERSION     = "VERSION"
+	TEMPLATE_REGION      = "REGION"
 	TEMPLATE_VERSION_TXT = "VERSION_TXT"
 	TEMPLATE_TYPE        = "TYPE"
 )

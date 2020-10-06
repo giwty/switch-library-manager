@@ -200,7 +200,7 @@ $(function () {
                     let table = new Tabulator("#dlc-table", {
                         layout:"fitDataStretch",
                         initialSort:[
-                            {column:"name", dir:"desc"}, //sort by this first
+                            {column:"Attributes.name", dir:"asc"}, //sort by this first
                         ],
                         pagination: "local",
                         paginationSize: state.settings.gui_page_size,
@@ -262,7 +262,7 @@ $(function () {
                 if (state.library && state.library.library_data.length) {
                     var table = new Tabulator("#library-table", {
                         initialSort:[
-                            {column:"name", dir:"desc"}, //sort by this first
+                            {column:"name", dir:"asc"}, //sort by this first
                         ],
                         layout:"fitDataStretch",
                         pagination: "local",
@@ -273,8 +273,8 @@ $(function () {
                             {field: "icon",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Title id", headerSort:false, field: "titleId"},
-                            {title: "Multi content", headerSort:false, field: "multi_content"},
-                            {title: "Split", headerSort:false, field: "split"},
+                            {title: "Region", headerSort:true, field: "region"},
+                            {title: "Type", headerSort:true, field: "type"},
                             {title: "Update", headerSort:false, field: "update"},
                             {title: "Version", headerSort:false, field: "version"},
                             {title: "File name", headerSort:false, field: "path",formatter:"textarea",cellClick:function(e, cell){
@@ -326,7 +326,11 @@ $(function () {
 
                     sendMessage("organize", "", (r => {
                         $(".progress-container").hide();
-                        loadTab("#organize");
+                        state.library = undefined;
+                        state.updates = undefined;
+                        state.dlc = undefined;
+                        loadTab("#library");
+                        scanLocalFolder()
                         dialog.showMessageBox(null, {
                             type: 'info',
                             buttons: ['Ok'],

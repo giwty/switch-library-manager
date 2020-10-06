@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/asticode/go-astikit"
 	"github.com/asticode/go-astilectron"
@@ -29,16 +30,16 @@ type LocalLibraryData struct {
 }
 
 type LibraryTemplateData struct {
-	Id           int    `json:"id"`
-	Name         string `json:"name"`
-	Version      string `json:"version"`
-	Dlc          string `json:"dlc"`
-	TitleId      string `json:"titleId"`
-	Path         string `json:"path"`
-	Icon         string `json:"icon"`
-	Update       int    `json:"update"`
-	MultiContent bool   `json:"multi_content"`
-	Split        bool   `json:"split"`
+	Id      int    `json:"id"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Dlc     string `json:"dlc"`
+	TitleId string `json:"titleId"`
+	Path    string `json:"path"`
+	Icon    string `json:"icon"`
+	Update  int    `json:"update"`
+	Region  string `json:"region"`
+	Type    string `json:"type"`
 }
 
 type ProgressUpdate struct {
@@ -221,17 +222,19 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 					}
 				}
 				if title, ok := g.state.switchDB.TitlesMap[k]; ok {
-
+					if title.Attributes.Name != "" {
+						name = title.Attributes.Name
+					}
 					libraryData = append(libraryData,
 						LibraryTemplateData{
-							Icon:         title.Attributes.IconUrl,
-							Name:         title.Attributes.Name,
-							TitleId:      v.File.Metadata.TitleId,
-							Update:       v.LatestUpdate,
-							Version:      version,
-							MultiContent: v.MultiContent,
-							Split:        v.IsSplit,
-							Path:         filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.Info.Name()),
+							Icon:    title.Attributes.IconUrl,
+							Name:    name,
+							TitleId: v.File.Metadata.TitleId,
+							Update:  v.LatestUpdate,
+							Version: version,
+							Region:  title.Attributes.Region,
+							Type:    getType(v),
+							Path:    filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.Info.Name()),
 						})
 				} else {
 					if name == "" {
@@ -239,12 +242,12 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 					}
 					libraryData = append(libraryData,
 						LibraryTemplateData{
-							Name:         name,
-							Update:       v.LatestUpdate,
-							Version:      version,
-							MultiContent: v.MultiContent,
-							TitleId:      v.File.Metadata.TitleId,
-							Path:         v.File.ExtendedInfo.Info.Name(),
+							Name:    name,
+							Update:  v.LatestUpdate,
+							Version: version,
+							Type:    getType(v),
+							TitleId: v.File.Metadata.TitleId,
+							Path:    v.File.ExtendedInfo.Info.Name(),
 						})
 				}
 
@@ -258,7 +261,7 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 			}
 		}
 		for k, v := range localDB.Skipped {
-			issues = append(issues, Pair{Key: filepath.Join(k.BaseFolder, k.Info.Name()), Value: v})
+			issues = append(issues, Pair{Key: filepath.Join(k.BaseFolder, k.Info.Name()), Value: v.ReasonText})
 		}
 
 		response.LibraryData = libraryData
@@ -293,6 +296,20 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 	g.sugarLogger.Debugf("Server response [%v]", retValue)
 
 	return retValue
+}
+
+func getType(gameFile *db.SwitchGameFiles) string {
+	if gameFile.IsSplit {
+		return "split"
+	}
+	if gameFile.MultiContent {
+		return "multi-content"
+	}
+	ext := filepath.Ext(gameFile.File.ExtendedInfo.Info.Name())
+	if len(ext) > 1 {
+		return ext[1:]
+	}
+	return ""
 }
 
 func (g *GUI) saveSettings(settingsJson string) error {
@@ -342,7 +359,7 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	filename := filepath.Join(g.baseFolder, settings.TITLE_JSON_FILENAME)
 	titleFile, titlesEtag, err := db.LoadAndUpdateFile(settings.TITLES_JSON_URL, filename, settingsObj.TitlesEtag)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to download switch titles [reason:" + err.Error() + "]")
 	}
 	settingsObj.TitlesEtag = titlesEtag
 
@@ -350,7 +367,7 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	filename = filepath.Join(g.baseFolder, settings.VERSIONS_JSON_FILENAME)
 	versionsFile, versionsEtag, err := db.LoadAndUpdateFile(settings.VERSIONS_JSON_URL, filename, settingsObj.VersionsEtag)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to download switch updates [reason:" + err.Error() + "]")
 	}
 	settingsObj.VersionsEtag = versionsEtag
 
@@ -377,13 +394,13 @@ func (g *GUI) organizeLibrary() {
 	folderToScan := settings.ReadSettings(g.baseFolder).Folder
 	process.OrganizeByFolders(folderToScan, g.state.localDB, g.state.switchDB, g)
 	if settings.ReadSettings(g.baseFolder).OrganizeOptions.DeleteOldUpdateFiles {
-		process.DeleteOldUpdates(g.state.localDB, g)
+		process.DeleteOldUpdates(g.baseFolder, g.state.localDB, g)
 	}
 }
 
 func (g *GUI) UpdateProgress(curr int, total int, message string) {
 	progressMessage := ProgressUpdate{curr, total, message}
-	g.sugarLogger.Debugf("process %v (%v/%v)", message, curr, total)
+	g.sugarLogger.Debugf("%v (%v/%v)", message, curr, total)
 	msg, err := json.Marshal(progressMessage)
 	if err != nil {
 		g.sugarLogger.Error(err)
