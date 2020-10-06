@@ -17,32 +17,41 @@ import (
 var (
 	folderIllegalCharsRegex = regexp.MustCompile(`[/\\?%*:;=|"<>]`)
 	nonAscii                = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-\\[\\]\\(\\)\\+]")
+	cjk                     = regexp.MustCompile("[\u2f70-\u2FA1\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f\\p{Katakana}\\p{Hiragana}\\p{Hangul}]")
 )
 
-func DeleteOldUpdates(localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
+func DeleteOldUpdates(baseFolder string, localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
 	i := 0
-	for k, v := range localDB.TitlesMap {
-		if !v.BaseExist || v.IsSplit {
-			continue
-		}
-		i++
-		if updateProgress != nil {
-			updateProgress.UpdateProgress(i, len(localDB.TitlesMap), v.File.ExtendedInfo.Info.Name()+k)
-		}
-		if len(v.Updates) > 1 {
-
-			for version, update := range v.Updates {
-				if version < v.LatestUpdate && version != 0 {
-					fileToRemove := filepath.Join(update.ExtendedInfo.BaseFolder, update.ExtendedInfo.Info.Name())
-					zap.S().Infof("--> [Delete] Old update file: %v [latest update:%v]\n", fileToRemove, v.LatestUpdate)
-					err := os.Remove(fileToRemove)
-					if err != nil {
-						zap.S().Errorf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
-					}
-				}
+	for k, v := range localDB.Skipped {
+		switch v.ReasonCode {
+		//case db.REASON_DUPLICATE:
+		case db.REASON_OLD_UPDATE:
+			fileToRemove := filepath.Join(k.BaseFolder, k.Info.Name())
+			if updateProgress != nil {
+				updateProgress.UpdateProgress(0, 0, "deleting "+fileToRemove)
 			}
+			zap.S().Infof("Deleting file: %v \n", fileToRemove)
+			err := os.Remove(fileToRemove)
+			if err != nil {
+				zap.S().Errorf("Failed to delete file  %v  [%v]\n", fileToRemove, err)
+				continue
+			}
+			i++
 		}
 
+	}
+
+	if i != 0 && settings.ReadSettings(baseFolder).OrganizeOptions.DeleteEmptyFolders {
+		if updateProgress != nil {
+			updateProgress.UpdateProgress(i, i+1, "deleting empty folders... (can take 1-2min)")
+		}
+		err := deleteEmptyFolders(baseFolder)
+		if err != nil {
+			zap.S().Errorf("Failed to delete empty folders [%v]\n", err)
+		}
+		if updateProgress != nil {
+			updateProgress.UpdateProgress(i+1, i+1, "deleting empty folders... (can take 1-2min)")
+		}
 	}
 }
 
@@ -62,9 +71,10 @@ func OrganizeByFolders(baseFolder string,
 	tasksSize := len(localDB.TitlesMap) + 2
 	for k, v := range localDB.TitlesMap {
 		i++
-		if v.BaseExist == false {
+		if !v.BaseExist {
 			continue
 		}
+
 		if updateProgress != nil {
 			updateProgress.UpdateProgress(i, tasksSize, v.File.ExtendedInfo.Info.Name())
 		}
@@ -77,6 +87,9 @@ func OrganizeByFolders(baseFolder string,
 		//templateData[settings.TEMPLATE_TYPE] = "BASE"
 		templateData[settings.TEMPLATE_TITLE_NAME] = titleName
 		templateData[settings.TEMPLATE_VERSION_TXT] = ""
+		if _, ok := titlesDB.TitlesMap[k]; ok {
+			templateData[settings.TEMPLATE_REGION] = titlesDB.TitlesMap[k].Attributes.Region
+		}
 		templateData[settings.TEMPLATE_VERSION] = "0"
 
 		if v.File.Metadata.Ncap != nil {
@@ -96,6 +109,29 @@ func OrganizeByFolders(baseFolder string,
 					continue
 				}
 			}
+		}
+
+		if v.IsSplit {
+			//in case of a split file, we only rename the folder and then move all the split
+			//files with the new folder
+			files, err := ioutil.ReadDir(v.File.ExtendedInfo.BaseFolder)
+			if err != nil {
+				continue
+			}
+
+			for _, file := range files {
+				if _, err := strconv.Atoi(file.Name()[len(file.Name())-1:]); err == nil {
+					from := filepath.Join(v.File.ExtendedInfo.BaseFolder, file.Name())
+					to := filepath.Join(destinationPath, file.Name())
+					err := moveFile(from, to)
+					if err != nil {
+						zap.S().Errorf("Failed to move file [%v]\n", err)
+						continue
+					}
+				}
+			}
+			continue
+
 		}
 
 		//process base title
@@ -210,7 +246,7 @@ func getDlcName(switchTitle *db.SwitchTitle, file db.SwitchFileInfo) string {
 	}
 	if dlcAttributes, ok := switchTitle.Dlc[file.Metadata.TitleId]; ok {
 		name := dlcAttributes.Name
-		name = strings.ReplaceAll(name, "\n", "")
+		name = strings.ReplaceAll(name, "\n", " ")
 		return name
 	}
 	return ""
@@ -218,18 +254,21 @@ func getDlcName(switchTitle *db.SwitchTitle, file db.SwitchFileInfo) string {
 
 func getTitleName(switchTitle *db.SwitchTitle, v *db.SwitchGameFiles) string {
 	if switchTitle != nil && switchTitle.Attributes.Name != "" {
-		return switchTitle.Attributes.Name
-	} else {
-
-		if v.File.Metadata.Ncap != nil {
-			name := v.File.Metadata.Ncap.TitleName["AmericanEnglish"].Title
-			if name != "" {
-				return name
-			}
+		res := cjk.FindAllString(switchTitle.Attributes.Name, -1)
+		if len(res) == 0 {
+			return switchTitle.Attributes.Name
 		}
-		//for non eshop games (cartridge only), grab the name from the file
-		return db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name())
 	}
+
+	if v.File.Metadata.Ncap != nil {
+		name := v.File.Metadata.Ncap.TitleName["AmericanEnglish"].Title
+		if name != "" {
+			return name
+		}
+	}
+	//for non eshop games (cartridge only), grab the name from the file
+	return db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name())
+
 }
 
 func getFolderName(options settings.OrganizeOptions, templateData map[string]string) string {
@@ -260,6 +299,7 @@ func applyTemplate(templateData map[string]string, useSafeNames bool, template s
 	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", templateData[settings.TEMPLATE_VERSION], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TYPE+"}", templateData[settings.TEMPLATE_TYPE], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION_TXT+"}", templateData[settings.TEMPLATE_VERSION_TXT], 1)
+	result = strings.Replace(result, "{"+settings.TEMPLATE_REGION+"}", templateData[settings.TEMPLATE_REGION], 1)
 	//remove title name from dlc name
 	dlcName := strings.Replace(templateData[settings.TEMPLATE_DLC_NAME], templateData[settings.TEMPLATE_TITLE_NAME], "", 1)
 	dlcName = strings.TrimSpace(dlcName)
