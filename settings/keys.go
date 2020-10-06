@@ -25,19 +25,24 @@ func SwitchKeys() (*switchKeys, error) {
 func InitSwitchKeys(baseFolder string) (*switchKeys, error) {
 
 	// init from a file
-	p, err := properties.LoadFile(filepath.Join(baseFolder, "prod.keys"), properties.UTF8)
+	path := filepath.Join(baseFolder, "prod.keys")
+	p, err := properties.LoadFile(path, properties.UTF8)
 	if err != nil {
-		p, err = properties.LoadFile("${HOME}/.switch/prod.keys", properties.UTF8)
+		path = "${HOME}/.switch/prod.keys"
+		p, err = properties.LoadFile(path, properties.UTF8)
 	}
+	settings := ReadSettings(baseFolder)
 	if err != nil {
-		prodKeysPath := ReadSettings(baseFolder).Prodkeys
-		if prodKeysPath != "" {
-			p, err = properties.LoadFile(filepath.Join(prodKeysPath, "prod.keys"), properties.UTF8)
+		path := settings.Prodkeys
+		if path != "" {
+			p, err = properties.LoadFile(filepath.Join(path, "prod.keys"), properties.UTF8)
 		}
 	}
 	if err != nil {
-		return nil, errors.New("couldn't find prod.keys")
+		return nil, errors.New("Error trying to read prod.keys [reason:" + err.Error() + "]")
 	}
+	settings.Prodkeys = path
+	SaveSettings(settings, baseFolder)
 	keysInstance = &switchKeys{keys: map[string]string{}}
 	for _, key := range p.Keys() {
 		value, _ := p.Get(key)
