@@ -14,6 +14,7 @@ import (
 	"log"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -140,7 +141,7 @@ func (g *GUI) Start() {
 					{
 						Label: astikit.StrPtr("Hard rescan"),
 						OnClick: func(e astilectron.Event) (deleteListener bool) {
-							_ = localDbManager.ClearDB()
+							_ = localDbManager.ClearScanData()
 							g.state.window.SendMessage(Message{Name: "rescan", Payload: ""}, func(m *astilectron.EventMessage) {})
 							return
 						},
@@ -163,6 +164,7 @@ func (g *GUI) Start() {
 		},
 	}); err != nil {
 		g.sugarLogger.Error(fmt.Errorf("running bootstrap failed: %w", err))
+		log.Fatal(err)
 	}
 }
 
@@ -196,7 +198,8 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 			return ""
 		}
 	case "updateLocalLibrary":
-		localDB, err := g.buildLocalDB(g.localDbManager)
+		ignoreCache, _ := strconv.ParseBool(msg.Payload)
+		localDB, err := g.buildLocalDB(g.localDbManager, ignoreCache)
 		if err != nil {
 			g.sugarLogger.Error(err)
 			g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
@@ -234,11 +237,11 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 							Version: version,
 							Region:  title.Attributes.Region,
 							Type:    getType(v),
-							Path:    filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.Info.Name()),
+							Path:    filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.FileName),
 						})
 				} else {
 					if name == "" {
-						name = db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name())
+						name = db.ParseTitleNameFromFileName(v.File.ExtendedInfo.FileName)
 					}
 					libraryData = append(libraryData,
 						LibraryTemplateData{
@@ -247,21 +250,21 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 							Version: version,
 							Type:    getType(v),
 							TitleId: v.File.Metadata.TitleId,
-							Path:    v.File.ExtendedInfo.Info.Name(),
+							Path:    v.File.ExtendedInfo.FileName,
 						})
 				}
 
 			} else {
 				for _, update := range v.Updates {
-					issues = append(issues, Pair{Key: filepath.Join(update.ExtendedInfo.BaseFolder, update.ExtendedInfo.Info.Name()), Value: "base file is missing"})
+					issues = append(issues, Pair{Key: filepath.Join(update.ExtendedInfo.BaseFolder, update.ExtendedInfo.FileName), Value: "base file is missing"})
 				}
 				for _, dlc := range v.Dlc {
-					issues = append(issues, Pair{Key: filepath.Join(dlc.ExtendedInfo.BaseFolder, dlc.ExtendedInfo.Info.Name()), Value: "base file is missing"})
+					issues = append(issues, Pair{Key: filepath.Join(dlc.ExtendedInfo.BaseFolder, dlc.ExtendedInfo.FileName), Value: "base file is missing"})
 				}
 			}
 		}
 		for k, v := range localDB.Skipped {
-			issues = append(issues, Pair{Key: filepath.Join(k.BaseFolder, k.Info.Name()), Value: v.ReasonText})
+			issues = append(issues, Pair{Key: filepath.Join(k.BaseFolder, k.FileName), Value: v.ReasonText})
 		}
 
 		response.LibraryData = libraryData
@@ -305,7 +308,7 @@ func getType(gameFile *db.SwitchGameFiles) string {
 	if gameFile.MultiContent {
 		return "multi-content"
 	}
-	ext := filepath.Ext(gameFile.File.ExtendedInfo.Info.Name())
+	ext := filepath.Ext(gameFile.File.ExtendedInfo.FileName)
 	if len(ext) > 1 {
 		return ext[1:]
 	}
@@ -323,7 +326,12 @@ func (g *GUI) saveSettings(settingsJson string) error {
 }
 
 func (g *GUI) getMissingDLC() string {
-	missingDLC := process.ScanForMissingDLC(g.state.localDB.TitlesMap, g.state.switchDB.TitlesMap)
+	settingsObj := settings.ReadSettings(g.baseFolder)
+	ignoreIds := map[string]struct{}{}
+	for _, id := range settingsObj.IgnoreDLCTitleIds {
+		ignoreIds[strings.ToLower(id)] = struct{}{}
+	}
+	missingDLC := process.ScanForMissingDLC(g.state.localDB.TitlesMap, g.state.switchDB.TitlesMap, ignoreIds)
 	values := make([]process.IncompleteTitle, len(missingDLC))
 	i := 0
 	for _, missingUpdate := range missingDLC {
@@ -379,13 +387,13 @@ func (g *GUI) buildSwitchDb() (*db.SwitchTitlesDB, error) {
 	return switchTitleDB, err
 }
 
-func (g *GUI) buildLocalDB(localDbManager *db.LocalSwitchDBManager) (*db.LocalSwitchFilesDB, error) {
+func (g *GUI) buildLocalDB(localDbManager *db.LocalSwitchDBManager, ignoreCache bool) (*db.LocalSwitchFilesDB, error) {
 	folderToScan := settings.ReadSettings(g.baseFolder).Folder
 	recursiveMode := settings.ReadSettings(g.baseFolder).ScanRecursively
 
 	scanFolders := settings.ReadSettings(g.baseFolder).ScanFolders
 	scanFolders = append(scanFolders, folderToScan)
-	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, g, recursiveMode)
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, g, recursiveMode, ignoreCache)
 	g.state.localDB = localDB
 	return localDB, err
 }

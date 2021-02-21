@@ -60,6 +60,7 @@ type AppSettings struct {
 	OrganizeOptions        OrganizeOptions `json:"organize_options"`
 	ScanRecursively        bool            `json:"scan_recursively"`
 	GuiPagingSize          int             `json:"gui_page_size"`
+	IgnoreDLCTitleIds      []string        `json:"ignore_dlc_title_ids"`
 }
 
 func ReadSettingsAsJSON(baseFolder string) string {
@@ -76,7 +77,7 @@ func ReadSettings(baseFolder string) *AppSettings {
 		return settingsInstance
 	}
 	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{},
-		OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}, Prodkeys: ""}
+		OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}, Prodkeys: "", IgnoreDLCTitleIds: []string{"01007F600B135007"}}
 	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
 		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
 		if err != nil {
@@ -97,6 +98,7 @@ func saveDefaultSettings(baseFolder string) *AppSettings {
 		VersionsEtag:           "W/\"2ef50d1cb6bd61:0\"",
 		Folder:                 "",
 		ScanFolders:            []string{},
+		IgnoreDLCTitleIds:      []string{},
 		GUI:                    true,
 		GuiPagingSize:          100,
 		CheckForMissingUpdates: true,

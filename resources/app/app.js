@@ -8,6 +8,8 @@ $(function () {
         keys:false
     };
 
+    let currTable
+
     //handle tabs action
     $('.tabgroup > div').hide();
     // loadTab($('.tabgroup > div:first-of-type'));
@@ -86,7 +88,10 @@ $(function () {
                 loadTab("#library")
             }
             else if (message.name === "rescan") {
-                scanLocalFolder()
+                state.library = undefined;
+                state.updates = undefined;
+                state.dlc = undefined;
+                scanLocalFolder(true)
             }
         });
 
@@ -99,7 +104,7 @@ $(function () {
                 .catch(error => console.log(error))
         };
 
-        let scanLocalFolder = function(){
+        let scanLocalFolder = function(mode){
             if (!state.settings.folder){
                 loadTab("#library")
                 return
@@ -108,7 +113,7 @@ $(function () {
             $(".progress-container").show();
             $(".progress-type").text("Scanning local library...");
 
-            sendMessage("updateLocalLibrary", "", (r => {}))
+            sendMessage("updateLocalLibrary", ""+mode, (r => {}))
         };
 
         let updateFolder = function (mode,result) {
@@ -139,6 +144,7 @@ $(function () {
             sendMessage("saveSettings", JSON.stringify(state.settings), scanLocalFolder);
         };
 
+
         function loadTab(target) {
             $(target).show();
             if (target === "#settings") {
@@ -163,7 +169,7 @@ $(function () {
                 let html = $(target + "Template").render({folder: state.settings.folder,updates:state.updates})
                 $(target).html(html);
                 if (state.updates && state.updates.length) {
-                    let table = new Tabulator("#updates-table", {
+                    currTable = new Tabulator("#updates-table", {
                         layout:"fitDataStretch",
                         initialSort:[
                             {column:"latest_update_date", dir:"desc"}, //sort by this first
@@ -173,7 +179,7 @@ $(function () {
                         data: state.updates,
                         columns: [
                             {formatter:"rownum"},
-                            {field: "Attributes.bannerUrl",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
+                            {field: "Attributes.bannerUrl",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "Attributes.name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Type", field: "Meta.type", headerFilter:"input"},
                             {title: "Title id", headerSort:false, field: "Attributes.id", hozAlign: "right", sorter: "number"},
@@ -197,7 +203,7 @@ $(function () {
                 let html = $(target + "Template").render({folder: state.settings.folder,dlc:state.dlc});
                 $(target).html(html);
                 if (state.dlc && state.dlc.length) {
-                    let table = new Tabulator("#dlc-table", {
+                    currTable = new Tabulator("#dlc-table", {
                         layout:"fitDataStretch",
                         initialSort:[
                             {column:"Attributes.name", dir:"asc"}, //sort by this first
@@ -207,7 +213,7 @@ $(function () {
                         data: state.dlc,
                         columns: [
                             {formatter:"rownum"},
-                            {field: "Attributes.bannerUrl",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
+                            {field: "Attributes.bannerUrl",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "Attributes.name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "# Missing", field: "missing_dlc.length"},
                             {title: "Missing DLC", headerSort:false, field: "missing_dlc",formatter:function(cell, formatterParams, onRendered){
@@ -228,7 +234,7 @@ $(function () {
                 let html = $(target + "Template").render({folder: state.settings.folder,library:state.library ? state.library.issues: undefined,numFiles:state.library ? state.library.num_files:-1});
                 $(target).html(html);
                 if (state.library.issues && state.library.issues.length) {
-                    let table = new Tabulator("#status-table", {
+                    currTable = new Tabulator("#status-table", {
                         layout:"fitDataStretch",
                         pagination: "local",
                         paginationSize: state.settings.gui_page_size,
@@ -260,7 +266,7 @@ $(function () {
                     })
                 $(target).html(html);
                 if (state.library && state.library.library_data.length) {
-                    var table = new Tabulator("#library-table", {
+                    currTable = new Tabulator("#library-table", {
                         initialSort:[
                             {column:"name", dir:"asc"}, //sort by this first
                         ],
@@ -270,7 +276,7 @@ $(function () {
                         data: state.library.library_data,
                         columns: [
                             {formatter:"rownum"},
-                            {field: "icon",formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
+                            {field: "icon",formatter:"image", download:false,headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Title id", headerSort:false, field: "titleId"},
                             {title: "Region", headerSort:true, field: "region"},
@@ -286,12 +292,27 @@ $(function () {
                         ],
                     });
                 }
+            }else if (target === "#missing") {
+                let html = $(target + "Template").render({folder: state.settings.folder,settings:state.settings})
+                $(target).html(html);
             }
         }
 
         $("body").on("click", ".folder-set", e => {
             openFolderPicker(e.target.textContent)
         });
+
+        $("body").on("click", ".export-btn", e => {
+            let page = currTable.getPage();
+            let pageSize = currTable.getPageSize();
+            currTable.setPageSize(true);
+            currTable.setPage(1);
+            currTable.download("csv", "export.csv");
+            currTable.setPageSize(pageSize);
+            currTable.setPage(page);
+           // currTable && currTable.download("csv", "data.csv");
+        });
+
 
         $("body").on("click", ".library-organize-action", e => {
             e.preventDefault();
@@ -330,7 +351,7 @@ $(function () {
                         state.updates = undefined;
                         state.dlc = undefined;
                         loadTab("#library");
-                        scanLocalFolder()
+                        scanLocalFolder(true)
                         dialog.showMessageBox(null, {
                             type: 'info',
                             buttons: ['Ok'],

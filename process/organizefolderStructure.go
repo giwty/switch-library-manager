@@ -26,7 +26,7 @@ func DeleteOldUpdates(baseFolder string, localDB *db.LocalSwitchFilesDB, updateP
 		switch v.ReasonCode {
 		//case db.REASON_DUPLICATE:
 		case db.REASON_OLD_UPDATE:
-			fileToRemove := filepath.Join(k.BaseFolder, k.Info.Name())
+			fileToRemove := filepath.Join(k.BaseFolder, k.FileName)
 			if updateProgress != nil {
 				updateProgress.UpdateProgress(0, 0, "deleting "+fileToRemove)
 			}
@@ -76,7 +76,7 @@ func OrganizeByFolders(baseFolder string,
 		}
 
 		if updateProgress != nil {
-			updateProgress.UpdateProgress(i, tasksSize, v.File.ExtendedInfo.Info.Name())
+			updateProgress.UpdateProgress(i, tasksSize, v.File.ExtendedInfo.FileName)
 		}
 
 		titleName := getTitleName(titlesDB.TitlesMap[k], v)
@@ -135,8 +135,8 @@ func OrganizeByFolders(baseFolder string,
 		}
 
 		//process base title
-		from := filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.Info.Name())
-		to := filepath.Join(destinationPath, getFileName(options, v.File.ExtendedInfo.Info.Name(), templateData))
+		from := filepath.Join(v.File.ExtendedInfo.BaseFolder, v.File.ExtendedInfo.FileName)
+		to := filepath.Join(destinationPath, getFileName(options, v.File.ExtendedInfo.FileName, templateData))
 		err := moveFile(from, to)
 		if err != nil {
 			zap.S().Errorf("Failed to move file [%v]\n", err)
@@ -156,11 +156,11 @@ func OrganizeByFolders(baseFolder string,
 				templateData[settings.TEMPLATE_VERSION_TXT] = ""
 			}
 
-			from = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, updateInfo.ExtendedInfo.Info.Name())
+			from = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, updateInfo.ExtendedInfo.FileName)
 			if options.CreateFolderPerGame {
-				to = filepath.Join(destinationPath, getFileName(options, updateInfo.ExtendedInfo.Info.Name(), templateData))
+				to = filepath.Join(destinationPath, getFileName(options, updateInfo.ExtendedInfo.FileName, templateData))
 			} else {
-				to = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, getFileName(options, updateInfo.ExtendedInfo.Info.Name(), templateData))
+				to = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, getFileName(options, updateInfo.ExtendedInfo.FileName, templateData))
 			}
 			err := moveFile(from, to)
 			if err != nil {
@@ -177,11 +177,11 @@ func OrganizeByFolders(baseFolder string,
 			templateData[settings.TEMPLATE_TYPE] = "DLC"
 			templateData[settings.TEMPLATE_TITLE_ID] = id
 			templateData[settings.TEMPLATE_DLC_NAME] = getDlcName(titlesDB.TitlesMap[k], dlc)
-			from = filepath.Join(dlc.ExtendedInfo.BaseFolder, dlc.ExtendedInfo.Info.Name())
+			from = filepath.Join(dlc.ExtendedInfo.BaseFolder, dlc.ExtendedInfo.FileName)
 			if options.CreateFolderPerGame {
-				to = filepath.Join(destinationPath, getFileName(options, dlc.ExtendedInfo.Info.Name(), templateData))
+				to = filepath.Join(destinationPath, getFileName(options, dlc.ExtendedInfo.FileName, templateData))
 			} else {
-				to = filepath.Join(dlc.ExtendedInfo.BaseFolder, getFileName(options, dlc.ExtendedInfo.Info.Name(), templateData))
+				to = filepath.Join(dlc.ExtendedInfo.BaseFolder, getFileName(options, dlc.ExtendedInfo.FileName, templateData))
 			}
 			err = moveFile(from, to)
 			if err != nil {
@@ -267,7 +267,7 @@ func getTitleName(switchTitle *db.SwitchTitle, v *db.SwitchGameFiles) string {
 		}
 	}
 	//for non eshop games (cartridge only), grab the name from the file
-	return db.ParseTitleNameFromFileName(v.File.ExtendedInfo.Info.Name())
+	return db.ParseTitleNameFromFileName(v.File.ExtendedInfo.FileName)
 
 }
 

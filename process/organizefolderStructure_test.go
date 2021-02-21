@@ -2,13 +2,16 @@ package process
 
 import (
 	"robpike.io/nihongo"
+	"strings"
 	"testing"
 )
 
 //var folderIllegalCharsRegex = regexp.MustCompile(`[./\\?%*:;=|"<>]`)
 
 func TestRename(t *testing.T) {
-	name := "鉄道にっぽん！路線たび 叡山電車編"
+	name := "Pokémon™: Let’s Go, Eevee! 포탈 나이츠"
 	name = folderIllegalCharsRegex.ReplaceAllString(name, "")
+	safe := cjk.FindAllString(name, -1)
+	name = strings.Join(safe, "")
 	name = nihongo.RomajiString(name)
 }

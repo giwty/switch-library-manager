@@ -18,7 +18,9 @@ type IncompleteTitle struct {
 	MissingDLC       []string `json:"missing_dlc"`
 }
 
-func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles,
+	switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+
 	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
@@ -72,6 +74,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles, switchDB map[
 
 		//process dlc
 		for k, availableDlc := range switchDB[idPrefix].Dlc {
+
 			if localDlc, ok := switchFile.Dlc[k]; ok {
 				latestDlcVersion, err := availableDlc.Version.Int64()
 				if err != nil {
@@ -104,7 +107,8 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles, switchDB map[
 	return result
 }
 
-func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles, switchDB map[string]*db.SwitchTitle) map[string]IncompleteTitle {
+func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles,
+	switchDB map[string]*db.SwitchTitle, ignoreTitleIds map[string]struct{}) map[string]IncompleteTitle {
 	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
@@ -122,6 +126,10 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles, switchDB map[stri
 		//process dlc
 		if len(switchDB[idPrefix].Dlc) != 0 {
 			for k, v := range switchDB[idPrefix].Dlc {
+				if _, ok := ignoreTitleIds[k]; ok {
+					continue
+				}
+
 				if _, ok := switchFile.Dlc[k]; !ok {
 					switchTitle.MissingDLC = append(switchTitle.MissingDLC, fmt.Sprintf("%v [%v]", v.Name, v.Id))
 				}

@@ -1,22 +1,17 @@
 package db
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"github.com/giwty/switch-library-manager/fileio"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/giwty/switch-library-manager/switchfs"
 	"go.uber.org/zap"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	. "time"
 )
 
 var (
@@ -25,6 +20,9 @@ var (
 )
 
 const (
+	DB_TABLE_FILE_SCAN_METADATA = "deep-scan"
+	DB_TABLE_LOCAL_LIBRARY      = "local-library"
+
 	REASON_UNSUPPORTED_TYPE = iota
 	REASON_DUPLICATE
 	REASON_OLD_UPDATE
@@ -33,43 +31,14 @@ const (
 )
 
 type LocalSwitchDBManager struct {
-	db *bolt.DB
+	db *PersistentDB
 }
 
 func NewLocalSwitchDBManager(baseFolder string) (*LocalSwitchDBManager, error) {
-	// Open the my.db data file in your current directory.
-	// It will be created if it doesn't exist.
-	db, err := bolt.Open(filepath.Join(baseFolder, "slm.db"), 0600, &bolt.Options{Timeout: 1 * Second})
+	db, err := NewPersistentDB(baseFolder)
 	if err != nil {
-		log.Fatal(err)
 		return nil, err
 	}
-
-	//get DB version
-	appVersion := ""
-	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("deep-scan"))
-		if b == nil {
-			return nil
-		}
-		v := b.Get([]byte("app_version"))
-		if v == nil {
-			err := db.Update(func(tx *bolt.Tx) error {
-				err = tx.DeleteBucket([]byte("deep-scan"))
-				return err
-			})
-			return err
-		}
-		d := gob.NewDecoder(bytes.NewReader(v))
-
-		err = d.Decode(&appVersion)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
 	return &LocalSwitchDBManager{db: db}, nil
 }
 
@@ -78,8 +47,10 @@ func (ldb *LocalSwitchDBManager) Close() {
 }
 
 type ExtendedFileInfo struct {
-	Info       os.FileInfo
+	FileName   string
 	BaseFolder string
+	Size       int64
+	IsDir      bool
 }
 
 type SwitchFileInfo struct {
@@ -109,21 +80,37 @@ type LocalSwitchFilesDB struct {
 	NumFiles  int
 }
 
-func (ldb *LocalSwitchDBManager) CreateLocalSwitchFilesDB(folders []string, progress ProgressUpdater, recursive bool) (*LocalSwitchFilesDB, error) {
+func (ldb *LocalSwitchDBManager) CreateLocalSwitchFilesDB(folders []string,
+	progress ProgressUpdater, recursive bool, ignoreCache bool) (*LocalSwitchFilesDB, error) {
+
 	titles := map[string]*SwitchGameFiles{}
 	skipped := map[ExtendedFileInfo]SkippedFile{}
 	files := []ExtendedFileInfo{}
-	for i, folder := range folders {
-		err := scanFolder(folder, recursive, &files, progress)
-		if progress != nil {
-			progress.UpdateProgress(i+1, len(folders)+1, "scanning files in "+folder)
-		}
-		if err != nil {
-			continue
-		}
+
+	if !ignoreCache {
+		ldb.db.GetEntry(DB_TABLE_LOCAL_LIBRARY, "files", &files)
+		ldb.db.GetEntry(DB_TABLE_LOCAL_LIBRARY, "skipped", &skipped)
+		ldb.db.GetEntry(DB_TABLE_LOCAL_LIBRARY, "titles", &titles)
 	}
 
-	ldb.processLocalFiles(files, progress, titles, skipped)
+	if len(titles) == 0 {
+
+		for i, folder := range folders {
+			err := scanFolder(folder, recursive, &files, progress)
+			if progress != nil {
+				progress.UpdateProgress(i+1, len(folders)+1, "scanning files in "+folder)
+			}
+			if err != nil {
+				continue
+			}
+		}
+
+		ldb.processLocalFiles(files, progress, titles, skipped)
+
+		ldb.db.AddEntry(DB_TABLE_LOCAL_LIBRARY, "files", files)
+		ldb.db.AddEntry(DB_TABLE_LOCAL_LIBRARY, "skipped", skipped)
+		ldb.db.AddEntry(DB_TABLE_LOCAL_LIBRARY, "titles", titles)
+	}
 
 	if progress != nil {
 		progress.UpdateProgress(len(files), len(files), "Complete")
@@ -158,11 +145,15 @@ func scanFolder(folder string, recursive bool, files *[]ExtendedFileInfo, progre
 		if progress != nil {
 			progress.UpdateProgress(-1, -1, "scanning "+info.Name())
 		}
-		*files = append(*files, ExtendedFileInfo{Info: info, BaseFolder: base})
+		*files = append(*files, ExtendedFileInfo{FileName: info.Name(), BaseFolder: base, Size: info.Size(), IsDir: info.IsDir()})
 
 		return nil
 	})
 	return nil
+}
+
+func (ldb *LocalSwitchDBManager) ClearScanData() error {
+	return ldb.db.ClearTable(DB_TABLE_FILE_SCAN_METADATA)
 }
 
 func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
@@ -174,16 +165,16 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 	for _, file := range files {
 		ind += 1
 		if progress != nil {
-			progress.UpdateProgress(ind, total, "process:"+file.Info.Name())
+			progress.UpdateProgress(ind, total, "process:"+file.FileName)
 		}
 
 		//scan sub-folders if flag is present
-		filePath := filepath.Join(file.BaseFolder, file.Info.Name())
-		if file.Info.IsDir() {
+		filePath := filepath.Join(file.BaseFolder, file.FileName)
+		if file.IsDir {
 			continue
 		}
 
-		fileName := strings.ToLower(file.Info.Name())
+		fileName := strings.ToLower(file.FileName)
 		isSplit := false
 
 		if partNum, err := strconv.Atoi(fileName[len(fileName)-2:]); err == nil {
@@ -238,8 +229,8 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				metadata.Type = "Update"
 
 				if update, ok := switchTitle.Updates[metadata.Version]; ok {
-					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate update file (" + update.ExtendedInfo.Info.Name() + ")"}
-					zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.ExtendedInfo.Info.Name(), file.Info.Name())
+					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate update file (" + update.ExtendedInfo.FileName + ")"}
+					zap.S().Warnf("-->Duplicate update file found [%v] and [%v]", update.ExtendedInfo.FileName, file.FileName)
 					continue
 				}
 				switchTitle.Updates[metadata.Version] = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
@@ -258,8 +249,8 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 			if strings.HasSuffix(metadata.TitleId, "000") {
 				metadata.Type = "Base"
 				if switchTitle.BaseExist {
-					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate base file (" + switchTitle.File.ExtendedInfo.Info.Name() + ")"}
-					zap.S().Warnf("-->Duplicate base file found [%v] and [%v]", file.Info.Name(), switchTitle.File.ExtendedInfo.Info.Name())
+					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate base file (" + switchTitle.File.ExtendedInfo.FileName + ")"}
+					zap.S().Warnf("-->Duplicate base file found [%v] and [%v]", file.FileName, switchTitle.File.ExtendedInfo.FileName)
 					continue
 				}
 				switchTitle.File = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
@@ -271,11 +262,11 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 			if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
 				if metadata.Version < dlc.Metadata.Version {
 					skipped[file] = SkippedFile{ReasonCode: REASON_OLD_UPDATE, ReasonText: "old DLC file, newer version exist locally"}
-					zap.S().Warnf("-->Old DLC file found [%v] and [%v]", file.Info.Name(), dlc.ExtendedInfo.Info.Name())
+					zap.S().Warnf("-->Old DLC file found [%v] and [%v]", file.FileName, dlc.ExtendedInfo.FileName)
 					continue
 				} else if metadata.Version == dlc.Metadata.Version {
-					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate DLC file (" + dlc.ExtendedInfo.Info.Name() + ")"}
-					zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.Info.Name(), dlc.ExtendedInfo.Info.Name())
+					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate DLC file (" + dlc.ExtendedInfo.FileName + ")"}
+					zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.FileName, dlc.ExtendedInfo.FileName)
 					continue
 				}
 			}
@@ -287,14 +278,6 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 
 }
 
-func (ldb *LocalSwitchDBManager) ClearDB() error {
-	err := ldb.db.Update(func(tx *bolt.Tx) error {
-		err := tx.DeleteBucket([]byte("deep-scan"))
-		return err
-	})
-	return err
-}
-
 func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo,
 	filePath string,
 	skipped map[ExtendedFileInfo]SkippedFile) (map[string]*switchfs.ContentMetaAttributes, error) {
@@ -302,26 +285,9 @@ func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo,
 	var metadata map[string]*switchfs.ContentMetaAttributes = nil
 	keys, _ := settings.SwitchKeys()
 	var err error
-	fileKey := filePath + "|" + file.Info.Name() + "|" + strconv.Itoa(int(file.Info.Size()))
+	fileKey := filePath + "|" + file.FileName + "|" + strconv.Itoa(int(file.Size))
 	if keys != nil && keys.GetKey("header_key") != "" {
-		err = ldb.db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("deep-scan"))
-			if b == nil {
-				return nil
-			}
-			v := b.Get([]byte(fileKey))
-			if v == nil {
-				return nil
-			}
-			d := gob.NewDecoder(bytes.NewReader(v))
-
-			// Decoding the serialized data
-			err = d.Decode(&metadata)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
+		err = ldb.db.GetEntry(DB_TABLE_FILE_SCAN_METADATA, fileKey, &metadata)
 
 		if err != nil {
 			zap.S().Warnf("%v", err)
@@ -331,52 +297,33 @@ func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo,
 			return metadata, nil
 		}
 
-		fileName := strings.ToLower(file.Info.Name())
+		fileName := strings.ToLower(file.FileName)
 		if strings.HasSuffix(fileName, "nsp") ||
 			strings.HasSuffix(fileName, "nsz") {
 			metadata, err = switchfs.ReadNspMetadata(filePath)
 			if err != nil {
 				skipped[file] = SkippedFile{ReasonCode: REASON_MALFORMED_FILE, ReasonText: fmt.Sprintf("failed to read NSP [reason: %v]", err)}
-				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Info.Name(), err)
+				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.FileName, err)
 			}
 		} else if strings.HasSuffix(fileName, "xci") ||
 			strings.HasSuffix(fileName, "xcz") {
 			metadata, err = switchfs.ReadXciMetadata(filePath)
 			if err != nil {
 				skipped[file] = SkippedFile{ReasonCode: REASON_MALFORMED_FILE, ReasonText: fmt.Sprintf("failed to read NSP [reason: %v]", err)}
-				zap.S().Errorf("[file:%v] failed to read file [reason: %v]\n", file.Info.Name(), err)
+				zap.S().Errorf("[file:%v] failed to read file [reason: %v]\n", file.FileName, err)
 			}
 		} else if strings.HasSuffix(fileName, "00") {
 			metadata, err = fileio.ReadSplitFileMetadata(filePath)
 			if err != nil {
 				skipped[file] = SkippedFile{ReasonCode: REASON_MALFORMED_FILE, ReasonText: fmt.Sprintf("failed to read split files [reason: %v]", err)}
-				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.Info.Name(), err)
+				zap.S().Errorf("[file:%v] failed to read NSP [reason: %v]\n", file.FileName, err)
 			}
 		}
 	}
 
 	if metadata != nil {
-		err = ldb.db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("deep-scan"))
-			if b == nil {
-				b, err = tx.CreateBucket([]byte("deep-scan"))
-				if b == nil || err != nil {
-					return fmt.Errorf("create bucket: %s", err)
-				}
-				err := b.Put([]byte("app_version"), []byte(settings.SLM_VERSION))
-				if err != nil {
-					zap.S().Warnf("failed to save app_version - %v", err)
-				}
-			}
-			var bytesBuff bytes.Buffer
-			encoder := gob.NewEncoder(&bytesBuff)
-			err = encoder.Encode(metadata)
-			if err != nil {
-				return err
-			}
-			err := b.Put([]byte(fileKey), bytesBuff.Bytes())
-			return err
-		})
+		err = ldb.db.AddEntry(DB_TABLE_FILE_SCAN_METADATA, fileKey, metadata)
+
 		if err != nil {
 			zap.S().Warnf("%v", err)
 		}
@@ -386,8 +333,8 @@ func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo,
 	//fallback to parse data from filename
 
 	//parse title id
-	titleId, _ := parseTitleIdFromFileName(file.Info.Name())
-	version, _ := parseVersionFromFileName(file.Info.Name())
+	titleId, _ := parseTitleIdFromFileName(file.FileName)
+	version, _ := parseVersionFromFileName(file.FileName)
 
 	if titleId == nil || version == nil {
 		return nil, errors.New("unable to determine titileId / version")

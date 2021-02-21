@@ -106,7 +106,7 @@ func (c *Console) Start() {
 	scanFolders := settingsObj.ScanFolders
 	scanFolders = append(scanFolders, folderToScan)
 
-	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, c, recursiveMode)
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, c, recursiveMode, false)
 	if err != nil {
 		fmt.Printf("\nfailed to process local folder\n %v", err)
 		return
@@ -117,7 +117,7 @@ func (c *Console) Start() {
 
 	fmt.Printf("Local library completion status: %.2f%% (have %d titles, out of %d titles)\n", p, len(localDB.TitlesMap), len(titlesDB.TitlesMap))
 
-	processIssues(localDB)
+	c.processIssues(localDB)
 
 	if settingsObj.OrganizeOptions.DeleteOldUpdateFiles {
 		progressBar = progressbar.New(2000)
@@ -135,18 +135,18 @@ func (c *Console) Start() {
 
 	if settingsObj.CheckForMissingUpdates {
 		fmt.Printf("\nChecking for missing updates\n")
-		processMissingUpdates(localDB, titlesDB)
+		c.processMissingUpdates(localDB, titlesDB)
 	}
 
 	if settingsObj.CheckForMissingDLC {
 		fmt.Printf("\nChecking for missing DLC\n")
-		processMissingDLC(localDB, titlesDB)
+		c.processMissingDLC(localDB, titlesDB)
 	}
 
 	fmt.Printf("Completed")
 }
 
-func processIssues(localDB *db.LocalSwitchFilesDB) {
+func (c *Console) processIssues(localDB *db.LocalSwitchFilesDB) {
 	if len(localDB.Skipped) != 0 {
 		fmt.Print("\nSkipped files:\n\n")
 	} else {
@@ -158,14 +158,14 @@ func processIssues(localDB *db.LocalSwitchFilesDB) {
 	t.AppendHeader(table.Row{"#", "Skipped file", "Reason"})
 	i := 0
 	for k, v := range localDB.Skipped {
-		t.AppendRow([]interface{}{i, path.Join(k.BaseFolder, k.Info.Name()), v})
+		t.AppendRow([]interface{}{i, path.Join(k.BaseFolder, k.FileName), v})
 		i++
 	}
 	t.AppendFooter(table.Row{"", "", "", "", "Total", len(localDB.Skipped)})
 	t.Render()
 }
 
-func processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
+func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
 	incompleteTitles := process.ScanForMissingUpdates(localDB.TitlesMap, titlesDB.TitlesMap)
 	if len(incompleteTitles) != 0 {
 		fmt.Print("\nFound available updates:\n\n")
@@ -186,8 +186,13 @@ func processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTi
 	t.Render()
 }
 
-func processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
-	incompleteTitles := process.ScanForMissingDLC(localDB.TitlesMap, titlesDB.TitlesMap)
+func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
+	settingsObj := settings.ReadSettings(c.baseFolder)
+	ignoreIds := map[string]struct{}{}
+	for _, id := range settingsObj.IgnoreDLCTitleIds {
+		ignoreIds[strings.ToLower(id)] = struct{}{}
+	}
+	incompleteTitles := process.ScanForMissingDLC(localDB.TitlesMap, titlesDB.TitlesMap, ignoreIds)
 	if len(incompleteTitles) != 0 {
 		fmt.Print("\nFound missing DLCS:\n\n")
 	} else {
