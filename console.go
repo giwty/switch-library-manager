@@ -106,7 +106,7 @@ func (c *Console) Start() {
 	scanFolders := settingsObj.ScanFolders
 	scanFolders = append(scanFolders, folderToScan)
 
-	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, c, recursiveMode, false)
+	localDB, err := localDbManager.CreateLocalSwitchFilesDB(scanFolders, c, recursiveMode, true)
 	if err != nil {
 		fmt.Printf("\nfailed to process local folder\n %v", err)
 		return

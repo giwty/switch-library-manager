@@ -53,9 +53,26 @@
 </script>
 
 <script id="missingTemplate" type="text/x-jsrender">
-    <div class="alert alert-success" role="alert">
-        coming soon!
-    </div>
+    {{if folder}}
+        {{if missingGames && missingGames.length}}
+            <div class="alert center alert-warning" role="alert">
+                There are {{:missingGames.length}} games missing in your local library:
+                <button type="button" class="btn btn-link export-btn">export to scv</button>
+            </div>
+            <section id="missingGames-table" class="content"></section>
+        {{else}}
+            <div class="alert center alert-success" role="alert">
+                You have all the games, you are not missing any Games!
+            </div>
+        {{/if}}
+    {{else}}
+        <div class="alert center alert-warning" role="alert">
+            Local games folder is not set, please set the folder to get started
+        </div>
+        <div class="center">
+              <button type="button" class="btn btn-outline-primary folder-set">Set Folder</button>
+        </div>
+    {{/if}}
 </script>
 
 <script id="libraryTemplate" type="text/x-jsrender">

@@ -74,6 +74,10 @@ $(function () {
                 state.library = JSON.parse(message.payload);
                 loadTab("#library")
             }
+            else if (message.name === "missingGames") {
+                state.missingGames = JSON.parse(message.payload);
+                loadTab("#missing")
+            }
             else if (message.name === "error") {
                 dialog.showMessageBox(null, {
                     type: 'error',
@@ -293,8 +297,37 @@ $(function () {
                     });
                 }
             }else if (target === "#missing") {
-                let html = $(target + "Template").render({folder: state.settings.folder,settings:state.settings})
+                if (state.settings.folder && !state.library){
+                    return
+                }
+                if (state.library && !state.missingGames){
+                    sendMessage("missingGames", "", (r => {
+                        state.missingGames = JSON.parse(r)
+                        loadTab("#missing")
+                    }));
+                    return
+                }
+                let html = $(target + "Template").render({folder: state.settings.folder,missingGames:state.missingGames});
                 $(target).html(html);
+                if (state.missingGames && state.missingGames.length) {
+                    currTable = new Tabulator("#missingGames-table", {
+                        layout:"fitDataStretch",
+                        initialSort:[
+                            {column:"name", dir:"asc"}, //sort by this first
+                        ],
+                        pagination: "local",
+                        paginationSize: state.settings.gui_page_size,
+                        data: state.missingGames,
+                        columns: [
+                            {formatter:"rownum"},
+                            {field: "icon",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
+                            {field: "name",title: "Title",  headerFilter:"input",formatter:"textarea",width:350},
+                            {title: "Title id", headerSort:false, field: "titleId"},
+                            {title: "Region", headerSort:true,headerFilter:"input",formatter:"textarea", field: "region"},
+                            {title: "Release date", headerSort:true, field: "release_date"},
+                        ],
+                    });
+                }
             }
         }
 

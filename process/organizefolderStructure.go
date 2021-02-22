@@ -63,7 +63,7 @@ func OrganizeByFolders(baseFolder string,
 	//validate template rules
 
 	options := settings.ReadSettings(baseFolder).OrganizeOptions
-	if !isOptionsValid(options) {
+	if !IsOptionsValid(options) {
 		zap.S().Error("the organize options in settings.json are not valid, please check that the template contains file/folder name")
 		return
 	}
@@ -212,7 +212,7 @@ func OrganizeByFolders(baseFolder string,
 	}
 }
 
-func isOptionsValid(options settings.OrganizeOptions) bool {
+func IsOptionsValid(options settings.OrganizeOptions) bool {
 	if options.RenameFiles {
 		if options.FileNameTemplate == "" {
 			zap.S().Error("file name template cannot be empty")

@@ -30,6 +30,14 @@ type LocalLibraryData struct {
 	NumFiles    int                   `json:"num_files"`
 }
 
+type SwitchTitle struct {
+	Name        string `json:"name"`
+	TitleId     string `json:"titleId"`
+	Icon        string `json:"icon"`
+	Region      string `json:"region"`
+	ReleaseDate int    `json:"release_date"`
+}
+
 type LibraryTemplateData struct {
 	Id      int    `json:"id"`
 	Name    string `json:"name"`
@@ -197,6 +205,10 @@ func (g *GUI) handleMessage(m *astilectron.EventMessage) interface{} {
 			g.state.window.SendMessage(Message{Name: "error", Payload: err.Error()}, func(m *astilectron.EventMessage) {})
 			return ""
 		}
+	case "missingGames":
+		missingGames := g.getMissingGames()
+		msg, _ := json.Marshal(missingGames)
+		g.state.window.SendMessage(Message{Name: "missingGames", Payload: string(msg)}, func(m *astilectron.EventMessage) {})
 	case "updateLocalLibrary":
 		ignoreCache, _ := strconv.ParseBool(msg.Payload)
 		localDB, err := g.buildLocalDB(g.localDbManager, ignoreCache)
@@ -400,6 +412,12 @@ func (g *GUI) buildLocalDB(localDbManager *db.LocalSwitchDBManager, ignoreCache 
 
 func (g *GUI) organizeLibrary() {
 	folderToScan := settings.ReadSettings(g.baseFolder).Folder
+	options := settings.ReadSettings(g.baseFolder).OrganizeOptions
+	if !process.IsOptionsValid(options) {
+		zap.S().Error("the organize options in settings.json are not valid, please check that the template contains file/folder name")
+		g.state.window.SendMessage(Message{Name: "error", Payload: "the organize options in settings.json are not valid, please check that the template contains file/folder name"}, func(m *astilectron.EventMessage) {})
+		return
+	}
 	process.OrganizeByFolders(folderToScan, g.state.localDB, g.state.switchDB, g)
 	if settings.ReadSettings(g.baseFolder).OrganizeOptions.DeleteOldUpdateFiles {
 		process.DeleteOldUpdates(g.baseFolder, g.state.localDB, g)
@@ -416,4 +434,25 @@ func (g *GUI) UpdateProgress(curr int, total int, message string) {
 	}
 
 	g.state.window.SendMessage(Message{Name: "updateProgress", Payload: string(msg)}, func(m *astilectron.EventMessage) {})
+}
+
+func (g *GUI) getMissingGames() []SwitchTitle {
+	var result []SwitchTitle
+	for k, v := range g.state.switchDB.TitlesMap {
+		if _, ok := g.state.localDB.TitlesMap[k]; ok {
+			continue
+		}
+		if v.Attributes.Name == "" || v.Attributes.Id == "" {
+			continue
+		}
+		result = append(result, SwitchTitle{
+			TitleId:     v.Attributes.Id,
+			Name:        v.Attributes.Name,
+			Icon:        v.Attributes.BannerUrl,
+			Region:      v.Attributes.Region,
+			ReleaseDate: v.Attributes.ReleaseDate,
+		})
+	}
+	return result
+
 }
