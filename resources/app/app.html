@@ -57,7 +57,7 @@
         {{if missingGames && missingGames.length}}
             <div class="alert center alert-warning" role="alert">
                 There are {{:missingGames.length}} games missing in your local library:
-                <button type="button" class="btn btn-link export-btn">export to scv</button>
+                <button type="button" class="btn btn-link export-btn">export to csv</button>
             </div>
             <section id="missingGames-table" class="content"></section>
         {{else}}
@@ -85,7 +85,7 @@
                 {{/if}}
                 <button type="button" class="btn btn-link folder-set">change</button>
                 <button type="button" class="btn btn-link folder-set">add</button> |
-                <button type="button" class="btn btn-link export-btn">export to scv</button>
+                <button type="button" class="btn btn-link export-btn">export to csv</button>
             </div>
             {{if keys === "false"}}
             <div id="missingkeys" class="alert center alert-danger" role="alert" >
@@ -141,7 +141,7 @@
         {{if updates && updates.length}}
             <div class="alert center alert-warning" role="alert">
                 There are {{:updates.length}} games/DLC with missing updates:
-               <button type="button" class="btn btn-link export-btn">export to scv</button>
+               <button type="button" class="btn btn-link export-btn">export to csv</button>
             </div>
             <section id="updates-table" class="content"></section>
         {{else}}
@@ -164,7 +164,7 @@
         {{if dlc && dlc.length}}
             <div class="alert center alert-warning" role="alert">
                 There are {{:dlc.length}} games with missing DLC's in your local library:
-                <button type="button" class="btn btn-link export-btn">export to scv</button>
+                <button type="button" class="btn btn-link export-btn">export to csv</button>
             </div>
             <section id="dlc-table" class="content"></section>
         {{else}}
@@ -188,7 +188,7 @@
         {{if library && library.length}}
             <div class="alert center alert-warning" role="alert">
                 {{:library.length}} files were skipped during scan, additional details below:
-                <button type="button" class="btn btn-link export-btn">export to scv</button>
+                <button type="button" class="btn btn-link export-btn">export to csv</button>
             </div>
             <section id="status-table" class="content"></section>
         {{else}}
