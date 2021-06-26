@@ -1,3 +1,8 @@
 .idea
 resources/app/vendor
 output
+
+# Astilectron
+astilectron-bundler
+bind_*.go
+windows.syso
