@@ -1,0 +1,39 @@
+name: Build switch-library-manager
+
+# On master and manually
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        
+      - name: Go cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.5'
+          
+      - name: Setup astilectron
+        run: |
+          go get -u github.com/asticode/go-astilectron-bundler/...
+          go install github.com/asticode/go-astilectron-bundler/astilectron-bundler
+
+      - name: Bundle
+        run: ~/go/bin/astilectron-bundler
