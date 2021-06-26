@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"go.uber.org/zap"
 	"io"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
-func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error) {
+func ReadXciMetadata(filePath string, keys map[string]string) (map[string]*ContentMetaAttributes, error) {
 	file, err := OpenFile(filePath)
 	if err != nil {
 		return nil, err
@@ -47,7 +48,7 @@ func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 		fileOffset := secureOffset + int64(pfs0File.StartOffset)
 
 		if strings.Contains(pfs0File.Name, "cnmt.nca") {
-			_, section, err := openMetaNcaDataSection(file, fileOffset)
+			_, section, err := openMetaNcaDataSection(file, fileOffset, keys)
 			if err != nil {
 				return nil, err
 			}
@@ -61,7 +62,7 @@ func ReadXciMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 			}
 
 			if currCnmt.Type == "BASE" || currCnmt.Type == "UPD" {
-				nacp, err := ExtractNacp(currCnmt, file, secureHfs0, secureOffset)
+				nacp, err := ExtractNacp(currCnmt, file, secureHfs0, secureOffset, keys)
 				if err != nil {
 					zap.S().Debug("Failed to extract nacp [%v]\n", err.Error())
 				}

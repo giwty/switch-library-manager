@@ -2,11 +2,12 @@ package fileio
 
 import (
 	"errors"
-	"github.com/giwty/switch-library-manager/switchfs"
 	"os"
+
+	"github.com/giwty/switch-library-manager/switchfs"
 )
 
-func ReadSplitFileMetadata(filePath string) (map[string]*switchfs.ContentMetaAttributes, error) {
+func ReadSplitFileMetadata(filePath string, keys map[string]string) (map[string]*switchfs.ContentMetaAttributes, error) {
 	//check if this is a NS* or XC* file
 	_, err := switchfs.ReadPfs0File(filePath)
 	isXCI := false
@@ -19,9 +20,9 @@ func ReadSplitFileMetadata(filePath string) (map[string]*switchfs.ContentMetaAtt
 	}
 
 	if isXCI {
-		return switchfs.ReadXciMetadata(filePath)
+		return switchfs.ReadXciMetadata(filePath, keys)
 	} else {
-		return switchfs.ReadNspMetadata(filePath)
+		return switchfs.ReadNspMetadata(filePath, keys)
 	}
 }
 

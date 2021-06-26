@@ -1,17 +1,18 @@
 package process
 
 import (
-	"github.com/giwty/switch-library-manager/db"
-	"github.com/giwty/switch-library-manager/settings"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"robpike.io/nihongo"
 	"strconv"
 	"strings"
+
+	"github.com/giwty/switch-library-manager/db"
+	"github.com/giwty/switch-library-manager/settings"
+	"go.uber.org/zap"
+	"robpike.io/nihongo"
 )
 
 var (
@@ -20,7 +21,7 @@ var (
 	cjk                     = regexp.MustCompile("[\u2f70-\u2FA1\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f\\p{Katakana}\\p{Hiragana}\\p{Hangul}]")
 )
 
-func DeleteOldUpdates(baseFolder string, localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater) {
+func DeleteOldUpdates(baseFolder string, localDB *db.LocalSwitchFilesDB, updateProgress db.ProgressUpdater, s *settings.AppSettings) {
 	i := 0
 	for k, v := range localDB.Skipped {
 		switch v.ReasonCode {
@@ -41,7 +42,7 @@ func DeleteOldUpdates(baseFolder string, localDB *db.LocalSwitchFilesDB, updateP
 
 	}
 
-	if i != 0 && settings.ReadSettings(baseFolder).OrganizeOptions.DeleteEmptyFolders {
+	if i != 0 && s.OrganizeOptions.DeleteEmptyFolders {
 		if updateProgress != nil {
 			updateProgress.UpdateProgress(i, i+1, "deleting empty folders... (can take 1-2min)")
 		}
@@ -58,11 +59,11 @@ func DeleteOldUpdates(baseFolder string, localDB *db.LocalSwitchFilesDB, updateP
 func OrganizeByFolders(baseFolder string,
 	localDB *db.LocalSwitchFilesDB,
 	titlesDB *db.SwitchTitlesDB,
-	updateProgress db.ProgressUpdater) {
+	updateProgress db.ProgressUpdater, s *settings.AppSettings) {
 
 	//validate template rules
 
-	options := settings.ReadSettings(baseFolder).OrganizeOptions
+	options := s.OrganizeOptions
 	if !IsOptionsValid(options) {
 		zap.S().Error("the organize options in settings.json are not valid, please check that the template contains file/folder name")
 		return
@@ -296,10 +297,17 @@ func moveFile(from string, to string) error {
 func applyTemplate(templateData map[string]string, useSafeNames bool, template string) string {
 	result := strings.Replace(template, "{"+settings.TEMPLATE_TITLE_NAME+"}", templateData[settings.TEMPLATE_TITLE_NAME], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TITLE_ID+"}", strings.ToUpper(templateData[settings.TEMPLATE_TITLE_ID]), 1)
-	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", templateData[settings.TEMPLATE_VERSION], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TYPE+"}", templateData[settings.TEMPLATE_TYPE], 1)
-	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION_TXT+"}", templateData[settings.TEMPLATE_VERSION_TXT], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_REGION+"}", templateData[settings.TEMPLATE_REGION], 1)
+	// If its a DLC, neutralize the versions
+	if templateData[settings.TEMPLATE_TYPE] == "DLC" {
+		result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION_TXT+"}", "", 1)
+		result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", "", 1)
+	} else {
+		result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION_TXT+"}", templateData[settings.TEMPLATE_VERSION_TXT], 1)
+		result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", templateData[settings.TEMPLATE_VERSION], 1)
+	}
+
 	//remove title name from dlc name
 	dlcName := strings.Replace(templateData[settings.TEMPLATE_DLC_NAME], templateData[settings.TEMPLATE_TITLE_NAME], "", 1)
 	dlcName = strings.TrimSpace(dlcName)
@@ -318,7 +326,10 @@ func applyTemplate(templateData map[string]string, useSafeNames bool, template s
 		safe := nonAscii.FindAllString(result, -1)
 		result = strings.Join(safe, "")
 	}
-	result = strings.ReplaceAll(result, "  ", " ")
+
+	// Using a regex to remove all consecutive whitespace
+	space := regexp.MustCompile(`\s+`)
+	result = space.ReplaceAllString(result, " ")
 	result = strings.TrimSpace(result)
 	return folderIllegalCharsRegex.ReplaceAllString(result, "")
 }

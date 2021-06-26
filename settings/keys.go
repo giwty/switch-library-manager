@@ -2,52 +2,76 @@ package settings
 
 import (
 	"errors"
-	"github.com/magiconair/properties"
+	"fmt"
 	"path/filepath"
+	"strconv"
+
+	"github.com/magiconair/properties"
 )
 
-var (
-	keysInstance *switchKeys
+const (
+	SETTINGS_PRODKEYS        = "prod.keys"
+	SETTINGS_PRODKEYS_DIR    = ".switch"
+	SETTINGS_PRODKEYS_HEADER = "header_key"
 )
 
-type switchKeys struct {
-	keys map[string]string
+// Get the working dir prod keys path
+func (a *AppSettings) getBaseKeysPath() string {
+	return filepath.Join(a.baseFolder, SETTINGS_PRODKEYS)
 }
 
-func (k *switchKeys) GetKey(keyName string) string {
-	return k.keys[keyName]
+// Get the globally accepted default for prod keys path
+func (a *AppSettings) getDefaultKeysPath() string {
+	return filepath.Join(a.Homedir, SETTINGS_PRODKEYS_DIR, SETTINGS_PRODKEYS)
 }
 
-func SwitchKeys() (*switchKeys, error) {
-	return keysInstance, nil
-}
-
-func InitSwitchKeys(baseFolder string) (*switchKeys, error) {
-
-	// init from a file
-	path := filepath.Join(baseFolder, "prod.keys")
-	p, err := properties.LoadFile(path, properties.UTF8)
-	if err != nil {
-		path = "${HOME}/.switch/prod.keys"
-		p, err = properties.LoadFile(path, properties.UTF8)
+// Grab a Switch key from the settings
+func (a *AppSettings) GetKey(keyName string) string {
+	if key, ok := a.SwitchKeys[keyName]; ok {
+		return key
 	}
-	settings := ReadSettings(baseFolder)
-	if err != nil {
-		path := settings.Prodkeys
-		if path != "" {
-			p, err = properties.LoadFile(filepath.Join(path, "prod.keys"), properties.UTF8)
+
+	return ""
+}
+
+// Check if a Switch key exists and convert to string
+func (a *AppSettings) HasKey(keyName string) string {
+	return strconv.FormatBool(a.GetKey(keyName) != "")
+}
+
+// Read the Switch keys from the file
+func (a *AppSettings) ReadKeys() error {
+	var props *properties.Properties
+	var propsErr error
+
+	// Don't default to nil or it'll skip everything
+	propsErr = errors.New("")
+
+	// Trying from settings
+	if a.Prodkeys != "" {
+		props, propsErr = properties.LoadFile(a.Prodkeys, properties.UTF8)
+	}
+
+	// If missing or error, trying to load from the working dir
+	if propsErr != nil {
+		props, propsErr = properties.LoadFile(a.getBaseKeysPath(), properties.UTF8)
+
+		// If error, try to load from the accepted default
+		if propsErr != nil {
+			props, propsErr = properties.LoadFile(a.getDefaultKeysPath(), properties.UTF8)
 		}
 	}
-	if err != nil {
-		return nil, errors.New("Error trying to read prod.keys [reason:" + err.Error() + "]")
-	}
-	settings.Prodkeys = path
-	SaveSettings(settings, baseFolder)
-	keysInstance = &switchKeys{keys: map[string]string{}}
-	for _, key := range p.Keys() {
-		value, _ := p.Get(key)
-		keysInstance.keys[key] = value
+
+	// If still error, bail
+	if propsErr != nil {
+		return fmt.Errorf("error trying to read %s. Reason: %s", SETTINGS_PRODKEYS, propsErr)
 	}
 
-	return keysInstance, nil
+	// Read the keys into the map
+	for _, key := range props.Keys() {
+		value, _ := props.Get(key)
+		a.SwitchKeys[key] = value
+	}
+
+	return nil
 }

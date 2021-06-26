@@ -2,11 +2,11 @@
 
 Easily manage your switch game backups
 
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/updates_ui.png)
+![Updates UI](doc/img/updates_ui.png)
 
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/dlc_ui.png)
+![DLC UI](doc/img/dlc_ui.png)
 
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/cmd.png)
+![CMD UI](doc/img/cmd.png)
 
 ## Features
 
@@ -58,7 +58,8 @@ You can customize the folder/file re-naming, as well as turn on/off features.
   "file_name_template": "{TITLE_NAME} ({DLC_NAME})[{TITLE_ID}][v{VERSION}]"
  },
  "scan_recursively": true,
- "gui_page_size": 100
+ "gui_page_size": 100,
+ "db_in_homedir": false
 }
 ```
 

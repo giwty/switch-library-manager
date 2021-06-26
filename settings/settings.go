@@ -3,28 +3,23 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mcuadros/go-version"
-	"go.uber.org/zap"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
-)
 
-var (
-	settingsInstance *AppSettings
+	"go.uber.org/zap"
 )
 
 const (
+	SETTINGS_DIR           = "switch-library-manager"
 	SETTINGS_FILENAME      = "settings.json"
 	TITLE_JSON_FILENAME    = "titles.json"
 	VERSIONS_JSON_FILENAME = "versions.json"
-	SLM_VERSION            = "1.4.0"
+	SLM_VERSION            = "1.5.0"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
 	//TITLES_JSON_URL    = "https://raw.githubusercontent.com/blawar/titledb/master/titles.US.en.json"
 	VERSIONS_JSON_URL = "https://tinfoil.media/repo/db/versions.json"
 	//VERSIONS_JSON_URL = "https://raw.githubusercontent.com/blawar/titledb/master/versions.json"
-	SLM_VERSION_URL = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
 )
 
 const (
@@ -37,17 +32,14 @@ const (
 	TEMPLATE_TYPE        = "TYPE"
 )
 
-type OrganizeOptions struct {
-	CreateFolderPerGame  bool   `json:"create_folder_per_game"`
-	RenameFiles          bool   `json:"rename_files"`
-	DeleteEmptyFolders   bool   `json:"delete_empty_folders"`
-	DeleteOldUpdateFiles bool   `json:"delete_old_update_files"`
-	FolderNameTemplate   string `json:"folder_name_template"`
-	SwitchSafeFileNames  bool   `json:"switch_safe_file_names"`
-	FileNameTemplate     string `json:"file_name_template"`
-}
-
+// Setting of the application
 type AppSettings struct {
+	// Extra internal settings
+	// `json:"-"` to ignore when marshalling
+	baseFolder string            `json:"-"`
+	Homedir    string            `string:"-"`
+	SwitchKeys map[string]string `json:"-"`
+	// Unmarshalled from the JSON file
 	VersionsEtag           string          `json:"versions_etag"`
 	TitlesEtag             string          `json:"titles_etag"`
 	Prodkeys               string          `json:"prod_keys"`
@@ -61,97 +53,131 @@ type AppSettings struct {
 	ScanRecursively        bool            `json:"scan_recursively"`
 	GuiPagingSize          int             `json:"gui_page_size"`
 	IgnoreDLCTitleIds      []string        `json:"ignore_dlc_title_ids"`
+	DBInHomedir            bool            `json:"db_in_homedir"`
 }
 
-func ReadSettingsAsJSON(baseFolder string) string {
-	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err != nil {
-		saveDefaultSettings(baseFolder)
-	}
-	file, _ := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
-	bytes, _ := ioutil.ReadAll(file)
-	return string(bytes)
+// Organization settings of the application
+type OrganizeOptions struct {
+	CreateFolderPerGame  bool   `json:"create_folder_per_game"`
+	RenameFiles          bool   `json:"rename_files"`
+	DeleteEmptyFolders   bool   `json:"delete_empty_folders"`
+	DeleteOldUpdateFiles bool   `json:"delete_old_update_files"`
+	FolderNameTemplate   string `json:"folder_name_template"`
+	SwitchSafeFileNames  bool   `json:"switch_safe_file_names"`
+	FileNameTemplate     string `json:"file_name_template"`
 }
 
-func ReadSettings(baseFolder string) *AppSettings {
-	if settingsInstance != nil {
-		return settingsInstance
-	}
-	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{},
-		OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}, Prodkeys: "", IgnoreDLCTitleIds: []string{"01007F600B135007"}}
-	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
-		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
-		if err != nil {
-			zap.S().Warnf("Missing or corrupted config file, creating a new one")
-			return saveDefaultSettings(baseFolder)
-		} else {
-			_ = json.NewDecoder(file).Decode(&settingsInstance)
-			return settingsInstance
+// Constructor for settings
+func NewAppSettings(workingFolder string) *AppSettings {
+	a := AppSettings{}
+	a.setBase(workingFolder)
+	a.switchToHomedir()
+	a.read()
+
+	a.SwitchKeys = make(map[string]string)
+
+	return &a
+}
+
+// Set the base bolder
+func (a *AppSettings) setBase(base string) {
+	a.baseFolder = base
+}
+
+// Switch the settings base folder inside the homedir
+func (a *AppSettings) switchToHomedir() {
+	var homedirErr error
+	a.Homedir, homedirErr = os.UserHomeDir()
+
+	if homedirErr == nil {
+		basedir := a.GetHomedirPath()
+
+		// Create a folder if it does not exist
+		if mkDirErr := os.MkdirAll(basedir, os.ModePerm); mkDirErr == nil {
+			// Change the base
+			a.setBase(basedir)
 		}
+	}
+}
+
+// Get the homedir settings path
+func (a *AppSettings) GetHomedirPath() string {
+	return filepath.Join(a.Homedir, SETTINGS_DIR)
+}
+
+// Get the settings file path
+func (a *AppSettings) getPath() string {
+	return filepath.Join(a.baseFolder, SETTINGS_FILENAME)
+}
+
+// Read the file
+func (a *AppSettings) read() {
+	// Reading the file
+	buf, bufErr := ioutil.ReadFile(a.getPath())
+
+	// If error fill with defaults
+	if bufErr != nil {
+		zap.S().Warnf("Missing or corrupted config file, creating a new one.")
+		a.defaults()
+		a.Save()
 	} else {
-		return saveDefaultSettings(baseFolder)
+		// Otherwise unmarshal it
+		if jsonErr := a.Load(buf); jsonErr != nil {
+			zap.S().Warnf("Missing or corrupted config file, creating a new one.")
+			a.defaults()
+			a.Save()
+		}
 	}
 }
 
-func saveDefaultSettings(baseFolder string) *AppSettings {
-	settingsInstance = &AppSettings{
-		TitlesEtag:             "W/\"a5b02845cf6bd61:0\"",
-		VersionsEtag:           "W/\"2ef50d1cb6bd61:0\"",
-		Folder:                 "",
-		ScanFolders:            []string{},
-		IgnoreDLCTitleIds:      []string{},
-		GUI:                    true,
-		GuiPagingSize:          100,
-		CheckForMissingUpdates: true,
-		CheckForMissingDLC:     true,
-		ScanRecursively:        true,
-		Debug:                  false,
-		OrganizeOptions: OrganizeOptions{
-			RenameFiles:         false,
-			CreateFolderPerGame: false,
-			FolderNameTemplate:  fmt.Sprintf("{%v}", TEMPLATE_TITLE_NAME),
-			FileNameTemplate: fmt.Sprintf("{%v} ({%v})[{%v}][v{%v}]", TEMPLATE_TITLE_NAME, TEMPLATE_DLC_NAME,
-				TEMPLATE_TITLE_ID, TEMPLATE_VERSION),
-			DeleteEmptyFolders:   false,
-			SwitchSafeFileNames:  true,
-			DeleteOldUpdateFiles: false,
-		},
-	}
-	return SaveSettings(settingsInstance, baseFolder)
+// Fill the structure with default values
+func (a *AppSettings) defaults() {
+	a.VersionsEtag = "W/\"2ef50d1cb6bd61:0\""
+	a.TitlesEtag = "W/\"a5b02845cf6bd61:0\""
+	a.ScanFolders = []string{}
+	a.GUI = true
+	a.CheckForMissingUpdates = true
+	a.CheckForMissingDLC = true
+	a.OrganizeOptions.FolderNameTemplate = fmt.Sprintf("{%v}", TEMPLATE_TITLE_NAME)
+	a.OrganizeOptions.FileNameTemplate = fmt.Sprintf("{%v} ({%v})[{%v}][v{%v}]",
+		TEMPLATE_TITLE_NAME,
+		TEMPLATE_DLC_NAME,
+		TEMPLATE_TITLE_ID,
+		TEMPLATE_VERSION,
+	)
+	a.OrganizeOptions.SwitchSafeFileNames = true
+	a.ScanRecursively = true
+	a.GuiPagingSize = 100
+	a.IgnoreDLCTitleIds = []string{}
 }
 
-func SaveSettings(settings *AppSettings, baseFolder string) *AppSettings {
-	file, _ := json.MarshalIndent(settings, "", " ")
-	_ = ioutil.WriteFile(filepath.Join(baseFolder, SETTINGS_FILENAME), file, 0644)
-	settingsInstance = settings
-	return settings
+// Save to file (ignore errors)
+func (a *AppSettings) Save() {
+	// Marshal the struct into JSON bytes
+	jsonBytes, jsonErr := json.MarshalIndent(a, "", "  ")
+	if jsonErr == nil {
+		// Write the file
+		ioutil.WriteFile(a.getPath(), jsonBytes, 0644)
+	}
 }
 
-func CheckForUpdates() (bool, error) {
-
-	localVer := SLM_VERSION
-
-	res, err := http.Get(SLM_VERSION_URL)
-	if err != nil {
-		return false, err
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return false, err
+// Return setting as JSON
+func (a *AppSettings) ToJSON() string {
+	// Marshal the struct into JSON bytes
+	jsonBytes, jsonErr := json.MarshalIndent(a, "", "  ")
+	if jsonErr != nil {
+		return ""
 	}
 
-	remoteValues := map[string]string{}
-	err = json.Unmarshal(body, &remoteValues)
-	if err != nil {
-		return false, err
+	return string(jsonBytes)
+}
+
+// Load a JSON payload
+func (a *AppSettings) Load(payload []byte) error {
+	jsonErr := json.Unmarshal(payload, a)
+	if jsonErr != nil {
+		return jsonErr
 	}
 
-	remoteVer := remoteValues["version"]
-
-	if version.CompareSimple(remoteVer, localVer) > 0 {
-		return true, nil
-	}
-
-	return false, nil
+	return nil
 }

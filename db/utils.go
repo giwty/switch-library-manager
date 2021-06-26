@@ -4,21 +4,17 @@ import (
 	bytes2 "bytes"
 	"encoding/json"
 	"errors"
-	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
 )
 
-type ProgressUpdater interface {
-	UpdateProgress(curr int, total int, message string)
-}
-
 func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, string, error) {
-
 	//create file if not exist
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		_, err = os.Create(filePath)
@@ -26,6 +22,9 @@ func LoadAndUpdateFile(url string, filePath string, etag string) (*os.File, stri
 			zap.S().Errorf("Failed to create file %v - %v\n", filePath, err)
 			return nil, "", err
 		}
+
+		// Clear etag if file did not exist, otherwise can cause "no new update" with an empty file
+		etag = ""
 	}
 
 	var file *os.File = nil

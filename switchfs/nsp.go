@@ -3,11 +3,12 @@ package switchfs
 import (
 	"bytes"
 	"errors"
-	"go.uber.org/zap"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
-func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error) {
+func ReadNspMetadata(filePath string, keys map[string]string) (map[string]*ContentMetaAttributes, error) {
 
 	pfs0, err := ReadPfs0File(filePath)
 	if err != nil {
@@ -28,7 +29,7 @@ func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 		fileOffset := int64(pfs0File.StartOffset)
 
 		if strings.Contains(pfs0File.Name, "cnmt.nca") {
-			_, section, err := openMetaNcaDataSection(file, fileOffset)
+			_, section, err := openMetaNcaDataSection(file, fileOffset, keys)
 			if err != nil {
 				return nil, err
 			}
@@ -41,7 +42,7 @@ func ReadNspMetadata(filePath string) (map[string]*ContentMetaAttributes, error)
 				return nil, err
 			}
 			if currCnmt.Type != "DLC" {
-				nacp, err := ExtractNacp(currCnmt, file, pfs0, 0)
+				nacp, err := ExtractNacp(currCnmt, file, pfs0, 0, keys)
 				if err != nil {
 					zap.S().Debug("Failed to extract nacp [%v]\n", err.Error())
 				}

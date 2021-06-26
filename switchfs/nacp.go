@@ -58,11 +58,11 @@ func (l Language) String() string {
 		"Chinese"}[l]
 }
 
-func ExtractNacp(cnmt *ContentMetaAttributes, file io.ReaderAt, securePartition *PFS0, securePartitionOffset int64) (*Nacp, error) {
+func ExtractNacp(cnmt *ContentMetaAttributes, file io.ReaderAt, securePartition *PFS0, securePartitionOffset int64, keys map[string]string) (*Nacp, error) {
 	if control, ok := cnmt.Contents["Control"]; ok {
 		controlNca := getNcaById(securePartition, control.ID)
 		if controlNca != nil {
-			fsHeader, section, err := openMetaNcaDataSection(file, securePartitionOffset+int64(controlNca.StartOffset))
+			fsHeader, section, err := openMetaNcaDataSection(file, securePartitionOffset+int64(controlNca.StartOffset), keys)
 			if err != nil {
 				return nil, err
 			}

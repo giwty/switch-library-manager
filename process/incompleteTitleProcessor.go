@@ -2,11 +2,12 @@ package process
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
+
 	"github.com/giwty/switch-library-manager/db"
 	"github.com/giwty/switch-library-manager/switchfs"
 	"go.uber.org/zap"
-	"sort"
-	"strconv"
 )
 
 type IncompleteTitle struct {
@@ -26,7 +27,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles,
 	//iterate over local files, and compare to remote versions
 	for idPrefix, switchFile := range localDB {
 
-		if switchFile.BaseExist == false {
+		if !switchFile.BaseExist {
 			zap.S().Infof("missing base for game %v", idPrefix)
 			continue
 		}
@@ -114,7 +115,7 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles,
 	//iterate over local files, and compare to remote versions
 	for idPrefix, switchFile := range localDB {
 
-		if switchFile.BaseExist == false {
+		if !switchFile.BaseExist {
 			continue
 		}
 
@@ -148,7 +149,7 @@ func ScanForBrokenFiles(localDB map[string]*db.SwitchGameFiles) []db.SwitchFileI
 	//iterate over local files, and compare to remote versions
 	for _, switchFile := range localDB {
 
-		if switchFile.BaseExist == false {
+		if !switchFile.BaseExist {
 			for _, f := range switchFile.Dlc {
 				result = append(result, f)
 			}

@@ -3,16 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/giwty/switch-library-manager/db"
 	"github.com/giwty/switch-library-manager/process"
 	"github.com/giwty/switch-library-manager/settings"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/schollz/progressbar/v3"
 	"go.uber.org/zap"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
 )
 
 var (
@@ -38,7 +39,7 @@ func (c *Console) Start() {
 		fmt.Println("note : the mode option ('-m') is deprecated, please use the settings.json to control options.")
 	}
 
-	settingsObj := settings.ReadSettings(c.baseFolder)
+	settingsObj := appSettings
 
 	//1. load the titles JSON object
 	fmt.Printf("Downlading latest switch titles json file")
@@ -69,7 +70,7 @@ func (c *Console) Start() {
 	}
 
 	//3. update the config file with new etag
-	settings.SaveSettings(settingsObj, c.baseFolder)
+	settingsObj.Save()
 
 	//4. create switch title db
 	titlesDB, err := db.CreateSwitchTitleDB(titleFile, versionsFile)
@@ -86,8 +87,9 @@ func (c *Console) Start() {
 	}
 	fmt.Printf("\n\nScanning folder [%v]", folderToScan)
 	progressBar = progressbar.New(2000)
-	keys, _ := settings.InitSwitchKeys(c.baseFolder)
-	if keys == nil || keys.GetKey("header_key") == "" {
+	settingsObj.ReadKeys()
+	// keys, _ := settings.InitSwitchKeys(c.baseFolder)
+	if settingsObj.GetKey(settings.SETTINGS_PRODKEYS_HEADER) == "" {
 		fmt.Printf("\n!!NOTE!!: keys file was not found, deep scan is disabled, library will be based on file tags.\n %v", err)
 	}
 
@@ -96,7 +98,7 @@ func (c *Console) Start() {
 		recursiveMode = *recursive
 	}
 
-	localDbManager, err := db.NewLocalSwitchDBManager(c.baseFolder)
+	localDbManager := db.NewLocalSwitchDBManager(c.baseFolder, c.sugarLogger, settingsObj)
 	if err != nil {
 		fmt.Printf("failed to create local files db :%v\n", err)
 		return
@@ -122,14 +124,14 @@ func (c *Console) Start() {
 	if settingsObj.OrganizeOptions.DeleteOldUpdateFiles {
 		progressBar = progressbar.New(2000)
 		fmt.Printf("\nDeleting old updates\n")
-		process.DeleteOldUpdates(c.baseFolder, localDB, c)
+		process.DeleteOldUpdates(c.baseFolder, localDB, c, settingsObj)
 		progressBar.Finish()
 	}
 
 	if settingsObj.OrganizeOptions.RenameFiles || settingsObj.OrganizeOptions.CreateFolderPerGame {
 		progressBar = progressbar.New(2000)
 		fmt.Printf("\nStarting library organization\n")
-		process.OrganizeByFolders(folderToScan, localDB, titlesDB, c)
+		process.OrganizeByFolders(folderToScan, localDB, titlesDB, c, settingsObj)
 		progressBar.Finish()
 	}
 
@@ -187,7 +189,7 @@ func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB
 }
 
 func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) {
-	settingsObj := settings.ReadSettings(c.baseFolder)
+	settingsObj := appSettings
 	ignoreIds := map[string]struct{}{}
 	for _, id := range settingsObj.IgnoreDLCTitleIds {
 		ignoreIds[strings.ToLower(id)] = struct{}{}

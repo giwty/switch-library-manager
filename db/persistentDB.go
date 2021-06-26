@@ -4,54 +4,90 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"path/filepath"
+	"time"
+
 	"github.com/boltdb/bolt"
 	"github.com/giwty/switch-library-manager/settings"
 	"go.uber.org/zap"
-	"log"
-	"path/filepath"
 )
 
 const (
-	DB_INTERNAL_TABLENAME = "internal-metadata"
+	DB_FILE_NAME                = "slm.db"
+	DB_BUCKET_INTERNAL_METADATA = "internal-metadata"
+	DB_FIELD_APP_VERSION        = "app_version"
 )
 
+// Persistent library database
 type PersistentDB struct {
-	db *bolt.DB
+	db     *bolt.DB
+	logger *zap.SugaredLogger
 }
 
-func NewPersistentDB(baseFolder string) (*PersistentDB, error) {
-	// Open the my.db data file in your current directory.
-	// It will be created if it doesn't exist.
-	db, err := bolt.Open(filepath.Join(baseFolder, "slm.db"), 0600, &bolt.Options{Timeout: 1 * 60})
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
+// Constructor for the library database
+func NewPersistentDB(baseFolder string, l *zap.SugaredLogger, s *settings.AppSettings) *PersistentDB {
+	// Instantiate the DB
+	db := &PersistentDB{
+		logger: l,
 	}
 
-	//set DB version
-	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(DB_INTERNAL_TABLENAME))
-		if b == nil {
-			b, err := tx.CreateBucket([]byte(DB_INTERNAL_TABLENAME))
-			if b == nil || err != nil {
-				return fmt.Errorf("create bucket: %s", err)
-			}
-			err = b.Put([]byte("app_version"), []byte(settings.SLM_VERSION))
-			if err != nil {
-				zap.S().Warnf("failed to save app_version - %v", err)
-				return err
-			}
-		}
-		return nil
-	})
+	// Check if we need to put the database in the homedir and if we have a homedir
+	if s.DBInHomedir && s.Homedir != "" {
+		baseFolder = s.GetHomedirPath()
+	}
 
-	return &PersistentDB{db: db}, nil
+	// Open the database
+	db.Open(baseFolder)
+
+	// Update the version
+	db.UpdateVersion()
+
+	return db
 }
 
+// Open the database
+func (pd *PersistentDB) Open(baseFolder string) {
+	// Open the database, it will be created if it doesn't exist
+	var dbErr error
+	pd.db, dbErr = bolt.Open(filepath.Join(baseFolder, DB_FILE_NAME), 0600, &bolt.Options{Timeout: 1 * time.Minute})
+	if dbErr != nil {
+		// This will exit the app
+		pd.logger.Fatal(dbErr)
+	}
+}
+
+// Close the database
 func (pd *PersistentDB) Close() {
 	pd.db.Close()
 }
 
+// Update the app version
+func (pd *PersistentDB) UpdateVersion() {
+	// Set the database version to the app version
+	pd.db.Update(func(tx *bolt.Tx) error {
+		// Create the internal metadata bucket if it does not exist
+		bucket := tx.Bucket([]byte(DB_BUCKET_INTERNAL_METADATA))
+		if bucket == nil {
+			var bucketErr error
+			bucket, bucketErr = tx.CreateBucket([]byte(DB_BUCKET_INTERNAL_METADATA))
+			if bucket == nil || bucketErr != nil {
+				pd.logger.Errorf("create bucket: %s", bucketErr)
+				return fmt.Errorf("create bucket: %s", bucketErr)
+			}
+		}
+
+		// Update the application version
+		putErr := bucket.Put([]byte(DB_FIELD_APP_VERSION), []byte(settings.SLM_VERSION))
+		if putErr != nil {
+			pd.logger.Warnf("failed to save app_version - %v", putErr)
+			return putErr
+		}
+
+		return nil
+	})
+}
+
+// Clear a table from the database
 func (pd *PersistentDB) ClearTable(tableName string) error {
 	err := pd.db.Update(func(tx *bolt.Tx) error {
 		err := tx.DeleteBucket([]byte(tableName))

@@ -2,86 +2,51 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/giwty/switch-library-manager/logger"
 	"github.com/giwty/switch-library-manager/settings"
 	"go.uber.org/zap"
-	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 )
 
-func main() {
+// App global vars
+var (
+	workingFolder string
+	appSettings   *settings.AppSettings
+	l             *zap.SugaredLogger
+)
 
-	exePath, err := os.Executable()
-	if err != nil {
-		fmt.Println("failed to get executable directory, please ensure app has sufficient permissions. aborting")
+// Main
+func main() {
+	// Locate own working dir
+	var workingFolderErr error
+	var exePath string
+	exePath, workingFolder, workingFolderErr = settings.GetWorkingFolder()
+	if workingFolderErr != nil {
+		fmt.Println("Failed to get executable directory, please ensure app has sufficient permissions. Aborting.")
 		return
 	}
 
-	workingFolder := filepath.Dir(exePath)
+	// Load the app settings
+	appSettings = settings.NewAppSettings(workingFolder)
 
-	if runtime.GOOS == "darwin" {
-		if strings.Contains(workingFolder, ".app") {
-			appIndex := strings.Index(workingFolder, ".app")
-			sepIndex := strings.LastIndex(workingFolder[:appIndex], string(os.PathSeparator))
-			workingFolder = workingFolder[:sepIndex]
-		}
-	}
+	// Create a new global logger
+	l = logger.GetSugar(workingFolder, appSettings.Debug)
+	defer logger.Defer() // flushes buffer, if any
 
-	appSettings := settings.ReadSettings(workingFolder)
+	l.Info("[SLM starts]")
+	l.Infof("[Executable: %v]", exePath)
+	l.Infof("[Working directory: %v]", workingFolder)
 
-	logger := createLogger(workingFolder, appSettings.Debug)
-
-	defer logger.Sync() // flushes buffer, if any
-	sugar := logger.Sugar()
-
-	sugar.Info("[SLM starts]")
-	sugar.Infof("[Executable: %v]", exePath)
-	sugar.Infof("[Working directory: %v]", workingFolder)
-
-	appSettings.GUI = true
-
+	// Force console if nothing in the asset dir
 	files, err := AssetDir(workingFolder)
 	if files == nil && err == nil {
 		appSettings.GUI = false
 	}
 
 	if appSettings.GUI {
-		CreateGUI(workingFolder, sugar).Start()
-	} else {
-		CreateConsole(workingFolder, sugar).Start()
+		StartGUI()
+		// } else {
+		// 	CreateConsole(workingFolder, sugar).Start()
 	}
 
-}
-
-func createLogger(workingFolder string, debug bool) *zap.Logger {
-	var config zap.Config
-	if debug {
-		config = zap.NewDevelopmentConfig()
-	} else {
-		config = zap.NewDevelopmentConfig()
-		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	}
-	logPath := filepath.Join(workingFolder, "slm.log")
-	// delete old file
-	os.Remove(logPath)
-
-	if runtime.GOOS == "windows" {
-		zap.RegisterSink("winfile", func(u *url.URL) (zap.Sink, error) {
-			// Remove leading slash left by url.Parse()
-			return os.OpenFile(u.Path[1:], os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-		})
-		logPath = "winfile:///" + logPath
-	}
-
-	config.OutputPaths = []string{logPath}
-	config.ErrorOutputPaths = []string{logPath}
-	logger, err := config.Build()
-	if err != nil {
-		fmt.Printf("failed to create logger - %v", err)
-		panic(1)
-	}
-	zap.ReplaceGlobals(logger)
-	return logger
 }
