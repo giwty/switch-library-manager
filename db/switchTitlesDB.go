@@ -6,7 +6,14 @@ import (
 	"strings"
 )
 
+const (
+	TITLE_ID_BITMASK  = 0xFFFFFFFFFFFFE000
+	TITLE_TYPE_BASE   = 0
+	TITLE_TYPE_UPDATE = 800
+)
+
 type TitleAttributes struct {
+	intId       uint64      `json:"-"`
 	Id          string      `json:"id"`
 	Name        string      `json:"name,omitempty"`
 	Version     json.Number `json:"version,omitempty"`
@@ -48,35 +55,39 @@ func CreateSwitchTitleDB(titlesFile, versionsFile io.Reader) (*SwitchTitlesDB, e
 
 	result := SwitchTitlesDB{TitlesMap: map[string]*SwitchTitle{}}
 	for id, attr := range titles {
-		id = strings.ToLower(id)
-
-		//TitleAttributes id rules:
-		//main TitleAttributes ends with 000
-		//Updates ends with 800
-		//Dlc have a running counter (starting with 001) in the 4 last chars
-		idPrefix := id[0 : len(id)-4]
-		switchTitle := &SwitchTitle{Dlc: map[string]TitleAttributes{}}
-		if t, ok := result.TitlesMap[idPrefix]; ok {
-			switchTitle = t
-		}
-		result.TitlesMap[idPrefix] = switchTitle
-
-		//process Updates
-		if strings.HasSuffix(id, "800") {
-			updates := versions[id[0:len(id)-3]+"000"]
-			switchTitle.Updates = updates
+		// Grab the base ID and type
+		baseId, titleType, err := getTitleBaseAndType(attr.Id)
+		if err != nil {
 			continue
 		}
 
-		//process main TitleAttributes
-		if strings.HasSuffix(id, "000") {
+		// Try to grab the title from the result
+		switchTitle, ok := result.TitlesMap[baseId]
+		// If it does not exist, create the entry
+		if !ok {
+			result.TitlesMap[baseId] = &SwitchTitle{
+				Dlc:     make(map[string]TitleAttributes),
+				Updates: make(map[int]string),
+			}
+			switchTitle = result.TitlesMap[baseId]
+		}
+
+		// Process depending on type
+		switch titleType {
+		// Base game
+		case TITLE_TYPE_BASE:
 			switchTitle.Attributes = attr
-			continue
+
+		// Update
+		case TITLE_TYPE_UPDATE:
+			if titleUpdate, ok := versions[baseId]; ok {
+				switchTitle.Updates = titleUpdate
+			}
+
+		// Otherwise a DLC
+		default:
+			switchTitle.Dlc[strings.ToLower(id)] = attr
 		}
-
-		//not an update, and not main TitleAttributes, so treat it as a DLC
-		switchTitle.Dlc[id] = attr
-
 	}
 
 	return &result, nil

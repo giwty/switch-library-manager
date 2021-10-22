@@ -127,8 +127,11 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 		}
 
 		for _, metadata := range contentMap {
-
-			idPrefix := metadata.TitleId[0 : len(metadata.TitleId)-4]
+			// Grab the base ID and type
+			baseId, titleType, err := getTitleBaseAndType(metadata.TitleId)
+			if err != nil {
+				continue
+			}
 
 			multiContent := len(contentMap) > 1
 			switchTitle := &SwitchGameFiles{
@@ -139,13 +142,15 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				IsSplit:      isSplit,
 				LatestUpdate: 0,
 			}
-			if t, ok := titles[idPrefix]; ok {
+			if t, ok := titles[baseId]; ok {
 				switchTitle = t
 			}
-			titles[idPrefix] = switchTitle
+			titles[baseId] = switchTitle
 
-			//process Updates
-			if strings.HasSuffix(metadata.TitleId, "800") {
+			// Process depending on type
+			switch titleType {
+			// Update
+			case TITLE_TYPE_UPDATE:
 				metadata.Type = "Update"
 
 				if update, ok := switchTitle.Updates[metadata.Version]; ok {
@@ -163,10 +168,9 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 					skipped[file] = SkippedFile{ReasonCode: REASON_OLD_UPDATE, ReasonText: "old update file, newer update exist locally"}
 				}
 				continue
-			}
 
-			//process base
-			if strings.HasSuffix(metadata.TitleId, "000") {
+			// Base game
+			case TITLE_TYPE_BASE:
 				metadata.Type = "Base"
 				if switchTitle.BaseExist {
 					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate base file (" + switchTitle.File.ExtendedInfo.FileName + ")"}
@@ -177,25 +181,26 @@ func (ldb *LocalSwitchDBManager) processLocalFiles(files []ExtendedFileInfo,
 				switchTitle.BaseExist = true
 
 				continue
-			}
 
-			if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
-				if metadata.Version < dlc.Metadata.Version {
-					skipped[file] = SkippedFile{ReasonCode: REASON_OLD_UPDATE, ReasonText: "old DLC file, newer version exist locally"}
-					zap.S().Warnf("-->Old DLC file found [%v] and [%v]", file.FileName, dlc.ExtendedInfo.FileName)
-					continue
-				} else if metadata.Version == dlc.Metadata.Version {
-					skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate DLC file (" + dlc.ExtendedInfo.FileName + ")"}
-					zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.FileName, dlc.ExtendedInfo.FileName)
-					continue
+			// Otherwise a DLC
+			default:
+				if dlc, ok := switchTitle.Dlc[metadata.TitleId]; ok {
+					if metadata.Version < dlc.Metadata.Version {
+						skipped[file] = SkippedFile{ReasonCode: REASON_OLD_UPDATE, ReasonText: "old DLC file, newer version exist locally"}
+						zap.S().Warnf("-->Old DLC file found [%v] and [%v]", file.FileName, dlc.ExtendedInfo.FileName)
+						continue
+					} else if metadata.Version == dlc.Metadata.Version {
+						skipped[file] = SkippedFile{ReasonCode: REASON_DUPLICATE, ReasonText: "duplicate DLC file (" + dlc.ExtendedInfo.FileName + ")"}
+						zap.S().Warnf("-->Duplicate DLC file found [%v] and [%v]", file.FileName, dlc.ExtendedInfo.FileName)
+						continue
+					}
 				}
+				//not an update, and not main TitleAttributes, so treat it as a DLC
+				metadata.Type = "DLC"
+				switchTitle.Dlc[metadata.TitleId] = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
 			}
-			//not an update, and not main TitleAttributes, so treat it as a DLC
-			metadata.Type = "DLC"
-			switchTitle.Dlc[metadata.TitleId] = SwitchFileInfo{ExtendedInfo: file, Metadata: metadata}
 		}
 	}
-
 }
 
 func (ldb *LocalSwitchDBManager) getGameMetadata(file ExtendedFileInfo,
