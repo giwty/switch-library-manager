@@ -15,8 +15,10 @@ import (
 )
 
 var (
-	folderIllegalCharsRegex = regexp.MustCompile(`[/\\?%*:;=|"<>]`)
-	nonAscii                = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-\\[\\]\\(\\)\\+]")
+	fileIllegalCharsRegex   = regexp.MustCompile(`[/\\?%*:;=|"<>]`)
+	folderIllegalCharsRegex = regexp.MustCompile(`[?%*:;=|"<>]`)
+	filenonAscii            = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-\\[\\]\\(\\)\\+]")
+	foldernonAscii          = regexp.MustCompile("[a-zA-Z0-9áéíóú@#%&',.\\s-\\[\\]\\(\\)\\+/\\\\]")
 	cjk                     = regexp.MustCompile("[\u2f70-\u2FA1\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f\\p{Katakana}\\p{Hiragana}\\p{Hangul}]")
 )
 
@@ -158,6 +160,15 @@ func OrganizeByFolders(baseFolder string,
 
 			from = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, updateInfo.ExtendedInfo.FileName)
 			if options.CreateFolderPerGame {
+				folderToCreate := getFolderName(options, templateData)
+				destinationPath = filepath.Join(baseFolder, folderToCreate)
+				if _, err := os.Stat(destinationPath); os.IsNotExist(err) {
+					err = os.Mkdir(destinationPath, os.ModePerm)
+					if err != nil {
+						zap.S().Errorf("Failed to create folder %v - %v\n", folderToCreate, err)
+						continue
+					}
+				}
 				to = filepath.Join(destinationPath, getFileName(options, updateInfo.ExtendedInfo.FileName, templateData))
 			} else {
 				to = filepath.Join(updateInfo.ExtendedInfo.BaseFolder, getFileName(options, updateInfo.ExtendedInfo.FileName, templateData))
@@ -179,6 +190,15 @@ func OrganizeByFolders(baseFolder string,
 			templateData[settings.TEMPLATE_DLC_NAME] = getDlcName(titlesDB.TitlesMap[k], dlc)
 			from = filepath.Join(dlc.ExtendedInfo.BaseFolder, dlc.ExtendedInfo.FileName)
 			if options.CreateFolderPerGame {
+				folderToCreate := getFolderName(options, templateData)
+				destinationPath = filepath.Join(baseFolder, folderToCreate)
+				if _, err := os.Stat(destinationPath); os.IsNotExist(err) {
+					err = os.Mkdir(destinationPath, os.ModePerm)
+					if err != nil {
+						zap.S().Errorf("Failed to create folder %v - %v\n", folderToCreate, err)
+						continue
+					}
+				}
 				to = filepath.Join(destinationPath, getFileName(options, dlc.ExtendedInfo.FileName, templateData))
 			} else {
 				to = filepath.Join(dlc.ExtendedInfo.BaseFolder, getFileName(options, dlc.ExtendedInfo.FileName, templateData))
@@ -273,7 +293,7 @@ func getTitleName(switchTitle *db.SwitchTitle, v *db.SwitchGameFiles) string {
 
 func getFolderName(options settings.OrganizeOptions, templateData map[string]string) string {
 
-	return applyTemplate(templateData, options.SwitchSafeFileNames, options.FolderNameTemplate)
+	return applyTemplate(templateData, options.SwitchSafeFileNames, options.FolderNameTemplate, true)
 }
 
 func getFileName(options settings.OrganizeOptions, originalName string, templateData map[string]string) string {
@@ -281,7 +301,7 @@ func getFileName(options settings.OrganizeOptions, originalName string, template
 		return originalName
 	}
 	ext := path.Ext(originalName)
-	result := applyTemplate(templateData, options.SwitchSafeFileNames, options.FileNameTemplate)
+	result := applyTemplate(templateData, options.SwitchSafeFileNames, options.FileNameTemplate, false)
 	return result + ext
 }
 
@@ -293,7 +313,7 @@ func moveFile(from string, to string) error {
 	return err
 }
 
-func applyTemplate(templateData map[string]string, useSafeNames bool, template string) string {
+func applyTemplate(templateData map[string]string, useSafeNames bool, template string, folder bool) string {
 	result := strings.Replace(template, "{"+settings.TEMPLATE_TITLE_NAME+"}", templateData[settings.TEMPLATE_TITLE_NAME], 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_TITLE_ID+"}", strings.ToUpper(templateData[settings.TEMPLATE_TITLE_ID]), 1)
 	result = strings.Replace(result, "{"+settings.TEMPLATE_VERSION+"}", templateData[settings.TEMPLATE_VERSION], 1)
@@ -314,13 +334,23 @@ func applyTemplate(templateData map[string]string, useSafeNames bool, template s
 	}
 
 	if useSafeNames {
+		var safe []string
 		result = nihongo.RomajiString(result)
-		safe := nonAscii.FindAllString(result, -1)
+		if folder {
+			safe = foldernonAscii.FindAllString(result, -1)
+		} else {
+			safe = filenonAscii.FindAllString(result, -1)
+		}
 		result = strings.Join(safe, "")
 	}
 	result = strings.ReplaceAll(result, "  ", " ")
 	result = strings.TrimSpace(result)
-	return folderIllegalCharsRegex.ReplaceAllString(result, "")
+	if folder {
+		result = folderIllegalCharsRegex.ReplaceAllString(result, "")
+	} else {
+		result = fileIllegalCharsRegex.ReplaceAllString(result, "")
+	}
+	return result
 }
 
 func deleteEmptyFolders(path string) error {
