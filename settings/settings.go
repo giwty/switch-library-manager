@@ -53,13 +53,11 @@ type AppSettings struct {
 	Prodkeys               string          `json:"prod_keys"`
 	Folder                 string          `json:"folder"`
 	ScanFolders            []string        `json:"scan_folders"`
-	GUI                    bool            `json:"gui"`
 	Debug                  bool            `json:"debug"`
 	CheckForMissingUpdates bool            `json:"check_for_missing_updates"`
 	CheckForMissingDLC     bool            `json:"check_for_missing_dlc"`
 	OrganizeOptions        OrganizeOptions `json:"organize_options"`
 	ScanRecursively        bool            `json:"scan_recursively"`
-	GuiPagingSize          int             `json:"gui_page_size"`
 	IgnoreDLCTitleIds      []string        `json:"ignore_dlc_title_ids"`
 }
 
@@ -76,7 +74,7 @@ func ReadSettings(baseFolder string) *AppSettings {
 	if settingsInstance != nil {
 		return settingsInstance
 	}
-	settingsInstance = &AppSettings{Debug: false, GuiPagingSize: 100, ScanFolders: []string{},
+	settingsInstance = &AppSettings{Debug: false, ScanFolders: []string{},
 		OrganizeOptions: OrganizeOptions{SwitchSafeFileNames: true}, Prodkeys: "", IgnoreDLCTitleIds: []string{"01007F600B135007"}}
 	if _, err := os.Stat(filepath.Join(baseFolder, SETTINGS_FILENAME)); err == nil {
 		file, err := os.Open(filepath.Join(baseFolder, SETTINGS_FILENAME))
@@ -99,8 +97,6 @@ func saveDefaultSettings(baseFolder string) *AppSettings {
 		Folder:                 "",
 		ScanFolders:            []string{},
 		IgnoreDLCTitleIds:      []string{},
-		GUI:                    true,
-		GuiPagingSize:          100,
 		CheckForMissingUpdates: true,
 		CheckForMissingDLC:     true,
 		ScanRecursively:        true,

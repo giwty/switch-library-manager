@@ -3,9 +3,6 @@ module github.com/vincecima/switch-librarian
 go 1.12
 
 require (
-	github.com/asticode/go-astikit v0.8.0
-	github.com/asticode/go-astilectron v0.16.0
-	github.com/asticode/go-astilectron-bootstrap v0.4.1
 	github.com/avast/retry-go v2.6.1+incompatible
 	github.com/boltdb/bolt v1.3.1
 	github.com/go-openapi/strfmt v0.19.2 // indirect

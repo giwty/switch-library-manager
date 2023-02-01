@@ -9,7 +9,7 @@ Easily manage your switch game backups
 
 #### Features:
 - Cross platform, works on Windows / Mac / Linux
-- GUI and command line interfaces 
+- command line interfaces 
 - Scan your local switch backup library (NSP/NSZ/XCI)
 - Read titleId/version by decrypting NSP/XCI/NSZ (requires prod.keys)
 - If no prod.keys present, fallback to read titleId/version by parsing file name  (example: `Super Mario Odyssey [0100000000010000][v0].nsp`).
@@ -40,7 +40,6 @@ You can customize the folder/file re-naming, as well as turn on/off features.
  "prod_keys": "",
  "folder": "",
  "scan_folders": [],
- "gui": false,
  "debug": false, # Deprecated, no longer works
  "check_for_missing_updates": true,
  "check_for_missing_dlc": true,
@@ -54,7 +53,6 @@ You can customize the folder/file re-naming, as well as turn on/off features.
   "file_name_template": "{TITLE_NAME} ({DLC_NAME})[{TITLE_ID}][v{VERSION}]"
  },
  "scan_recursively": true,
- "gui_page_size": 100
 }
 ```
 
@@ -74,26 +72,22 @@ Please set debug mode to 'true', and attach the SL.log to allow for quicker reso
 ## Usage
 ##### Windows
 - Extract the zip file
-- Double click the Exe file
-- If you want to use command line mode, update the settings.json with `'GUI':false`
-    - Open `cmd`
-    - Run `switch-librarian.exe`
-    - Optionally -f `X:\folder\containing\nsp\files"`
-    - Optionally add  `-r` to recursively scan for nested folders
-    - Edit the settings.json file for additional options
+- Open `cmd`
+- Run `switch-librarian.exe`
+- Optionally -f `X:\folder\containing\nsp\files"`
+- Optionally add  `-r` to recursively scan for nested folders
+- Edit the settings.json file for additional options
 
  
 ##### macOS or Linux
 - Extract the zip file
-- Double click the App file
-- If you want to use command line mode, update the settings.json with `'GUI':false`
-    - Open your Terminal
-    - `cd` to the folder containing `switch-librarian`
-    - `chmod +x switch-librarian` to make it executable
-    - Run `./switch-librarian'
-    - Optionally -f `X:\folder\containing\nsp\files"`
-    - Optionally add  `-r` to recursively scan for nested folders
-    - Edit the settings.json file for additional options
+- Open your Terminal
+- `cd` to the folder containing `switch-librarian`
+- `chmod +x switch-librarian` to make it executable
+- Run `./switch-librarian'
+- Optionally -f `X:\folder\containing\nsp\files"`
+- Optionally add  `-r` to recursively scan for nested folders
+- Edit the settings.json file for additional options
 
 ## Building
 - Install and setup Go
