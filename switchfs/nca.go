@@ -7,8 +7,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/giwty/switch-library-manager/settings"
-	"github.com/giwty/switch-library-manager/switchfs/_crypto"
+	"github.com/vincecima/switch-librarian/settings"
+	"github.com/vincecima/switch-librarian/switchfs/_crypto"
 	"io"
 )
 

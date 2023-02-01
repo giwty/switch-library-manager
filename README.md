@@ -69,7 +69,7 @@ The following template elements are supported:
 - {DLC_NAME} - DLC name (only applicable to DLCs)
 
 ## Reporting issues
-Please set debug mode to 'true', and attach the slm.log to allow for quicker resolution.
+Please set debug mode to 'true', and attach the SL.log to allow for quicker resolution.
 
 ## Usage
 ##### Windows
@@ -77,7 +77,7 @@ Please set debug mode to 'true', and attach the slm.log to allow for quicker res
 - Double click the Exe file
 - If you want to use command line mode, update the settings.json with `'GUI':false`
     - Open `cmd`
-    - Run `switch-library-manager.exe`
+    - Run `switch-librarian.exe`
     - Optionally -f `X:\folder\containing\nsp\files"`
     - Optionally add  `-r` to recursively scan for nested folders
     - Edit the settings.json file for additional options
@@ -88,19 +88,19 @@ Please set debug mode to 'true', and attach the slm.log to allow for quicker res
 - Double click the App file
 - If you want to use command line mode, update the settings.json with `'GUI':false`
     - Open your Terminal
-    - `cd` to the folder containing `switch-library-manager`
-    - `chmod +x switch-library-manager` to make it executable
-    - Run `./switch-library-manager'
+    - `cd` to the folder containing `switch-librarian`
+    - `chmod +x switch-librarian` to make it executable
+    - Run `./switch-librarian'
     - Optionally -f `X:\folder\containing\nsp\files"`
     - Optionally add  `-r` to recursively scan for nested folders
     - Edit the settings.json file for additional options
 
 ## Building
 - Install and setup Go
-- Clone the repo: `git clone https://github.com/giwty/switch-library-manager.git`
+- Clone the repo: `git clone https://github.com/vincecima/switch-librarian.git`
 - Get the bundler `go get -u github.com/asticode/go-astilectron-bundler/...`
 - Install bundler `go install github.com/asticode/go-astilectron-bundler/astilectron-bundler`
-- Copy bundler binary to the source folder `cd switch-library-manager` and then `mv $HOME/go/bin/astilectron-bundler .`
+- Copy bundler binary to the source folder `cd switch-librarian` and then `mv $HOME/go/bin/astilectron-bundler .`
 - Execute `./astilectron-bundler`
 - Binaries will be available under output
 

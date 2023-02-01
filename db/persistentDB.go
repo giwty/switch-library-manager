@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/boltdb/bolt"
-	"github.com/giwty/switch-library-manager/settings"
+	"github.com/vincecima/switch-librarian/settings"
 	"go.uber.org/zap"
 	"log"
 	"path/filepath"
@@ -22,7 +22,7 @@ type PersistentDB struct {
 func NewPersistentDB(baseFolder string) (*PersistentDB, error) {
 	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
-	db, err := bolt.Open(filepath.Join(baseFolder, "slm.db"), 0600, &bolt.Options{Timeout: 1 * 60})
+	db, err := bolt.Open(filepath.Join(baseFolder, "SL.db"), 0600, &bolt.Options{Timeout: 1 * 60})
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -36,7 +36,7 @@ func NewPersistentDB(baseFolder string) (*PersistentDB, error) {
 			if b == nil || err != nil {
 				return fmt.Errorf("create bucket: %s", err)
 			}
-			err = b.Put([]byte("app_version"), []byte(settings.SLM_VERSION))
+			err = b.Put([]byte("app_version"), []byte(settings.SL_VERSION))
 			if err != nil {
 				zap.S().Warnf("failed to save app_version - %v", err)
 				return err

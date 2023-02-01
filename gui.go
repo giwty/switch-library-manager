@@ -7,9 +7,9 @@ import (
 	"github.com/asticode/go-astikit"
 	"github.com/asticode/go-astilectron"
 	bootstrap "github.com/asticode/go-astilectron-bootstrap"
-	"github.com/giwty/switch-library-manager/db"
-	"github.com/giwty/switch-library-manager/process"
-	"github.com/giwty/switch-library-manager/settings"
+	"github.com/vincecima/switch-librarian/db"
+	"github.com/vincecima/switch-librarian/process"
+	"github.com/vincecima/switch-librarian/settings"
 	"go.uber.org/zap"
 	"log"
 	"path/filepath"
@@ -96,7 +96,7 @@ func (g *GUI) Start() {
 		Asset:    Asset,
 		AssetDir: AssetDir,
 		AstilectronOptions: astilectron.Options{
-			AppName:            "Switch Library Manager (" + settings.SLM_VERSION + ")",
+			AppName:            "Switch Library Manager (" + settings.SL_VERSION + ")",
 			AcceptTCPTimeout:   time.Duration(5) * time.Second,
 			AppIconDarwinPath:  "resources/icon.icns",
 			AppIconDefaultPath: "resources/icon.png",

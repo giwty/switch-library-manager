@@ -19,12 +19,12 @@ const (
 	SETTINGS_FILENAME      = "settings.json"
 	TITLE_JSON_FILENAME    = "titles.json"
 	VERSIONS_JSON_FILENAME = "versions.json"
-	SLM_VERSION            = "1.4.0"
+	SL_VERSION            = "1.4.0"
 	TITLES_JSON_URL        = "https://tinfoil.media/repo/db/titles.json"
 	//TITLES_JSON_URL    = "https://raw.githubusercontent.com/blawar/titledb/master/titles.US.en.json"
 	VERSIONS_JSON_URL = "https://tinfoil.media/repo/db/versions.json"
 	//VERSIONS_JSON_URL = "https://raw.githubusercontent.com/blawar/titledb/master/versions.json"
-	SLM_VERSION_URL = "https://raw.githubusercontent.com/giwty/switch-library-manager/master/slm.json"
+	SL_VERSION_URL = "https://raw.githubusercontent.com/vincecima/switch-librarian/master/SL.json"
 )
 
 const (
@@ -128,9 +128,9 @@ func SaveSettings(settings *AppSettings, baseFolder string) *AppSettings {
 
 func CheckForUpdates() (bool, error) {
 
-	localVer := SLM_VERSION
+	localVer := SL_VERSION
 
-	res, err := http.Get(SLM_VERSION_URL)
+	res, err := http.Get(SL_VERSION_URL)
 	if err != nil {
 		return false, err
 	}

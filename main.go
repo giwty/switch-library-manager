@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/giwty/switch-library-manager/settings"
+	"github.com/vincecima/switch-librarian/settings"
 	"go.uber.org/zap"
 	"net/url"
 	"os"
@@ -36,7 +36,7 @@ func main() {
 	defer logger.Sync() // flushes buffer, if any
 	sugar := logger.Sugar()
 
-	sugar.Info("[SLM starts]")
+	sugar.Info("[SL starts]")
 	sugar.Infof("[Executable: %v]", exePath)
 	sugar.Infof("[Working directory: %v]", workingFolder)
 
@@ -63,7 +63,7 @@ func createLogger(workingFolder string, debug bool) *zap.Logger {
 		config = zap.NewDevelopmentConfig()
 		config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
-	logPath := filepath.Join(workingFolder, "slm.log")
+	logPath := filepath.Join(workingFolder, "SL.log")
 	// delete old file
 	os.Remove(logPath)
 

@@ -2,7 +2,7 @@ package fileio
 
 import (
 	"errors"
-	"github.com/giwty/switch-library-manager/switchfs"
+	"github.com/vincecima/switch-librarian/switchfs"
 	"os"
 )
 

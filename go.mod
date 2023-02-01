@@ -1,4 +1,4 @@
-module github.com/giwty/switch-library-manager
+module github.com/vincecima/switch-librarian
 
 go 1.12
 
