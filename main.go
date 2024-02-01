@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/giwty/switch-library-manager/settings"
-	"go.uber.org/zap"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/giwty/switch-library-manager/settings"
+	"go.uber.org/zap"
 )
 
 func main() {

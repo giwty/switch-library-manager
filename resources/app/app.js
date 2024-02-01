@@ -1,5 +1,4 @@
-const {dialog,shell} = require('electron').remote;
-
+const { shell, dialog } = require('electron').remote
 
 $(function () {
 
