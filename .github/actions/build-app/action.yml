@@ -1,0 +1,8 @@
+name: "Build App"
+description: Builds the app
+runs:
+  using: composite
+  steps:
+    - name: Run bundler
+      shell: bash
+      run: ./astilectron-bundler

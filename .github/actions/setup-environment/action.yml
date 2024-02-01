@@ -1,0 +1,21 @@
+name: "Setup Environment"
+description: Setup the environment for compiling the solution
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Get bundler
+      shell: bash
+      run: go get -u github.com/asticode/go-astilectron-bundler/
+        
+    - name: Install bundler
+      shell: bash
+      run: go install github.com/asticode/go-astilectron-bundler/astilectron-bundler
+
+    - name: Move bundler
+      shell: bash
+      run: mv $HOME/go/bin/astilectron-bundler .
