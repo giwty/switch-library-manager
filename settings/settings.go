@@ -3,12 +3,13 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mcuadros/go-version"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/mcuadros/go-version"
+	"go.uber.org/zap"
 )
 
 var (
@@ -55,6 +56,7 @@ type AppSettings struct {
 	Debug                  bool            `json:"debug"`
 	CheckForMissingUpdates bool            `json:"check_for_missing_updates"`
 	CheckForMissingDLC     bool            `json:"check_for_missing_dlc"`
+	HideMissingGames       bool            `json:"hide_missing_games"`
 	OrganizeOptions        OrganizeOptions `json:"organize_options"`
 	ScanRecursively        bool            `json:"scan_recursively"`
 	GuiPagingSize          int             `json:"gui_page_size"`
@@ -101,6 +103,7 @@ func saveDefaultSettings(baseFolder string) *AppSettings {
 		GuiPagingSize:          100,
 		CheckForMissingUpdates: true,
 		CheckForMissingDLC:     true,
+		HideMissingGames:       false,
 		ScanRecursively:        true,
 		Debug:                  false,
 		OrganizeOptions: OrganizeOptions{

@@ -33,7 +33,14 @@ h1 + p {
 
 .tabs li {
     float: left;
-    width: 14.2%;
+    width: 14.28571428571429%;
+}
+
+.tabs.hide_missing_games li {
+    width: 16.66666666666667%;
+}
+.tabs.hide_missing_games li.missing_btn {
+    display: none;
 }
 
 .tabs a {

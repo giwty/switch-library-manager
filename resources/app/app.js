@@ -21,6 +21,10 @@ $(function () {
 
         sendMessage("loadSettings", "", function (message) {
             state.settings = JSON.parse(message);
+
+            if(state.settings.hide_missing_games){
+                document.getElementById("tab_btns").classList.add("hide_missing_games");
+            }
         });
 
         sendMessage("isKeysFileAvailable", "", function (message) {
