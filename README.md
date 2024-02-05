@@ -1,11 +1,13 @@
+Fork of [Switch Library Manager](https://github.com/giwty/switch-library-manager) created by giwty with continued improvements and changes
+
 # Switch library manager
 Easily manage your switch game backups
 
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/updates_ui.png)
+![Image description](https://raw.githubusercontent.com/trembon/switch-library-manager/master/updates_ui.png)
 
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/dlc_ui.png)
+![Image description](https://raw.githubusercontent.com/trembon/switch-library-manager/master/dlc_ui.png)
  
-![Image description](https://raw.githubusercontent.com/giwty/nsp-update/master/cmd.png)
+![Image description](https://raw.githubusercontent.com/trembon/switch-library-manager/master/cmd.png)
 
 #### Features:
 - Cross platform, works on Windows / Mac / Linux
@@ -44,6 +46,7 @@ You can customize the folder/file re-naming, as well as turn on/off features.
  "debug": false, # Deprecated, no longer works
  "check_for_missing_updates": true,
  "check_for_missing_dlc": true,
+ "hide_missing_games": false,
  "organize_options": {
   "create_folder_per_game": false,
   "rename_files": false,
@@ -67,9 +70,6 @@ The following template elements are supported:
 - {REGION} - region
 - {TYPE} - impacts DLCs/updates, will appear as ["UPD","DLC"]
 - {DLC_NAME} - DLC name (only applicable to DLCs)
-
-## Reporting issues
-Please set debug mode to 'true', and attach the slm.log to allow for quicker resolution.
 
 ## Usage
 ##### Windows
@@ -97,7 +97,7 @@ Please set debug mode to 'true', and attach the slm.log to allow for quicker res
 
 ## Building
 - Install and setup Go
-- Clone the repo: `git clone https://github.com/giwty/switch-library-manager.git`
+- Clone the repo: `git clone https://github.com/trembon/switch-library-manager.git`
 - Get the bundler `go get -u github.com/asticode/go-astilectron-bundler/...`
 - Install bundler `go install github.com/asticode/go-astilectron-bundler/astilectron-bundler`
 - Copy bundler binary to the source folder `cd switch-library-manager` and then `mv $HOME/go/bin/astilectron-bundler .`
