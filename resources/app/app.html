@@ -19,7 +19,7 @@
     <ul id="tab_btns" class="tabs clearfix" data-tabgroup="tab-group">
         <li><a href="#library" class="active">Library</a></li>
         <li class="missing_btn"><a href="#missing">Missing games</a></li>
-        <li><a href="#updates">Missing Updates</a></li>
+        <li><a href="#updates">Missing updates</a></li>
         <li><a href="#dlc">Missing DLC</a></li>
         <li><a href="#organize">Organize</a></li>
         <li><a href="#status">Issues</a></li>
@@ -28,8 +28,7 @@
     <div class="progress-container">
         <h5 class="progress-type">Loading...</h5>
         <div class="progress">
-            <div class="progress-bar" role="progressbar" style="" aria-valuenow="" aria-valuemin="0"
-                 aria-valuemax="100"></div>
+            <div class="progress-bar" role="progressbar" aria-valuenow="" aria-valuemin="0" aria-valuemax="100"></div>
         </div>
         <div class="progress-msg"></div>
     </div>
@@ -49,7 +48,6 @@
         You can edit the settings, by modifying the settings.json file, and reloading the app
     </div>
     <pre><code class="settings-json">{{:code}}</code></pre>
-
 </script>
 
 <script id="missingTemplate" type="text/x-jsrender">
@@ -106,7 +104,7 @@
             <section id="library-table" class="content"></section>
         {{else}}
             <div class="alert center alert-warning" role="alert">
-            {{if num_skipped != 0}}}
+            {{if num_skipped != 0}}
                  {{:num_skipped}} out of {{:num_files}} files were skipped during scan, click on the issues tab to learn more
             {{else}}
                 The selected folder ({{:folder}}) is empty. please set a different folder
@@ -180,7 +178,6 @@
               <button type="button" class="btn btn-outline-primary folder-set">Set Folder</button>
         </div>
     {{/if}}
-
 </script>
 
 <script id="statusTemplate" type="text/x-jsrender">
@@ -204,7 +201,6 @@
               <button type="button" class="btn btn-outline-primary folder-set">Set Folder</button>
         </div>
     {{/if}}
-
 </script>
 
 <script id="organizeTemplate" type="text/x-jsrender">
@@ -270,9 +266,7 @@
               <button type="button" class="btn btn-outline-primary folder-set">Set Folder</button>
         </div>
     {{/if}}
-
 </script>
-
 
 </body>
 </html>

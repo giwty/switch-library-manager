@@ -693,6 +693,7 @@ select.form-element-field {
 
 .form-element-field[type="number"] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 .form-element-field[type="number"]::-webkit-outer-spin-button,
