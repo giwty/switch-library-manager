@@ -5,6 +5,9 @@ on:
     tags:
       - "*.*.*" # Triggers on tags like 1.0.0, v1.0.0, and v1.0.0-beta1
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -47,6 +50,7 @@ jobs:
         uses: ./.github/actions/publish-artifacts
         with:
           artifact-name: ${{ matrix.artifact }}
+          retention-days: "1"
 
   package-and-release:
     needs: build

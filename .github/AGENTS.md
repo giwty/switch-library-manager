@@ -2,8 +2,9 @@
 
 ## Workflows
 
-- `workflows/verify-pr.yml` checks out the repository, runs `actions/setup-environment`, and invokes `actions/build-app`.
-- `workflows/build-master.yml` performs the same setup/build and then publishes Windows, both WebKitGTK Linux variants, and macOS artifacts.
+- `workflows/verify-pr.yml` targets master and numeric version branches, runs `actions/setup-environment`, and invokes `actions/build-app`.
+- `workflows/build-master.yml` builds master and `vMAJOR.MINOR.PATCH` branches and publishes Windows, both WebKitGTK Linux variants, and macOS artifacts. Documentation-only pushes skip these builds.
+- GitHub automatically expires branch artifacts after seven days and tagged-release job-transfer artifacts after one day. Published release assets are unaffected.
 - Composite actions use Bash commands with `working-directory: ./src`; the release workflow runs the build on native Windows, Linux, and macOS runners.
 
 ## Build Contract
