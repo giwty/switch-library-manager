@@ -156,10 +156,13 @@ func buildGameDetails(
 			dlcIDs = append(dlcIDs, strings.ToLower(id))
 		}
 		sort.Slice(dlcIDs, func(i, j int) bool {
-			left := remote.Dlc[dlcIDs[i]].Name
-			right := remote.Dlc[dlcIDs[j]].Name
-			if !strings.EqualFold(left, right) {
-				return strings.ToLower(left) < strings.ToLower(right)
+			left := remote.Dlc[dlcIDs[i]]
+			right := remote.Dlc[dlcIDs[j]]
+			if left.ReleaseDate != right.ReleaseDate {
+				return left.ReleaseDate > right.ReleaseDate
+			}
+			if !strings.EqualFold(left.Name, right.Name) {
+				return strings.ToLower(left.Name) < strings.ToLower(right.Name)
 			}
 			return dlcIDs[i] < dlcIDs[j]
 		})

@@ -11,8 +11,9 @@ import (
 )
 
 type MissingDLC struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	ReleaseDate string `json:"release_date"`
 }
 
 type IncompleteTitle struct {
@@ -164,7 +165,11 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles,
 				}
 
 				if _, ok := switchFile.Dlc[k]; !ok {
-					switchTitle.MissingDLC = append(switchTitle.MissingDLC, MissingDLC{Id: v.Id, Name: v.Name})
+					releaseDate := ""
+					if v.ReleaseDate != 0 {
+						releaseDate = v.ParsedReleaseDate
+					}
+					switchTitle.MissingDLC = append(switchTitle.MissingDLC, MissingDLC{Id: v.Id, Name: v.Name, ReleaseDate: releaseDate})
 				}
 			}
 			if len(switchTitle.MissingDLC) != 0 {

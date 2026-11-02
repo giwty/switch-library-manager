@@ -626,12 +626,13 @@
             {{if dlc && dlc.length}}
             <div class="table-responsive">
               <table class="table table-sm align-middle game-details-table">
-                <thead><tr><th scope="col">DLC</th><th scope="col">Title ID</th><th scope="col">Versions</th><th scope="col">Status</th><th scope="col">Local file</th></tr></thead>
+                <thead><tr><th scope="col">DLC</th><th scope="col">Title ID</th><th scope="col">Release date</th><th scope="col">Versions</th><th scope="col">Status</th><th scope="col">Local file</th></tr></thead>
                 <tbody>
                   {{for dlc}}
                   <tr>
                     <th scope="row">{{if name}}{{:name}}{{else}}Unnamed DLC{{/if}}</th>
                     <td><code>{{:titleId}}</code></td>
+                    <td>{{if attributes.releaseDate && attributes.ParsedReleaseDate}}{{>attributes.ParsedReleaseDate}}{{else}}Unknown{{/if}}</td>
                     <td>{{if has_available_version && has_local_version}}Local v{{:local_version}} / latest v{{:available_version}}{{else has_available_version}}Local version unknown / latest v{{:available_version}}{{else has_local_version}}Local v{{:local_version}} / latest unknown{{else}}—{{/if}}</td>
                     <td>
                       {{if status === "collected"}}

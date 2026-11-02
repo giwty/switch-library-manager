@@ -348,6 +348,7 @@ export namespace process {
 	export class MissingDLC {
 	    id: string;
 	    name: string;
+	    release_date: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new MissingDLC(source);
@@ -357,6 +358,7 @@ export namespace process {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
+	        this.release_date = source["release_date"];
 	    }
 	}
 	export class IncompleteTitle {

@@ -855,7 +855,9 @@ $(function () {
                 if (missingDlcRows.length) {
                     createTable("#dlc-table", gameDetailsTableOptions({
                         layout:"fitDataStretch",
+                        sortOrderReverse:true,
                         initialSort:[
+                            {column:"dlc.release_date", dir:"desc"},
                             {column:"game.name", dir:"asc"},
                             {column:"dlc.name", dir:"asc"},
                             {column:"dlc.id", dir:"asc"},
@@ -866,6 +868,11 @@ $(function () {
                             {formatter:"rownum",download:false},
                             {title: "Missing DLC", field: "dlc.name", headerFilter:"input", formatter:"textarea"},
                             {title: "DLC ID", field: "dlc.id", headerFilter:"input"},
+                            {title: "Release date", field: "dlc.release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD", alignEmptyValues:"bottom"}, formatter: function (cell) {
+                                const content = document.createElement("span");
+                                content.textContent = cell.getValue() || "Unknown";
+                                return content;
+                            }},
                             {title: "Title", field: "game.name", headerFilter:"input", formatter:"textarea", width:350},
                             {title: "Title ID", field: "game.id", headerFilter:"input"}
                         ],
