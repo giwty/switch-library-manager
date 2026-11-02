@@ -808,7 +808,7 @@ $(function () {
                             {field: "Attributes.bannerUrl",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "Attributes.name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Type", field: "Meta.type", headerFilter:"input"},
-                            {title: "Title id", headerSort:false, field: "Attributes.id", headerFilter:"input", hozAlign: "right", sorter: "number"},
+                            {title: "Title ID", headerSort:false, field: "Attributes.id", headerFilter:"input", hozAlign: "right", sorter: "number"},
                             {title: "Local update", headerSort:false, field: "local_update", hozAlign: "right", sorter: "number", formatter: function (cell) {
                                 const displayVersion = state.settings.gui.hide_version_string ? "" : cell.getRow().getData().local_display_version;
                                 const value = String(cell.getValue()) + (displayVersion ? " (" + displayVersion + ")" : "");
@@ -930,7 +930,7 @@ $(function () {
                             {formatter:"rownum",download:false,minWidth:24},
                             {field: "icon",minWidth:40,formatter:"image", download:false,headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",widthGrow:3},
-                            {title: "Title id", headerSort:false, headerFilter:"input", field: "titleId"},
+                            {title: "Title ID", headerSort:false, headerFilter:"input", field: "titleId"},
                             {title: "Region", headerSort:true, headerFilter:"input", field: "region"},
                             {title: "Type", headerSort:true, headerFilter:"input", field: "type"},
                             {title: "Update", headerSort:false, field: "update"},
@@ -971,7 +971,7 @@ $(function () {
                             {formatter:"rownum",download:false},
                             {field: "icon",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {field: "name",title: "Title",  headerFilter:"input",formatter:"textarea",width:350},
-                            {title: "Title id", headerSort:false, headerFilter:"input", field: "titleId"},
+                            {title: "Title ID", headerSort:false, headerFilter:"input", field: "titleId"},
                             {title: "Region", headerSort:true,headerFilter:"input",formatter:"textarea", field: "region"},
                             {title: "Release date", headerSort:true, field: "release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD"}},
                         ],
