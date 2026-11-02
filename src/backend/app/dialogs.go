@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -15,14 +16,22 @@ func (a *App) SelectFolder() (string, error) {
 }
 
 func (a *App) ConfirmOrganization() (bool, error) {
-	selection, err := wailsruntime.MessageDialog(a.ctx, wailsruntime.MessageDialogOptions{
+	return confirmOrganization(a.ctx, wailsruntime.MessageDialog)
+}
+
+func confirmOrganization(ctx context.Context, showDialog func(context.Context, wailsruntime.MessageDialogOptions) (string, error)) (bool, error) {
+	selection, err := showDialog(ctx, wailsruntime.MessageDialogOptions{
 		Type:          wailsruntime.QuestionDialog,
 		Title:         "Confirmation",
 		Message:       "Are you sure you want to begin library organization?\n\nThis action will modify your local library files",
+		Buttons:       []string{"Yes", "No"},
 		DefaultButton: "Yes",
 		CancelButton:  "No",
 	})
-	return selection == "Yes", err
+	if err != nil {
+		return false, err
+	}
+	return selection == "Yes", nil
 }
 
 func (a *App) ShowMessage(kind, title, message, detail string) error {
