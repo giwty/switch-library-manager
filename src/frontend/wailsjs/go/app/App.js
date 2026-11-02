@@ -10,6 +10,10 @@ export function ConfirmOrganization() {
   return window['go']['app']['App']['ConfirmOrganization']();
 }
 
+export function ExportXLSX(arg1) {
+  return window['go']['app']['App']['ExportXLSX'](arg1);
+}
+
 export function GetGameDetails(arg1) {
   return window['go']['app']['App']['GetGameDetails'](arg1);
 }

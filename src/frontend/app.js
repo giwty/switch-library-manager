@@ -1,5 +1,6 @@
 import {
     CheckUpdate,
+    ExportXLSX,
     ConfirmOrganization,
     GetOrganizationPreview,
     GetMissingDLC,
@@ -26,6 +27,7 @@ import {
     WindowSetSystemDefaultTheme,
 } from './wailsjs/runtime/runtime.js'
 import { registerRescanShortcuts } from './rescan_shortcuts.js'
+import { exportTableXLSX } from './xlsx_export.js'
 
 $(function () {
 
@@ -45,6 +47,7 @@ $(function () {
 
     let currTable
     let currTableExportKind
+    let xlsxExportPending = false
     const activeTables = new Set();
     let themeMediaQuery
     let themeMediaQueryHandler
@@ -84,7 +87,7 @@ $(function () {
         const tableOptions = Object.assign({
             pagination: "local",
             paginationSize: state.settings.gui.page_size,
-            footerElement: '<div class="slm-table-footer-actions"><button type="button" class="btn btn-link export-btn">Export to CSV</button></div>'
+            footerElement: '<div class="slm-table-footer-actions"><button type="button" class="btn btn-link export-btn">Export to CSV</button><button type="button" class="btn btn-link export-xlsx-btn">Export to Excel (.xlsx)</button></div>'
         }, options || {});
         const renderComplete = tableOptions.renderComplete;
 
@@ -993,6 +996,22 @@ $(function () {
         $("body").on("click", ".export-btn", e => {
             if (currTable && currTableExportKind) {
                 currTable.download("csv", "slm_" + currTableExportKind + "." + exportDate() + ".csv", {bom: true}, "all");
+            }
+        });
+
+        $("body").on("click", ".export-xlsx-btn", async () => {
+            if (!currTable || !currTableExportKind || xlsxExportPending) {
+                return;
+            }
+            xlsxExportPending = true;
+            document.querySelectorAll(".export-xlsx-btn").forEach(button => button.disabled = true);
+            try {
+                await exportTableXLSX(currTable, currTableExportKind, ExportXLSX);
+            } catch (error) {
+                showError(error?.message || String(error));
+            } finally {
+                xlsxExportPending = false;
+                document.querySelectorAll(".export-xlsx-btn").forEach(button => button.disabled = false);
             }
         });
 

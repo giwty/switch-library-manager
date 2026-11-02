@@ -25,6 +25,7 @@ type State struct {
 
 type App struct {
 	state               State
+	exportMu            sync.Mutex
 	baseFolder          string
 	restart             func() error
 	quit                func(context.Context)

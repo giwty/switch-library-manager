@@ -100,14 +100,17 @@ The release archives are named `switch-library-manager-v<VERSION>.linux-amd64-we
 
 NOTE: parameters are only usable in command line mode, except the parameter -m (mode) which will override `gui.enabled`.
 
-| Name           | Flag | Value       | Description                                                                                        |
-| -------------- | ---- | ----------- | -------------------------------------------------------------------------------------------------- |
-| Mode           | -m   | console/gui | Which mode to start the application in, overrides **gui.enabled** in settings.json                 |
-| NSP Folder     | -f   | _path_      | Path to the NSP folder, overrides **paths.library_folder** in settings.json                        |
-| Recursive scan | -r   | true/false  | If recursive scan should be used for the NSP folder, overrides **scan.recursive** in settings.json |
-| Export CSV     | -e   | _path_      | Folder to write missing updates, missing DLC and issues to in CSV format (see below)               |
+| Name           | Flag         | Value       | Description                                                                                        |
+| -------------- | ------------ | ----------- | -------------------------------------------------------------------------------------------------- |
+| Mode           | -m           | console/gui | Which mode to start the application in, overrides **gui.enabled** in settings.json                 |
+| NSP Folder     | -f           | _path_      | Path to the NSP folder, overrides **paths.library_folder** in settings.json                        |
+| Recursive scan | -r           | true/false  | If recursive scan should be used for the NSP folder, overrides **scan.recursive** in settings.json |
+| Export CSV     | -e           | _path_      | Folder to write missing updates, missing DLC and issues to in CSV format (see below)               |
+| Export Excel   | -export-xlsx | _path_      | Folder to write missing updates, missing DLC and issues to as formatted `.xlsx` workbooks          |
 
 The CSV files are named `slm_missing_updates.<date>.csv`, `slm_missing_dlc.<date>.csv`, and `slm_issues.<date>.csv`, where `<date>` is `YYYY-MM-DD`. The folder is created if it does not exist.
+
+Excel exports use the same names with the `.xlsx` extension, one file per nonempty report. Both export flags can be used together, for example `switch-library-manager -m console -e reports -export-xlsx reports`. Missing-update and missing-DLC reports follow the existing missing-content settings.
 
 ## Building
 

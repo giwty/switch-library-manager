@@ -432,7 +432,8 @@ body {
     display: none;
 }
 
-.tabulator .tabulator-footer .slm-table-footer-actions .export-btn {
+.tabulator .tabulator-footer .slm-table-footer-actions .export-btn,
+.tabulator .tabulator-footer .slm-table-footer-actions .export-xlsx-btn {
     padding: 0.25rem 0.5rem;
 }
 

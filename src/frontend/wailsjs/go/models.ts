@@ -404,6 +404,27 @@ export namespace process {
 
 }
 
+export namespace reportexport {
+	
+	export class Report {
+	    kind: string;
+	    headers: string[];
+	    rows: any[][];
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.headers = source["headers"];
+	        this.rows = source["rows"];
+	    }
+	}
+
+}
+
 export namespace settings {
 	
 	export class LoggingSettings {
