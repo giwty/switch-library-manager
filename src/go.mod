@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/avast/retry-go/v5 v5.0.0
 	github.com/jedib0t/go-pretty/v6 v6.8.3
+	github.com/klauspost/compress v1.20.3
 	github.com/magiconair/properties v1.8.10
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
 	github.com/schollz/progressbar/v3 v3.19.1
