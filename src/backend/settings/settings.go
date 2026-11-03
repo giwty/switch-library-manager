@@ -26,7 +26,7 @@ const (
 	CACHE_FILENAME            = "cache.json"
 	TITLE_JSON_FILENAME       = "titles.json"
 	VERSIONS_JSON_FILENAME    = "versions.json"
-	SLM_VERSION               = "2.0.0"
+	SLM_VERSION               = "2.1.0"
 	SETTINGS_SCHEMA_VERSION   = 2
 	DEFAULT_TITLES_JSON_URL   = "https://github.com/trembon/switch-library-manager/releases/download/data/titles.json"
 	DEFAULT_VERSIONS_JSON_URL = "https://github.com/trembon/switch-library-manager/releases/download/data/versions.json"
