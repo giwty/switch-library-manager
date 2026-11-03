@@ -286,10 +286,10 @@ func TestScanForMissingDLC(t *testing.T) {
 	secondMissingID := "0100abcd00001a04"
 	remote := map[string]*db.SwitchTitle{
 		"0100abcd00001": {Attributes: db.TitleAttributes{Id: baseID}, Dlc: map[string]db.TitleAttributes{
-			missingID:       {Name: "Expansion", Id: missingID},
+			missingID:       {Name: "Expansion", Id: missingID, ReleaseDate: 20240102, ParsedReleaseDate: "2024-01-02"},
 			ignoredID:       {Name: "Ignored", Id: ignoredID},
 			presentID:       {Name: "Already installed", Id: presentID},
-			secondMissingID: {Name: "Extra Story", Id: secondMissingID},
+			secondMissingID: {Name: "Extra Story", Id: secondMissingID, ParsedReleaseDate: "0"},
 		}},
 	}
 	local := map[string]*db.SwitchGameFiles{
@@ -305,19 +305,26 @@ func TestScanForMissingDLC(t *testing.T) {
 	if !ok || len(game.MissingDLC) != 2 {
 		t.Fatalf("missing DLC result = %#v, present = %v", game, ok)
 	}
-	gotDLC := make(map[string]string, len(game.MissingDLC))
+	gotDLC := make(map[string]MissingDLC, len(game.MissingDLC))
 	for _, dlc := range game.MissingDLC {
-		gotDLC[dlc.Id] = dlc.Name
+		gotDLC[dlc.Id] = dlc
 	}
-	if gotDLC[missingID] != "Expansion" || gotDLC[secondMissingID] != "Extra Story" {
+	if gotDLC[missingID] != (MissingDLC{Id: missingID, Name: "Expansion", ReleaseDate: "2024-01-02"}) || gotDLC[secondMissingID] != (MissingDLC{Id: secondMissingID, Name: "Extra Story"}) {
 		t.Fatalf("structured missing DLC values = %#v", gotDLC)
 	}
-	encodedDLC, err := json.Marshal(MissingDLC{Id: missingID, Name: "Expansion"})
+	encodedDLC, err := json.Marshal(gotDLC[missingID])
 	if err != nil {
 		t.Fatalf("marshal missing DLC: %v", err)
 	}
-	if string(encodedDLC) != `{"id":"`+missingID+`","name":"Expansion"}` {
+	if string(encodedDLC) != `{"id":"`+missingID+`","name":"Expansion","release_date":"2024-01-02"}` {
 		t.Fatalf("missing DLC JSON = %s", encodedDLC)
+	}
+	encodedUnknown, err := json.Marshal(gotDLC[secondMissingID])
+	if err != nil {
+		t.Fatalf("marshal missing DLC without a release date: %v", err)
+	}
+	if string(encodedUnknown) != `{"id":"`+secondMissingID+`","name":"Extra Story","release_date":""}` {
+		t.Fatalf("missing DLC JSON without a release date = %s", encodedUnknown)
 	}
 	if _, exists := gotDLC[presentID]; exists {
 		t.Fatalf("locally present DLC was reported: %#v", gotDLC)

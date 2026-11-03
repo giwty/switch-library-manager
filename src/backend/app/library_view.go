@@ -6,7 +6,7 @@ import (
 	"github.com/trembon/switch-library-manager/backend/db"
 )
 
-func buildLocalLibraryData(localDB *db.LocalSwitchFilesDB, switchDB *db.SwitchTitlesDB) LocalLibraryData {
+func buildLocalLibraryData(localDB *db.LocalSwitchFilesDB, switchDB *db.SwitchTitlesDB, allowUnicode bool) LocalLibraryData {
 	response := LocalLibraryData{
 		LibraryData: make([]LibraryTemplateData, 0),
 		Issues:      make([]Pair, 0),
@@ -22,7 +22,7 @@ func buildLocalLibraryData(localDB *db.LocalSwitchFilesDB, switchDB *db.SwitchTi
 			if switchDB != nil {
 				title = switchDB.TitlesMap[key]
 			}
-			name := db.ResolveGameTitleName(title, value)
+			name := db.ResolveGameTitleName(title, value, allowUnicode)
 			if value.File.Metadata != nil && value.File.Metadata.Ncap != nil {
 				version = value.File.Metadata.Ncap.DisplayVersion
 			}

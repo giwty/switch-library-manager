@@ -4,6 +4,10 @@ inputs:
   artifact-name:
     description: Artifact name
     required: true
+  retention-days:
+    description: Number of days to retain the build artifact
+    required: false
+    default: "14"
 runs:
   using: composite
   steps:
@@ -13,3 +17,4 @@ runs:
         name: ${{ inputs.artifact-name }}
         path: src/build/bin/*
         if-no-files-found: error
+        retention-days: ${{ inputs.retention-days }}

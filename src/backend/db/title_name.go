@@ -16,12 +16,13 @@ func containsCJK(name string) bool {
 }
 
 // ResolveGameTitleName chooses the same human-readable title for organization
-// and presentation. Filesystem-specific transliteration and sanitization are
+// and presentation. allowUnicode accepts catalog titles in every script ahead
+// of local fallbacks. Filesystem-specific transliteration and sanitization are
 // applied by the caller when building paths.
-func ResolveGameTitleName(remote *SwitchTitle, local *SwitchGameFiles) string {
+func ResolveGameTitleName(remote *SwitchTitle, local *SwitchGameFiles, allowUnicode bool) string {
 	if remote != nil {
 		name := strings.TrimSpace(remote.Attributes.Name)
-		if name != "" && !containsCJK(name) {
+		if name != "" && (allowUnicode || !containsCJK(name)) {
 			return name
 		}
 	}
@@ -67,8 +68,8 @@ func ResolveGameTitleName(remote *SwitchTitle, local *SwitchGameFiles) string {
 		}
 	}
 
-	// A CJK catalog title is only a last resort; the filename is preferred so
-	// names are not romanized from Japanese when organizing.
+	// With Unicode disabled, a CJK catalog title is only a last resort; prefer
+	// local names so Japanese catalog text is not romanized unnecessarily.
 	if remote != nil {
 		if name := strings.TrimSpace(remote.Attributes.Name); name != "" {
 			return name

@@ -42,14 +42,14 @@ func TestBuildGameDetailsResolvesContentIDsAndComparesLocalCollection(t *testing
 			Attributes: db.TitleAttributes{Id: detailsBaseID, Name: "Game", Region: "USA"},
 			Updates:    map[int]string{2: "2024-02-01", 3: "2024-03-01", 5: "2024-05-01", 100: "2024-10-01"},
 			Dlc: map[string]db.TitleAttributes{
-				detailsDLCID:       {Id: detailsDLCID, Name: "Expansion", Version: json.Number("2")},
+				detailsDLCID:       {Id: detailsDLCID, Name: "Expansion", Version: json.Number("2"), ReleaseDate: 20240102, ParsedReleaseDate: "2024-01-02"},
 				"0100000000011003": {Id: "0100000000011003", Name: "Bonus Pack", Version: json.Number("1")},
 			},
 		},
 	}}
 
 	for _, inputID := range []string{detailsBaseID, detailsUpdateID, detailsDLCID} {
-		details, err := buildGameDetails(inputID, localDB, switchDB, settings.MissingContentSettings{})
+		details, err := buildGameDetails(inputID, localDB, switchDB, settings.MissingContentSettings{}, false)
 		if err != nil {
 			t.Fatalf("build details for %s: %v", inputID, err)
 		}
@@ -68,11 +68,49 @@ func TestBuildGameDetailsResolvesContentIDsAndComparesLocalCollection(t *testing
 		if len(details.LocalOnlyUpdates) != 0 {
 			t.Errorf("local-only updates = %#v", details.LocalOnlyUpdates)
 		}
-		if len(details.DLC) != 2 || details.DLC[0].Name != "Bonus Pack" || details.DLC[0].Status != "missing" || details.DLC[1].Name != "Expansion" || details.DLC[1].Status != "collected" || details.DLC[1].UpdateStatus != "out_of_date" {
+		if len(details.DLC) != 2 || details.DLC[0].Name != "Expansion" || details.DLC[0].Status != "collected" || details.DLC[0].UpdateStatus != "out_of_date" || details.DLC[1].Name != "Bonus Pack" || details.DLC[1].Status != "missing" {
 			t.Errorf("DLC comparison/order = %#v", details.DLC)
+		}
+		if len(details.DLC) == 2 && (details.DLC[0].Attributes.ParsedReleaseDate != "2024-01-02" || details.DLC[1].Attributes.ReleaseDate != 0) {
+			t.Errorf("DLC release dates = %#v", details.DLC)
 		}
 		if len(details.LocalOnlyDLC) != 1 || details.LocalOnlyDLC[0].TitleID != detailsLocalOnlyDLC || details.LocalOnlyDLC[0].Status != "collected" {
 			t.Errorf("local-only DLC = %#v", details.LocalOnlyDLC)
+		}
+	}
+}
+
+func TestBuildGameDetailsSortsDLCByNewestReleaseDate(t *testing.T) {
+	dlc := []db.TitleAttributes{
+		{Id: "0100000000011001", Name: "Character Pack", ReleaseDate: 20200720},
+		{Id: "0100000000011002", Name: "Melody Pack", ReleaseDate: 20200826},
+		{Id: "0100000000011003", Name: "Symphony of the Mask", ReleaseDate: 20200923},
+		{Id: "0100000000011004", Name: "Season Pass Bonus Items", ReleaseDate: 20200720},
+		{Id: "0100000000011005", Name: "Unknown Z"},
+		{Id: "0100000000011006", Name: "Unknown A"},
+		{Id: "0100000000011007", Name: "character pack", ReleaseDate: 20200720},
+	}
+	remote := &db.SwitchTitle{Attributes: db.TitleAttributes{Id: detailsBaseID}, Dlc: map[string]db.TitleAttributes{}}
+	for _, attributes := range dlc {
+		remote.Dlc[attributes.Id] = attributes
+	}
+	details, err := buildGameDetails(detailsBaseID,
+		&db.LocalSwitchFilesDB{},
+		&db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{detailsPrefix: remote}},
+		settings.MissingContentSettings{}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantIDs := []string{
+		"0100000000011003", "0100000000011002", "0100000000011001", "0100000000011007",
+		"0100000000011004", "0100000000011006", "0100000000011005",
+	}
+	if len(details.DLC) != len(wantIDs) {
+		t.Fatalf("DLC count = %d, want %d", len(details.DLC), len(wantIDs))
+	}
+	for i, wantID := range wantIDs {
+		if details.DLC[i].TitleID != wantID {
+			t.Fatalf("DLC[%d] = %q, want %q: newest dates first, then name and ID, unknown dates last", i, details.DLC[i].TitleID, wantID)
 		}
 	}
 }
@@ -90,7 +128,7 @@ func TestBuildGameDetailsUsesLocalOnlyNewerUpdateForOlderCatalogStatus(t *testin
 		},
 	}}
 
-	details, err := buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{})
+	details, err := buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +165,7 @@ func TestBuildGameDetailsMarksIgnoredEntriesWithoutHidingThem(t *testing.T) {
 		IgnoreUpdateIDs:   []string{"0100000000010000"},
 	}
 
-	details, err := buildGameDetails(detailsBaseID, &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{detailsPrefix: local}}, switchDB, ignoreSettings)
+	details, err := buildGameDetails(detailsBaseID, &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{detailsPrefix: local}}, switchDB, ignoreSettings, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +193,7 @@ func TestBuildGameDetailsUsesLocalFallbackAndHandlesMissingMetadata(t *testing.T
 		detailsPrefix: {BaseExist: true, File: file, Updates: map[int]db.SwitchFileInfo{}, Dlc: map[string]db.SwitchFileInfo{}},
 	}}
 
-	details, err := buildGameDetails(detailsBaseID, localDB, &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}}, settings.MissingContentSettings{})
+	details, err := buildGameDetails(detailsBaseID, localDB, &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}}, settings.MissingContentSettings{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +216,7 @@ func TestBuildGameDetailsUsesSharedTitleResolver(t *testing.T) {
 	localDB := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{detailsPrefix: local}}
 	switchDB := &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{detailsPrefix: remoteTitle}}
 
-	details, err := buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{})
+	details, err := buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{}, false)
 	if err != nil {
 		t.Fatalf("build details: %v", err)
 	}
@@ -190,7 +228,7 @@ func TestBuildGameDetailsUsesSharedTitleResolver(t *testing.T) {
 	}
 
 	local.File.Metadata.Ncap.TitleName = nil
-	details, err = buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{})
+	details, err = buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{}, false)
 	if err != nil {
 		t.Fatalf("build details without English metadata: %v", err)
 	}
@@ -208,7 +246,7 @@ func TestBuildGameDetailsKeepsCatalogContentWhenGameMetadataIsMissing(t *testing
 		detailsPrefix: {Updates: map[int]string{1: "2024-01-01"}},
 	}}
 
-	details, err := buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{})
+	details, err := buildGameDetails(detailsBaseID, localDB, switchDB, settings.MissingContentSettings{}, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,13 +262,13 @@ func TestBuildGameDetailsRejectsInvalidAndUnknownIDs(t *testing.T) {
 	localDB := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{}}
 	switchDB := &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}}
 
-	if _, err := buildGameDetails("not-a-title-id", localDB, switchDB, settings.MissingContentSettings{}); err == nil {
+	if _, err := buildGameDetails("not-a-title-id", localDB, switchDB, settings.MissingContentSettings{}, false); err == nil {
 		t.Fatal("expected invalid ID error")
 	}
-	if _, err := buildGameDetails("0100000000990000", localDB, switchDB, settings.MissingContentSettings{}); err == nil {
+	if _, err := buildGameDetails("0100000000990000", localDB, switchDB, settings.MissingContentSettings{}, false); err == nil {
 		t.Fatal("expected unknown title error")
 	}
-	if _, err := buildGameDetails(detailsBaseID, nil, switchDB, settings.MissingContentSettings{}); err == nil {
+	if _, err := buildGameDetails(detailsBaseID, nil, switchDB, settings.MissingContentSettings{}, false); err == nil {
 		t.Fatal("expected unloaded database error")
 	}
 }

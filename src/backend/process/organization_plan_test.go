@@ -152,7 +152,7 @@ func TestDLCNameTrimmingMatchesPreviewAndRemainsStable(t *testing.T) {
 				RenameFiles:                true,
 				FileNameTemplate:           "{TITLE_NAME} ({DLC_NAME})[{TITLE_ID}][v{VERSION}]",
 				ProcessWhenMissingBaseGame: true,
-				SwitchSafeFileNames:        test.safe,
+				AllowUnicodeFileNames:      !test.safe,
 			}
 
 			preview, err := BuildOrganizationPreview(base, options, local, remote)

@@ -348,6 +348,7 @@ export namespace process {
 	export class MissingDLC {
 	    id: string;
 	    name: string;
+	    release_date: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new MissingDLC(source);
@@ -357,6 +358,7 @@ export namespace process {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
+	        this.release_date = source["release_date"];
 	    }
 	}
 	export class IncompleteTitle {
@@ -400,6 +402,27 @@ export namespace process {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace reportexport {
+	
+	export class Report {
+	    kind: string;
+	    headers: string[];
+	    rows: any[][];
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.headers = source["headers"];
+	        this.rows = source["rows"];
+	    }
 	}
 
 }
@@ -461,7 +484,7 @@ export namespace settings {
 	    delete_empty_folders: boolean;
 	    delete_old_update_files: boolean;
 	    folder_name_template: string;
-	    switch_safe_file_names: boolean;
+	    allow_unicode_file_names: boolean;
 	    file_name_template: string;
 	    include_base_type: boolean;
 	    process_when_missing_base_game: boolean;
@@ -480,7 +503,7 @@ export namespace settings {
 	        this.delete_empty_folders = source["delete_empty_folders"];
 	        this.delete_old_update_files = source["delete_old_update_files"];
 	        this.folder_name_template = source["folder_name_template"];
-	        this.switch_safe_file_names = source["switch_safe_file_names"];
+	        this.allow_unicode_file_names = source["allow_unicode_file_names"];
 	        this.file_name_template = source["file_name_template"];
 	        this.include_base_type = source["include_base_type"];
 	        this.process_when_missing_base_game = source["process_when_missing_base_game"];

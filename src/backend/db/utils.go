@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -12,7 +13,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"go.uber.org/zap"
+)
+
+const (
+	maxRemoteJSONSize   = 512 << 20
+	maxRemoteZstdWindow = 64 << 20
 )
 
 type ProgressUpdater interface {
@@ -145,6 +152,7 @@ func downloadBytesFromURL(url string, etag string) ([]byte, string, bool, error)
 	transport := &http.Transport{
 		DialContext: (&net.Dialer{Timeout: 3 * time.Second}).DialContext,
 	}
+	defer transport.CloseIdleConnections()
 	client := http.Client{Transport: transport, Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -159,11 +167,50 @@ func downloadBytesFromURL(url string, etag string) ([]byte, string, bool, error)
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", false, fmt.Errorf("got HTTP status %s", resp.Status)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := readRemoteJSON(resp.Body, maxRemoteJSONSize)
 	if err != nil {
 		return nil, "", false, err
 	}
 	return body, responseETag, false, nil
+}
+
+// readRemoteJSON detects compression from the body rather than the URL or MIME
+// type. Both downloaded formats become ordinary JSON before validation/caching.
+func readRemoteJSON(source io.Reader, maxSize int64) ([]byte, error) {
+	buffered := bufio.NewReader(source)
+	signature, err := buffered.Peek(4)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("inspect downloaded data: %w", err)
+	}
+
+	var reader io.Reader = buffered
+	readOperation := "read downloaded JSON"
+	// A Zstandard stream can start with a normal frame or a skippable frame.
+	isZstandard := len(signature) == 4 && (string(signature) == "\x28\xb5\x2f\xfd" ||
+		(signature[0]&0xf0 == 0x50 && string(signature[1:]) == "\x2a\x4d\x18"))
+	if isZstandard {
+		decoder, err := zstd.NewReader(buffered,
+			zstd.WithDecoderConcurrency(1),
+			zstd.WithDecoderMaxMemory(maxRemoteZstdWindow),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("initialize Zstandard decoder: %w", err)
+		}
+		defer decoder.Close()
+		reader = decoder
+		readOperation = "decompress Zstandard JSON"
+	}
+
+	// The streaming decoder bounds its window, not the total decoded output.
+	// Read one extra byte to distinguish a complete file from an oversized one.
+	data, err := io.ReadAll(io.LimitReader(reader, maxSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", readOperation, err)
+	}
+	if int64(len(data)) > maxSize {
+		return nil, fmt.Errorf("%s: JSON exceeds %d-byte limit", readOperation, maxSize)
+	}
+	return data, nil
 }
 
 func replaceFileAtomically(fileName string, data []byte) error {

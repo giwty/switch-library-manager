@@ -73,7 +73,7 @@ func TestBuildLocalLibraryDataInitializesListsForEmptyResults(t *testing.T) {
 			if test.name == "populated library without issues" {
 				switchDB.TitlesMap["0100000000010"] = &db.SwitchTitle{Attributes: db.TitleAttributes{Id: "0100000000010000"}}
 			}
-			got := buildLocalLibraryData(test.localDB, switchDB)
+			got := buildLocalLibraryData(test.localDB, switchDB, false)
 			if got.LibraryData == nil || len(got.LibraryData) != test.wantRows {
 				t.Errorf("library data = %#v; want non-nil slice with %d rows", got.LibraryData, test.wantRows)
 			}
@@ -86,6 +86,7 @@ func TestBuildLocalLibraryDataInitializesListsForEmptyResults(t *testing.T) {
 	empty := buildLocalLibraryData(
 		&db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{}, Skipped: map[db.ExtendedFileInfo]db.SkippedFile{}},
 		&db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}},
+		false,
 	)
 	encoded, err := json.Marshal(empty)
 	if err != nil {
@@ -103,7 +104,7 @@ func TestBuildLocalLibraryDataPreservesIssueEntries(t *testing.T) {
 			{FileName: "notes.txt"}: {ReasonText: "file type is not supported"},
 		},
 	}
-	got := buildLocalLibraryData(localDB, &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}})
+	got := buildLocalLibraryData(localDB, &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}}, false)
 	want := []Pair{{Key: "notes.txt", Value: "file type is not supported"}}
 	if !reflect.DeepEqual(got.Issues, want) {
 		t.Fatalf("issues = %#v, want %#v", got.Issues, want)
@@ -128,7 +129,7 @@ func TestBuildLocalLibraryDataUsesSharedTitleResolver(t *testing.T) {
 	}
 	switchDB := &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{key: remote}}
 
-	got := buildLocalLibraryData(localDB, switchDB)
+	got := buildLocalLibraryData(localDB, switchDB, false)
 	if len(got.LibraryData) != 1 || got.LibraryData[0].Name != "British Game Name" {
 		t.Fatalf("Library title = %#v, want embedded British English name", got.LibraryData)
 	}
@@ -137,7 +138,7 @@ func TestBuildLocalLibraryDataUsesSharedTitleResolver(t *testing.T) {
 	}
 
 	game.File.Metadata = nil
-	got = buildLocalLibraryData(localDB, switchDB)
+	got = buildLocalLibraryData(localDB, switchDB, false)
 	if len(got.LibraryData) != 1 || got.LibraryData[0].Name != "test" {
 		t.Fatalf("Library fallback title = %#v, want filename title %q", got.LibraryData, "test")
 	}
@@ -155,7 +156,7 @@ func TestBuildLocalLibraryDataHandlesMissingMetadata(t *testing.T) {
 		Skipped: map[db.ExtendedFileInfo]db.SkippedFile{},
 	}
 
-	got := buildLocalLibraryData(localDB, nil)
+	got := buildLocalLibraryData(localDB, nil, false)
 	if len(got.LibraryData) != 1 || got.LibraryData[0].Name != "test" || got.LibraryData[0].TitleId != "" {
 		t.Fatalf("Library data = %#v, want filename fallback with no title ID", got.LibraryData)
 	}
@@ -226,7 +227,7 @@ func TestBuildLocalLibraryDataFallsBackToBaseDisplayVersion(t *testing.T) {
 				},
 			}}
 
-			library := buildLocalLibraryData(localDB, &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}})
+			library := buildLocalLibraryData(localDB, &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{}}, false)
 			if len(library.LibraryData) != 1 {
 				t.Fatalf("library data rows = %d, want 1", len(library.LibraryData))
 			}

@@ -107,10 +107,45 @@ func TestResolveGameTitleName(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := ResolveGameTitleName(test.remote, test.local); got != test.want {
+			if got := ResolveGameTitleName(test.remote, test.local, false); got != test.want {
 				t.Fatalf("ResolveGameTitleName() = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestResolveGameTitleNameAllowsUnicodeCatalogTitles(t *testing.T) {
+	for _, name := range []string{"日本語", "한국어", "中文", "åäö 🎮"} {
+		t.Run(name, func(t *testing.T) {
+			remote := &SwitchTitle{Attributes: TitleAttributes{Name: "  " + name + "  "}}
+			local := titleNameBase("Embedded English", "British English", "Filename.nsp")
+			if got := ResolveGameTitleName(remote, local, true); got != name {
+				t.Fatalf("Unicode catalog title = %q, want %q", got, name)
+			}
+			if remote.Attributes.Name != "  "+name+"  " {
+				t.Fatalf("resolver mutated catalog title: %q", remote.Attributes.Name)
+			}
+			local.File.Metadata = nil
+			if got := ResolveGameTitleName(remote, local, true); got != name {
+				t.Fatalf("Unicode catalog title without metadata = %q", got)
+			}
+		})
+	}
+}
+
+func TestResolveGameTitleNameUnicodeFallbacks(t *testing.T) {
+	for _, remote := range []*SwitchTitle{nil, {Attributes: TitleAttributes{Name: " \t "}}} {
+		local := titleNameBase("Embedded English", "", "日本語 [0100000000010000].nsp")
+		if got := ResolveGameTitleName(remote, local, true); got != "Embedded English" {
+			t.Fatalf("embedded fallback = %q", got)
+		}
+		local.File.Metadata = nil
+		if got := ResolveGameTitleName(remote, local, true); got != "日本語" {
+			t.Fatalf("Unicode filename fallback = %q", got)
+		}
+		if got := ResolveGameTitleName(remote, nil, true); got != "Unknown Title" {
+			t.Fatalf("missing title fallback = %q", got)
+		}
 	}
 }
 

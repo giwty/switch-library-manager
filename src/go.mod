@@ -1,17 +1,19 @@
 module github.com/trembon/switch-library-manager
 
-go 1.25.5
+go 1.27.0
 
 require (
 	github.com/avast/retry-go/v5 v5.0.0
 	github.com/jedib0t/go-pretty/v6 v6.8.3
+	github.com/klauspost/compress v1.20.3
 	github.com/magiconair/properties v1.8.10
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/wailsapp/wails/v2 v2.15.0
+	github.com/xuri/excelize/v2 v2.11.1
 	go.etcd.io/bbolt v1.5.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.49.0
 	robpike.io/nihongo v0.0.0-20230705220025-ab7f6184a918
 )
 
@@ -36,17 +38,22 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/richardlehane/mscfb v1.0.9 // indirect
+	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/samber/lo v1.49.1 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
+	github.com/tiendc/go-deepcopy v1.7.2 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
+	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
+	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 )

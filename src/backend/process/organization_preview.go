@@ -82,7 +82,7 @@ func organizationPreviewForGame(baseFolder string, options settings.OrganizeOpti
 		return nil, nil
 	}
 
-	titleName := db.ResolveGameTitleName(title, game)
+	titleName := db.ResolveGameTitleName(title, game, options.AllowUnicodeFileNames)
 	templateData := map[string]string{
 		settings.TEMPLATE_TITLE_NAME:  titleName,
 		settings.TEMPLATE_VERSION_TXT: "",

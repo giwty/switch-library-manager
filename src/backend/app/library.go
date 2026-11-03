@@ -50,11 +50,15 @@ func (a *App) updateLocalLibraryLocked(ignoreCache bool) (LocalLibraryData, erro
 	if err != nil {
 		return LocalLibraryData{}, err
 	}
-	return a.libraryDataLocked(localDB), nil
+	settingsObj, err := settings.ReadSettings(a.baseFolder)
+	if err != nil {
+		return LocalLibraryData{}, err
+	}
+	return a.libraryDataLocked(localDB, settingsObj.Organization.AllowUnicodeFileNames), nil
 }
 
-func (a *App) libraryDataLocked(localDB *db.LocalSwitchFilesDB) LocalLibraryData {
-	data := buildLocalLibraryData(localDB, a.state.switchDB)
+func (a *App) libraryDataLocked(localDB *db.LocalSwitchFilesDB, allowUnicode bool) LocalLibraryData {
+	data := buildLocalLibraryData(localDB, a.state.switchDB, allowUnicode)
 	data.Issues = append(data.Issues, a.state.organizationIssues...)
 	return data
 }

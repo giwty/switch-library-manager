@@ -1,5 +1,6 @@
 import {
     CheckUpdate,
+    ExportXLSX,
     ConfirmOrganization,
     GetOrganizationPreview,
     GetMissingDLC,
@@ -26,6 +27,7 @@ import {
     WindowSetSystemDefaultTheme,
 } from './wailsjs/runtime/runtime.js'
 import { registerRescanShortcuts } from './rescan_shortcuts.js'
+import { exportTableXLSX } from './xlsx_export.js'
 
 $(function () {
 
@@ -45,6 +47,7 @@ $(function () {
 
     let currTable
     let currTableExportKind
+    let xlsxExportPending = false
     const activeTables = new Set();
     let themeMediaQuery
     let themeMediaQueryHandler
@@ -84,7 +87,7 @@ $(function () {
         const tableOptions = Object.assign({
             pagination: "local",
             paginationSize: state.settings.gui.page_size,
-            footerElement: '<div class="slm-table-footer-actions"><button type="button" class="btn btn-link export-btn">Export to CSV</button></div>'
+            footerElement: '<div class="slm-table-footer-actions"><button type="button" class="btn btn-link export-btn">Export to CSV</button><button type="button" class="btn btn-link export-xlsx-btn">Export to Excel (.xlsx)</button></div>'
         }, options || {});
         const renderComplete = tableOptions.renderComplete;
 
@@ -670,7 +673,7 @@ $(function () {
                     delete_empty_folders: form.elements.organization_delete_empty_folders.checked,
                     delete_old_update_files: form.elements.organization_delete_old_update_files.checked,
                     folder_name_template: form.elements.organization_folder_name_template.value,
-                    switch_safe_file_names: form.elements.organization_switch_safe_file_names.checked,
+                    allow_unicode_file_names: form.elements.organization_allow_unicode_file_names.checked,
                     file_name_template: form.elements.organization_file_name_template.value,
                     include_base_type: form.elements.organization_include_base_type.checked,
                     process_when_missing_base_game: form.elements.organization_process_when_missing_base_game.checked
@@ -808,7 +811,7 @@ $(function () {
                             {field: "Attributes.bannerUrl",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "Attributes.name", headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Type", field: "Meta.type", headerFilter:"input"},
-                            {title: "Title id", headerSort:false, field: "Attributes.id", headerFilter:"input", hozAlign: "right", sorter: "number"},
+                            {title: "Title ID", headerSort:false, field: "Attributes.id", headerFilter:"input", hozAlign: "right", sorter: "number"},
                             {title: "Local update", headerSort:false, field: "local_update", hozAlign: "right", sorter: "number", formatter: function (cell) {
                                 const displayVersion = state.settings.gui.hide_version_string ? "" : cell.getRow().getData().local_display_version;
                                 const value = String(cell.getValue()) + (displayVersion ? " (" + displayVersion + ")" : "");
@@ -852,7 +855,9 @@ $(function () {
                 if (missingDlcRows.length) {
                     createTable("#dlc-table", gameDetailsTableOptions({
                         layout:"fitDataStretch",
+                        sortOrderReverse:true,
                         initialSort:[
+                            {column:"dlc.release_date", dir:"desc"},
                             {column:"game.name", dir:"asc"},
                             {column:"dlc.name", dir:"asc"},
                             {column:"dlc.id", dir:"asc"},
@@ -863,6 +868,11 @@ $(function () {
                             {formatter:"rownum",download:false},
                             {title: "Missing DLC", field: "dlc.name", headerFilter:"input", formatter:"textarea"},
                             {title: "DLC ID", field: "dlc.id", headerFilter:"input"},
+                            {title: "Release date", field: "dlc.release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD", alignEmptyValues:"bottom"}, formatter: function (cell) {
+                                const content = document.createElement("span");
+                                content.textContent = cell.getValue() || "Unknown";
+                                return content;
+                            }},
                             {title: "Title", field: "game.name", headerFilter:"input", formatter:"textarea", width:350},
                             {title: "Title ID", field: "game.id", headerFilter:"input"}
                         ],
@@ -930,7 +940,7 @@ $(function () {
                             {formatter:"rownum",download:false,minWidth:24},
                             {field: "icon",minWidth:40,formatter:"image", download:false,headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {title: "Title", field: "name", headerFilter:"input",formatter:"textarea",widthGrow:3},
-                            {title: "Title id", headerSort:false, headerFilter:"input", field: "titleId"},
+                            {title: "Title ID", headerSort:false, headerFilter:"input", field: "titleId"},
                             {title: "Region", headerSort:true, headerFilter:"input", field: "region"},
                             {title: "Type", headerSort:true, headerFilter:"input", field: "type"},
                             {title: "Update", headerSort:false, field: "update"},
@@ -971,7 +981,7 @@ $(function () {
                             {formatter:"rownum",download:false},
                             {field: "icon",download:false,formatter:"image", headerSort:false,formatterParams:{height:"60px", width:"60px"}},
                             {field: "name",title: "Title",  headerFilter:"input",formatter:"textarea",width:350},
-                            {title: "Title id", headerSort:false, headerFilter:"input", field: "titleId"},
+                            {title: "Title ID", headerSort:false, headerFilter:"input", field: "titleId"},
                             {title: "Region", headerSort:true,headerFilter:"input",formatter:"textarea", field: "region"},
                             {title: "Release date", headerSort:true, field: "release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD"}},
                         ],
@@ -992,7 +1002,23 @@ $(function () {
 
         $("body").on("click", ".export-btn", e => {
             if (currTable && currTableExportKind) {
-                currTable.download("csv", "slm_" + currTableExportKind + "." + exportDate() + ".csv", {}, "all");
+                currTable.download("csv", "slm_" + currTableExportKind + "." + exportDate() + ".csv", {bom: true}, "all");
+            }
+        });
+
+        $("body").on("click", ".export-xlsx-btn", async () => {
+            if (!currTable || !currTableExportKind || xlsxExportPending) {
+                return;
+            }
+            xlsxExportPending = true;
+            document.querySelectorAll(".export-xlsx-btn").forEach(button => button.disabled = true);
+            try {
+                await exportTableXLSX(currTable, currTableExportKind, ExportXLSX);
+            } catch (error) {
+                showError(error?.message || String(error));
+            } finally {
+                xlsxExportPending = false;
+                document.querySelectorAll(".export-xlsx-btn").forEach(button => button.disabled = false);
             }
         });
 

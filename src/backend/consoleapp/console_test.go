@@ -1,12 +1,15 @@
 package consoleapp
 
 import (
+	"bytes"
 	"encoding/csv"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/trembon/switch-library-manager/backend/db"
 	"github.com/trembon/switch-library-manager/backend/process"
@@ -64,6 +67,82 @@ func TestProcessIssuesExportsOrganizationConflicts(t *testing.T) {
 	if len(records) != 2 || records[1][2] != "organization-conflict" || !strings.Contains(records[1][1], `C:\library\Game.nsp`) {
 		t.Fatalf("issue export = %#v, want organization conflict with destination", records)
 	}
+}
+
+func TestCreateCsvFileWritesUTF8BOMAndRoundTripsUnicode(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "unicode.csv")
+	header := []string{"Title", "Notes"}
+	row := []string{"日本語 café åäö", "comma, quote \" and newline\nremain intact"}
+
+	csvFile := CreateCsvFile(output, header)
+	if csvFile == nil {
+		t.Fatal("CreateCsvFile returned nil")
+	}
+	csvFile.Write(row)
+	csvFile.Close()
+
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bom := []byte{0xEF, 0xBB, 0xBF}
+	if !bytes.HasPrefix(data, bom) {
+		t.Fatalf("CSV does not start with a UTF-8 BOM: % x", data[:min(len(data), len(bom))])
+	}
+	if bytes.HasPrefix(data[len(bom):], bom) {
+		t.Fatal("CSV contains multiple leading UTF-8 BOMs")
+	}
+	content := data[len(bom):]
+	if !utf8.Valid(content) {
+		t.Fatal("CSV content after BOM is not valid UTF-8")
+	}
+
+	records, err := csv.NewReader(bytes.NewReader(content)).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{header, row}
+	if !reflect.DeepEqual(records, want) {
+		t.Fatalf("CSV records = %#v, want %#v", records, want)
+	}
+}
+
+func TestCreateCsvFileWritesBOMForHeaderOnlyExport(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "header-only.csv")
+	csvFile := CreateCsvFile(output, []string{"Title", "TitleId"})
+	if csvFile == nil {
+		t.Fatal("CreateCsvFile returned nil")
+	}
+	csvFile.Close()
+
+	data, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.HasPrefix(data, []byte{0xEF, 0xBB, 0xBF}) {
+		t.Fatalf("header-only CSV does not start with a UTF-8 BOM: % x", data)
+	}
+	records, err := csv.NewReader(bytes.NewReader(data[3:])).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(records, [][]string{{"Title", "TitleId"}}) {
+		t.Fatalf("header-only CSV records = %#v", records)
+	}
+}
+
+func TestCreateCsvFileFailureAndDisabledExportAreSafe(t *testing.T) {
+	output := filepath.Join(t.TempDir(), "missing", "cannot-create.csv")
+	if csvFile := CreateCsvFile(output, []string{"Title"}); csvFile != nil {
+		t.Fatal("CreateCsvFile should return nil when the output file cannot be created")
+	}
+
+	disabled := CreateCsvFile("", []string{"Title"})
+	if disabled != nil {
+		t.Fatal("CreateCsvFile should return nil when export is disabled")
+	}
+	disabled.Write([]string{"safe no-op"})
+	disabled.Close()
 }
 
 func TestFlattenMissingDLC(t *testing.T) {

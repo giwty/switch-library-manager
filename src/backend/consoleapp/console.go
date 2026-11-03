@@ -3,6 +3,7 @@ package consoleapp
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"github.com/schollz/progressbar/v3"
 	"github.com/trembon/switch-library-manager/backend/console"
 	"github.com/trembon/switch-library-manager/backend/db"
+	"github.com/trembon/switch-library-manager/backend/export"
 	"github.com/trembon/switch-library-manager/backend/process"
 	"github.com/trembon/switch-library-manager/backend/settings"
 	"go.uber.org/zap"
@@ -39,6 +41,8 @@ type Console struct {
 	baseFolder   string
 	sugarLogger  *zap.SugaredLogger
 	consoleFlags *console.ConsoleFlags
+	xlsxOutput   string
+	exportDate   time.Time
 }
 
 func CreateConsole(baseFolder string, sugarLogger *zap.SugaredLogger, consoleFlags *console.ConsoleFlags) *Console {
@@ -57,20 +61,17 @@ func (c *Console) Start() {
 		return
 	}
 
-	// 0. prepare csv export folder
+	// 0. prepare independent export destinations
 	csvOutput := ""
 	if c.consoleFlags.ExportCsv.IsSet() {
-		csvOutput = c.consoleFlags.ExportCsv.String()
-
-		if _, err := os.Stat(csvOutput); os.IsNotExist(err) {
-			err = os.Mkdir(csvOutput, os.ModePerm)
-			if err != nil {
-				fmt.Printf("Failed to create folder for csv export %v - %v\n", csvOutput, err)
-				zap.S().Errorf("Failed to create folder for csv export %v - %v\n", csvOutput, err)
-			}
-		}
+		csvOutput = c.prepareExportFolder(c.consoleFlags.ExportCsv.String(), "CSV")
+	}
+	c.xlsxOutput = ""
+	if c.consoleFlags.ExportXlsx.IsSet() {
+		c.xlsxOutput = c.prepareExportFolder(c.consoleFlags.ExportXlsx.String(), "Excel")
 	}
 	exportDate := time.Now()
+	c.exportDate = exportDate
 
 	//1. load the titles JSON object
 	fmt.Println("Downloading latest switch titles json file")
@@ -247,7 +248,7 @@ func (c *Console) Start() {
 			missingDlcCsvFile = filepath.Join(csvOutput, csvExportFilename(csvMissingDLCKind, exportDate))
 		}
 
-		c.processMissingDLC(localDB, titlesDB, missingDlcCsvFile)
+		c.processMissingDLC(localDB, titlesDB, settingsObj, missingDlcCsvFile)
 	}
 
 	fmt.Printf("Completed")
@@ -287,7 +288,7 @@ func (c *Console) processIssues(localDB *db.LocalSwitchFilesDB, csvOutput string
 	})
 	fmt.Print("\nSkipped files and organization conflicts:\n\n")
 
-	csv := CreateCsvFile(csvOutput, []string{"Skipped file", "Reason", "Reason_Code"})
+	report := reportexport.Report{Kind: csvIssuesKind, Headers: []string{"Skipped file", "Reason", "Reason_Code"}}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -295,14 +296,14 @@ func (c *Console) processIssues(localDB *db.LocalSwitchFilesDB, csvOutput string
 	t.AppendHeader(table.Row{"#", "Skipped file", "Reason"})
 	i := 0
 	for _, row := range rows {
-		csv.Write([]string{row.file, row.reason, row.code})
+		report.Rows = append(report.Rows, []any{row.file, row.reason, row.code})
 		t.AppendRow([]interface{}{i, row.file, row.reason})
 		i++
 	}
 	t.AppendFooter(table.Row{"", "", "", "", "Total", len(rows)})
 	t.Render()
 
-	csv.Close()
+	c.exportReport(csvOutput, report)
 }
 
 func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, settingsObj *settings.AppSettings, csvOutput string) {
@@ -319,7 +320,7 @@ func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB
 		return
 	}
 
-	csv := CreateCsvFile(csvOutput, []string{"Title", "TitleId", "Local version", "Latest Version", "Update Date"})
+	report := reportexport.Report{Kind: csvMissingUpdatesKind, Headers: []string{"Title", "TitleId", "Local version", "Latest Version", "Update Date"}}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -327,7 +328,7 @@ func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB
 	t.AppendHeader(table.Row{"#", "Title", "TitleId", "Local version", "Latest Version", "Update Date"})
 	i := 0
 	for _, v := range incompleteTitles {
-		csv.Write([]string{v.Attributes.Name, v.Attributes.Id, strconv.Itoa(v.LocalUpdate), strconv.Itoa(v.LatestUpdate), v.LatestUpdateDate})
+		report.Rows = append(report.Rows, []any{v.Attributes.Name, v.Attributes.Id, v.LocalUpdate, v.LatestUpdate, v.LatestUpdateDate})
 
 		t.AppendRow([]interface{}{i, v.Attributes.Name, v.Attributes.Id, v.LocalUpdate, v.LatestUpdate, v.LatestUpdateDate})
 		i++
@@ -335,14 +336,10 @@ func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB
 	t.AppendFooter(table.Row{"", "", "", "", "Total", len(incompleteTitles)})
 	t.Render()
 
-	csv.Close()
+	c.exportReport(csvOutput, report)
 }
 
-func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, csvOutput string) {
-	settingsObj, err := settings.ReadSettings(c.baseFolder)
-	if err != nil {
-		return
-	}
+func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, settingsObj *settings.AppSettings, csvOutput string) {
 	ignoreIds := map[string]struct{}{}
 	for _, id := range settingsObj.MissingContent.IgnoreDLCTitleIDs {
 		ignoreIds[strings.ToLower(id)] = struct{}{}
@@ -356,7 +353,7 @@ func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db
 		return
 	}
 
-	csv := CreateCsvFile(csvOutput, []string{"Title", "TitleId", "Dlc (titleId - Name)"})
+	report := reportexport.Report{Kind: csvMissingDLCKind, Headers: []string{"Title", "TitleId", "Dlc (titleId - Name)"}}
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -364,14 +361,53 @@ func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db
 	t.AppendHeader(table.Row{"#", "Missing DLC", "DLC TitleId", "Title", "TitleId"})
 	i := 0
 	for _, row := range rows {
-		csv.Write(missingDLCCSVRow(row))
+		values := missingDLCCSVRow(row)
+		report.Rows = append(report.Rows, []any{values[0], values[1], values[2]})
 		t.AppendRow([]interface{}{i, row.DLC.Name, row.DLC.Id, row.Game.Name, row.Game.Id})
 		i++
 	}
 	t.AppendFooter(table.Row{"", "Total", len(rows), "", ""})
 	t.Render()
 
+	c.exportReport(csvOutput, report)
+}
+
+func (c *Console) prepareExportFolder(path, format string) string {
+	if path == "" {
+		return ""
+	}
+	if err := os.MkdirAll(path, 0755); err != nil {
+		c.reportExportError(fmt.Errorf("create %s export folder %q: %w", format, path, err))
+		return ""
+	}
+	return path
+}
+
+func (c *Console) exportReport(csvOutput string, report reportexport.Report) {
+	csv := CreateCsvFile(csvOutput, report.Headers)
+	for _, row := range report.Rows {
+		values := make([]string, len(row))
+		for i, value := range row {
+			if value != nil {
+				values[i] = fmt.Sprint(value)
+			}
+		}
+		csv.Write(values)
+	}
 	csv.Close()
+	if c.xlsxOutput != "" {
+		path := filepath.Join(c.xlsxOutput, reportexport.Filename(report.Kind, c.exportDate))
+		if err := reportexport.WriteXLSX(path, report); err != nil {
+			c.reportExportError(fmt.Errorf("save Excel export %q: %w", path, err))
+		}
+	}
+}
+
+func (c *Console) reportExportError(err error) {
+	fmt.Printf("Export failed: %v\n", err)
+	if c.sugarLogger != nil {
+		c.sugarLogger.Errorf("Export failed: %v", err)
+	}
 }
 
 type missingDLCRow struct {
@@ -417,28 +453,63 @@ type CsvFile struct {
 }
 
 func CreateCsvFile(output string, header []string) *CsvFile {
-	if output != "" {
-		file, _ := os.Create(output)
-		writer := csv.NewWriter(file)
-
-		_ = writer.Write(header)
-
-		instance := &CsvFile{Writer: writer, File: file}
-		return instance
-	} else {
+	if output == "" {
 		return nil
 	}
+
+	file, err := os.Create(output)
+	if err != nil {
+		reportCsvExportError(output, "create", err)
+		return nil
+	}
+
+	bom := []byte{0xEF, 0xBB, 0xBF}
+	n, err := file.Write(bom)
+	if err == nil && n != len(bom) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		reportCsvExportError(output, "write UTF-8 BOM to", err)
+		if closeErr := file.Close(); closeErr != nil {
+			reportCsvExportError(output, "close after failed initialization of", closeErr)
+		}
+		return nil
+	}
+
+	writer := csv.NewWriter(file)
+	if err := writer.Write(header); err != nil {
+		reportCsvExportError(output, "write CSV header to", err)
+		if closeErr := file.Close(); closeErr != nil {
+			reportCsvExportError(output, "close after failed initialization of", closeErr)
+		}
+		return nil
+	}
+
+	return &CsvFile{Writer: writer, File: file}
+}
+
+func reportCsvExportError(output, operation string, err error) {
+	message := fmt.Sprintf("Failed to %s CSV export %q: %v", operation, output, err)
+	fmt.Println(message)
+	zap.S().Error(message)
 }
 
 func (csv *CsvFile) Close() {
 	if csv != nil {
 		csv.Writer.Flush()
-		csv.File.Close()
+		if err := csv.Writer.Error(); err != nil {
+			reportCsvExportError(csv.File.Name(), "write", err)
+		}
+		if err := csv.File.Close(); err != nil {
+			reportCsvExportError(csv.File.Name(), "close", err)
+		}
 	}
 }
 
 func (csv *CsvFile) Write(row []string) {
 	if csv != nil {
-		_ = csv.Writer.Write(row)
+		if err := csv.Writer.Write(row); err != nil {
+			reportCsvExportError(csv.File.Name(), "write", err)
+		}
 	}
 }

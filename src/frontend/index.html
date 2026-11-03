@@ -190,8 +190,9 @@
             <div class="form-text">Imports recognized Switch files from scan folders into the library when you organize, using the folder and naming settings above. When off, scan folders are read-only: organizing never moves, renames, or deletes files in them.</div>
           </div>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="organization_switch_safe_file_names" id="settings-org-safe-names" {{if organization.switch_safe_file_names}}checked{{/if}}>
-            <label class="form-check-label" for="settings-org-safe-names">Use Switch-safe file names</label>
+            <input class="form-check-input" type="checkbox" name="organization_allow_unicode_file_names" id="settings-org-unicode-names" {{if organization.allow_unicode_file_names}}checked{{/if}}>
+            <label class="form-check-label" for="settings-org-unicode-names">Allow Unicode titles and filenames</label>
+            <div class="form-text">Use catalog titles in any language and preserve Unicode characters in filenames and game folders. When off, titles prefer the existing English/local-name fallbacks and generated names use legacy romanization and character filtering. Filesystem cleanup applies in both modes.</div>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" name="organization_delete_empty_folders" id="settings-org-delete-empty" {{if organization.delete_empty_folders}}checked{{/if}}>
@@ -625,12 +626,13 @@
             {{if dlc && dlc.length}}
             <div class="table-responsive">
               <table class="table table-sm align-middle game-details-table">
-                <thead><tr><th scope="col">DLC</th><th scope="col">Title ID</th><th scope="col">Versions</th><th scope="col">Status</th><th scope="col">Local file</th></tr></thead>
+                <thead><tr><th scope="col">DLC</th><th scope="col">Title ID</th><th scope="col">Release date</th><th scope="col">Versions</th><th scope="col">Status</th><th scope="col">Local file</th></tr></thead>
                 <tbody>
                   {{for dlc}}
                   <tr>
                     <th scope="row">{{if name}}{{:name}}{{else}}Unnamed DLC{{/if}}</th>
                     <td><code>{{:titleId}}</code></td>
+                    <td>{{if attributes.releaseDate && attributes.ParsedReleaseDate}}{{>attributes.ParsedReleaseDate}}{{else}}Unknown{{/if}}</td>
                     <td>{{if has_available_version && has_local_version}}Local v{{:local_version}} / latest v{{:available_version}}{{else has_available_version}}Local version unknown / latest v{{:available_version}}{{else has_local_version}}Local v{{:local_version}} / latest unknown{{else}}—{{/if}}</td>
                     <td>
                       {{if status === "collected"}}

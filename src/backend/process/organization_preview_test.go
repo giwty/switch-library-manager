@@ -13,13 +13,14 @@ import (
 func TestBuildOrganizationPreviewUsesActualBaseUpdateAndDLC(t *testing.T) {
 	root := t.TempDir()
 	options := settings.OrganizeOptions{
-		CreateFolderPerGame: true,
-		FolderNameTemplate:  "{TITLE_NAME}",
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_ID}_{TYPE}_{VERSION}_{SIZE_GB}_{SIZE_MB}",
-		IncludeBaseType:     true,
-		UpdatesFolder:       "updates",
-		DlcFolder:           "dlc",
+		CreateFolderPerGame:   true,
+		FolderNameTemplate:    "{TITLE_NAME}",
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_ID}_{TYPE}_{VERSION}_{SIZE_GB}_{SIZE_MB}",
+		AllowUnicodeFileNames: true,
+		IncludeBaseType:       true,
+		UpdatesFolder:         "updates",
+		DlcFolder:             "dlc",
 	}
 	baseID := "0100E95004039000"
 	updateID := "0100E95004039800"
@@ -116,10 +117,10 @@ func TestBuildOrganizationPreviewUsesBundledVersionForBaseFile(t *testing.T) {
 	baseFile := db.ExtendedFileInfo{BaseFolder: source, FileName: "package.xci", Size: 20}
 	standaloneUpdate := db.ExtendedFileInfo{BaseFolder: source, FileName: "update.nsp", Size: 18}
 	options := settings.OrganizeOptions{
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_NAME} [{TITLE_ID}][{TYPE}][v{VERSION}][{VERSION_TXT}]",
-		IncludeBaseType:     true,
-		SwitchSafeFileNames: false,
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_NAME} [{TITLE_ID}][{TYPE}][v{VERSION}][{VERSION_TXT}]",
+		IncludeBaseType:       true,
+		AllowUnicodeFileNames: true,
 	}
 	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{
 		"010087e01fcd6": {
@@ -171,10 +172,10 @@ func TestBuildOrganizationPreviewExpandsPackageContentsForBundledBase(t *testing
 	updateID := "0100000000010800"
 	dlcID := "0100000000011001"
 	options := settings.OrganizeOptions{
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_NAME} ({PACKAGE_CONTENTS})[{TYPE}][v{VERSION}]",
-		IncludeBaseType:     true,
-		SwitchSafeFileNames: false,
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_NAME} ({PACKAGE_CONTENTS})[{TYPE}][v{VERSION}]",
+		IncludeBaseType:       true,
+		AllowUnicodeFileNames: true,
 	}
 	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{
 		"game": {
@@ -216,10 +217,11 @@ func TestBuildOrganizationPreviewExpandsPackageContentsForBundledBase(t *testing
 func TestBuildOrganizationPreviewFallbackShowsDeterministicSize(t *testing.T) {
 	root := t.TempDir()
 	options := settings.OrganizeOptions{
-		RenameFiles:      true,
-		FileNameTemplate: "{TITLE_NAME}_{SIZE_GB}_{SIZE_MB}",
-		UpdatesFolder:    "updates",
-		DlcFolder:        "dlc",
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_NAME}_{SIZE_GB}_{SIZE_MB}",
+		AllowUnicodeFileNames: true,
+		UpdatesFolder:         "updates",
+		DlcFolder:             "dlc",
 	}
 
 	got, err := BuildOrganizationPreview(root, options, nil, nil)
@@ -268,11 +270,11 @@ func TestBuildOrganizationPreviewFallsBackAndKeepsOriginalNamesWhenDisabled(t *t
 func TestBuildOrganizationPreviewAppliesSafeNames(t *testing.T) {
 	root := t.TempDir()
 	options := settings.OrganizeOptions{
-		CreateFolderPerGame: true,
-		FolderNameTemplate:  "{TITLE_NAME}",
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_NAME}",
-		SwitchSafeFileNames: true,
+		CreateFolderPerGame:   true,
+		FolderNameTemplate:    "{TITLE_NAME}",
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_NAME}",
+		AllowUnicodeFileNames: false,
 	}
 	key := "0100e95004039"
 	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{key: {

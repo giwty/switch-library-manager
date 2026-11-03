@@ -432,7 +432,8 @@ body {
     display: none;
 }
 
-.tabulator .tabulator-footer .slm-table-footer-actions .export-btn {
+.tabulator .tabulator-footer .slm-table-footer-actions .export-btn,
+.tabulator .tabulator-footer .slm-table-footer-actions .export-xlsx-btn {
     padding: 0.25rem 0.5rem;
 }
 
@@ -536,6 +537,7 @@ body {
     margin-top: 0.25rem;
     color: var(--bs-secondary-color);
     font-family: var(--bs-font-monospace);
+    text-transform: uppercase;
 }
 
 .game-details-close {

@@ -26,7 +26,7 @@ const (
 	CACHE_FILENAME            = "cache.json"
 	TITLE_JSON_FILENAME       = "titles.json"
 	VERSIONS_JSON_FILENAME    = "versions.json"
-	SLM_VERSION               = "2.0.0"
+	SLM_VERSION               = "2.1.0"
 	SETTINGS_SCHEMA_VERSION   = 2
 	DEFAULT_TITLES_JSON_URL   = "https://github.com/trembon/switch-library-manager/releases/download/data/titles.json"
 	DEFAULT_VERSIONS_JSON_URL = "https://github.com/trembon/switch-library-manager/releases/download/data/versions.json"
@@ -101,10 +101,30 @@ type OrganizationSettings struct {
 	DeleteEmptyFolders         bool   `json:"delete_empty_folders"`
 	DeleteOldUpdateFiles       bool   `json:"delete_old_update_files"`
 	FolderNameTemplate         string `json:"folder_name_template"`
-	SwitchSafeFileNames        bool   `json:"switch_safe_file_names"`
+	AllowUnicodeFileNames      bool   `json:"allow_unicode_file_names"`
 	FileNameTemplate           string `json:"file_name_template"`
 	IncludeBaseType            bool   `json:"include_base_type"`
 	ProcessWhenMissingBaseGame bool   `json:"process_when_missing_base_game"`
+}
+
+// UnmarshalJSON accepts the deprecated, inverse switch_safe_file_names option.
+// Only allow_unicode_file_names is emitted when settings are saved.
+func (options *OrganizationSettings) UnmarshalJSON(data []byte) error {
+	type plain OrganizationSettings
+	decoded := struct {
+		*plain
+		AllowUnicodeFileNames *bool `json:"allow_unicode_file_names"`
+		SwitchSafeFileNames   *bool `json:"switch_safe_file_names"`
+	}{plain: (*plain)(options)}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return fmt.Errorf("decode organization settings: %w", err)
+	}
+	if decoded.AllowUnicodeFileNames != nil {
+		options.AllowUnicodeFileNames = *decoded.AllowUnicodeFileNames
+	} else if decoded.SwitchSafeFileNames != nil {
+		options.AllowUnicodeFileNames = !*decoded.SwitchSafeFileNames
+	}
+	return nil
 }
 
 // OrganizeOptions is retained as an alias for the process package API.
@@ -288,10 +308,10 @@ func defaultSettings() *AppSettings {
 		Paths: PathSettings{ScanFolders: []string{}},
 		Scan:  ScanSettings{Recursive: true, IgnoreFileTypes: []string{}},
 		Organization: OrganizationSettings{
-			FolderNameTemplate:  fmt.Sprintf("{%v}", TEMPLATE_TITLE_NAME),
-			FileNameTemplate:    fmt.Sprintf("{%v} ({%v})[{%v}][v{%v}]", TEMPLATE_TITLE_NAME, TEMPLATE_DLC_NAME, TEMPLATE_TITLE_ID, TEMPLATE_VERSION),
-			SwitchSafeFileNames: true,
-			IncludeBaseType:     true,
+			FolderNameTemplate:    fmt.Sprintf("{%v}", TEMPLATE_TITLE_NAME),
+			FileNameTemplate:      fmt.Sprintf("{%v} ({%v})[{%v}][v{%v}]", TEMPLATE_TITLE_NAME, TEMPLATE_DLC_NAME, TEMPLATE_TITLE_ID, TEMPLATE_VERSION),
+			AllowUnicodeFileNames: false,
+			IncludeBaseType:       true,
 		},
 		MissingContent: MissingContentSettings{
 			CheckForUpdates:   true,

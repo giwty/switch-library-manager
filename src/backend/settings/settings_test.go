@@ -31,7 +31,7 @@ func TestDefaultSettingsAndJSON(t *testing.T) {
 	if s.SchemaVersion != SETTINGS_SCHEMA_VERSION || !s.GUI.Enabled || s.GUI.RememberWindowState || s.GUI.HideVersionString || !s.Scan.Recursive || s.Scan.RescanOnStartup || s.Scan.IgnoreUnsupportedFileTypes || !s.MissingContent.CheckForUpdates || !s.MissingContent.CheckForDLC || s.GUI.PageSize != 100 || s.GUI.Theme != ThemeInherit {
 		t.Fatalf("unexpected defaults: %#v", s)
 	}
-	if s.DataSources.TitlesURL != DEFAULT_TITLES_JSON_URL || s.DataSources.VersionsURL != DEFAULT_VERSIONS_JSON_URL || !s.Organization.SwitchSafeFileNames || !s.Organization.IncludeBaseType || s.Organization.MoveScanFilesToLibrary {
+	if s.DataSources.TitlesURL != DEFAULT_TITLES_JSON_URL || s.DataSources.VersionsURL != DEFAULT_VERSIONS_JSON_URL || s.Organization.AllowUnicodeFileNames || !s.Organization.IncludeBaseType || s.Organization.MoveScanFilesToLibrary {
 		t.Fatalf("unexpected default URLs/options: %#v", s)
 	}
 	if s.Organization.FileNameTemplate != "{TITLE_NAME} ({DLC_NAME})[{TITLE_ID}][v{VERSION}]" {
@@ -73,6 +73,75 @@ func TestMoveScanFilesToLibrarySettingRoundTripsAndDefaultsOff(t *testing.T) {
 	}
 	if !loaded.Organization.MoveScanFilesToLibrary {
 		t.Fatal("move_scan_files_to_library did not survive settings persistence")
+	}
+}
+
+func TestUnicodeFileNamesSettingsCompatibility(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		options string
+		want    bool
+	}{
+		{"missing field", `{}`, false},
+		{"legacy enabled", `{"switch_safe_file_names":true}`, false},
+		{"legacy disabled", `{"switch_safe_file_names":false}`, true},
+		{"unicode enabled", `{"allow_unicode_file_names":true}`, true},
+		{"unicode disabled", `{"allow_unicode_file_names":false}`, false},
+		{"unicode true overrides legacy true", `{"allow_unicode_file_names":true,"switch_safe_file_names":true}`, true},
+		{"unicode false overrides legacy false", `{"switch_safe_file_names":false,"allow_unicode_file_names":false}`, false},
+		{"both allow unicode", `{"switch_safe_file_names":false,"allow_unicode_file_names":true}`, true},
+		{"both restrict unicode", `{"allow_unicode_file_names":false,"switch_safe_file_names":true}`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			isolateSettings(t)
+			base := t.TempDir()
+			filename := filepath.Join(base, SETTINGS_FILENAME)
+			source := []byte(`{"schema_version":2,"gui":{"page_size":37},"organization":` + test.options + `}`)
+			if err := os.WriteFile(filename, source, 0644); err != nil {
+				t.Fatal(err)
+			}
+			loaded, err := ReadSettings(base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if loaded.Organization.AllowUnicodeFileNames != test.want || loaded.SchemaVersion != 2 || loaded.GUI.PageSize != 37 || !loaded.Organization.IncludeBaseType || loaded.Organization.FileNameTemplate == "" {
+				t.Fatalf("unexpected settings after decoding: %#v", loaded)
+			}
+			contents, err := os.ReadFile(filename)
+			if err != nil || string(contents) != string(source) {
+				t.Fatalf("loading changed settings: %q, error: %v", contents, err)
+			}
+			loaded.Organization.AllowUnicodeFileNames = !test.want
+			if err := SaveSettingsWithError(loaded, base); err != nil {
+				t.Fatal(err)
+			}
+			contents, err = os.ReadFile(filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(contents), "switch_safe_file_names") || !strings.Contains(string(contents), "allow_unicode_file_names") {
+				t.Fatalf("saved settings must contain only the canonical option: %s", contents)
+			}
+			settingsInstance = nil
+			reloaded, err := ReadSettings(base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if reloaded.Organization.AllowUnicodeFileNames != !test.want || reloaded.GUI.PageSize != 37 {
+				t.Fatalf("saved Unicode choice or unrelated settings did not survive reload: %#v", reloaded)
+			}
+		})
+	}
+}
+
+func TestUnicodeFileNamesRejectsNonBooleanSettings(t *testing.T) {
+	for _, field := range []string{"allow_unicode_file_names", "switch_safe_file_names"} {
+		t.Run(field, func(t *testing.T) {
+			var options OrganizationSettings
+			if err := json.Unmarshal([]byte(`{"`+field+`":"true"}`), &options); err == nil {
+				t.Fatal("non-boolean filename setting was accepted")
+			}
+		})
 	}
 }
 
@@ -466,7 +535,7 @@ func TestCheckForUpdates(t *testing.T) {
 		wantError  bool
 	}{
 		{name: "newer", body: `{"version":"3.0.0"}`, wantUpdate: true},
-		{name: "same", body: `{"version":"2.0.0"}`},
+		{name: "same", body: `{"version":"2.1.0"}`},
 		{name: "older", body: `{"version":"1.0.0"}`},
 		{name: "malformed", body: "[", wantError: true},
 		{name: "missing version", body: `{}`, wantError: true},

@@ -37,10 +37,10 @@ func TestIncludeBaseTypeMatchesPreviewPlanAndExecution(t *testing.T) {
 					},
 				}}
 				options := settings.OrganizeOptions{
-					RenameFiles:         true,
-					IncludeBaseType:     include,
-					SwitchSafeFileNames: safe,
-					FileNameTemplate:    "{TITLE_ID}[{TYPE}]({TYPE})<{TYPE}> ({PACKAGE_CONTENTS})",
+					RenameFiles:           true,
+					IncludeBaseType:       include,
+					AllowUnicodeFileNames: !safe,
+					FileNameTemplate:      "{TITLE_ID}[{TYPE}]({TYPE})<{TYPE}> ({PACKAGE_CONTENTS})",
 				}
 				baseType := ""
 				if include {

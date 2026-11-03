@@ -53,7 +53,7 @@ func TestApplyTemplate(t *testing.T) {
 		{"safe name", true, "Pokémon™: {TITLE_NAME} [v{VERSION}]", 0, "Pokémon The Game Demo [v12]"},
 		{"collision suffix", false, "name.", 2, "name(2)"},
 		{"cleanup and illegal characters", false, "[]()<>a:b%?", 0, "ab"},
-		{"trailing period", false, "name...", 0, "name.."},
+		{"trailing periods", false, "name...", 0, "name"},
 	}
 
 	for _, tt := range tests {
@@ -314,10 +314,10 @@ func TestOrganizeByFoldersExpandsPackageContentsOnlyForBundledPackage(t *testing
 	standaloneUpdate := db.ExtendedFileInfo{BaseFolder: source, FileName: standaloneUpdateName}
 	standaloneDLC := db.ExtendedFileInfo{BaseFolder: source, FileName: standaloneDLCName}
 	setProcessSettings(t, baseFolder, settings.OrganizeOptions{
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_NAME}_{TYPE} ({PACKAGE_CONTENTS})",
-		IncludeBaseType:     true,
-		SwitchSafeFileNames: false,
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_NAME}_{TYPE} ({PACKAGE_CONTENTS})",
+		IncludeBaseType:       true,
+		AllowUnicodeFileNames: true,
 	})
 
 	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{
@@ -392,18 +392,18 @@ func TestTitleNameAndDLCNameHelpers(t *testing.T) {
 	remote := &db.SwitchTitle{Attributes: db.TitleAttributes{Id: metadata.TitleId, Name: "Remote Name"}, Dlc: map[string]db.TitleAttributes{
 		"0100abcd00001a01": {Name: "Remote Name - Expansion\nPack"},
 	}}
-	if got := db.ResolveGameTitleName(remote, local); got != "Remote Name" {
+	if got := db.ResolveGameTitleName(remote, local, false); got != "Remote Name" {
 		t.Fatalf("remote title name = %q", got)
 	}
 	remote.Attributes.Name = "日本語"
-	if got := db.ResolveGameTitleName(remote, local); got != "Name From NACP" {
+	if got := db.ResolveGameTitleName(remote, local, false); got != "Name From NACP" {
 		t.Fatalf("NACP title name = %q", got)
 	}
 	local.File.Metadata.Ncap.TitleName = nil
-	if got := db.ResolveGameTitleName(nil, local); got != "Name From File" {
+	if got := db.ResolveGameTitleName(nil, local, false); got != "Name From File" {
 		t.Fatalf("filename title name = %q", got)
 	}
-	if got := db.ResolveGameTitleName(nil, nil); got != "Unknown Title" {
+	if got := db.ResolveGameTitleName(nil, nil, false); got != "Unknown Title" {
 		t.Fatalf("nil title name = %q", got)
 	}
 
@@ -436,15 +436,15 @@ func TestOrganizeByFoldersMovesBaseUpdateAndDLC(t *testing.T) {
 	}
 
 	options := settings.OrganizeOptions{
-		CreateFolderPerGame: true,
-		FolderNameTemplate:  "{TITLE_NAME}",
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_ID}_{TYPE}_{VERSION}_{VERSION_TXT}_{SIZE_GB}_{SIZE_MB}",
-		IncludeBaseType:     true,
-		UpdatesFolder:       "updates",
-		DlcFolder:           "dlc",
-		SwitchSafeFileNames: false,
-		DeleteEmptyFolders:  true,
+		CreateFolderPerGame:   true,
+		FolderNameTemplate:    "{TITLE_NAME}",
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_ID}_{TYPE}_{VERSION}_{VERSION_TXT}_{SIZE_GB}_{SIZE_MB}",
+		IncludeBaseType:       true,
+		UpdatesFolder:         "updates",
+		DlcFolder:             "dlc",
+		AllowUnicodeFileNames: true,
+		DeleteEmptyFolders:    true,
 	}
 	setProcessSettings(t, baseFolder, options)
 
@@ -527,10 +527,10 @@ func TestOrganizeByFoldersUsesHighestBundledUpdateVersion(t *testing.T) {
 	standaloneUpdateFile := db.ExtendedFileInfo{BaseFolder: source, FileName: standaloneUpdateName, Size: 18}
 
 	setProcessSettings(t, baseFolder, settings.OrganizeOptions{
-		RenameFiles:         true,
-		FileNameTemplate:    "{TITLE_NAME} [{TITLE_ID}][{TYPE}][v{VERSION}][{VERSION_TXT}]",
-		IncludeBaseType:     true,
-		SwitchSafeFileNames: false,
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_NAME} [{TITLE_ID}][{TYPE}][v{VERSION}][{VERSION_TXT}]",
+		IncludeBaseType:       true,
+		AllowUnicodeFileNames: true,
 	})
 	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{
 		"010087e01fcd6": {
@@ -621,7 +621,7 @@ func TestOrganizeByFoldersProcessesMissingBaseAndNilMetadata(t *testing.T) {
 		UpdatesFolder:              "updates",
 		DlcFolder:                  "dlc",
 		ProcessWhenMissingBaseGame: true,
-		SwitchSafeFileNames:        false,
+		AllowUnicodeFileNames:      true,
 	}
 	setProcessSettings(t, baseFolder, options)
 
@@ -662,10 +662,11 @@ func TestOrganizeByFoldersWithoutGameFoldersAndWithDlcCollision(t *testing.T) {
 	dlcOneID := "0100E9500403A001"
 	dlcTwoID := "0100E9500403A002"
 	setProcessSettings(t, baseFolder, settings.OrganizeOptions{
-		RenameFiles:      true,
-		FileNameTemplate: "{TITLE_ID}_{DLC_NAME}",
-		UpdatesFolder:    updatesFolder,
-		DlcFolder:        dlcFolder,
+		RenameFiles:           true,
+		FileNameTemplate:      "{TITLE_ID}_{DLC_NAME}",
+		AllowUnicodeFileNames: true,
+		UpdatesFolder:         updatesFolder,
+		DlcFolder:             dlcFolder,
 	})
 	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{
 		"0100E95004039": {

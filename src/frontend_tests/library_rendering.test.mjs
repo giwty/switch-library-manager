@@ -97,3 +97,31 @@ test("populated library rows still create the games table", () => {
     assert.equal(tables[0].selector, "#library-table");
     assert.equal(tables[0].options.data[0].name, "Synthetic Game");
 });
+
+test("Game Details renders DLC release dates and unknowns without changing the local-only table", async () => {
+    const index = await readFile(new URL("../frontend/index.html", import.meta.url), "utf8");
+    const jsrender = await readFile(new URL("../frontend/lib/js/jsrender/jsrender.min.js", import.meta.url), "utf8");
+    const context = {window: {}};
+    vm.createContext(context);
+    vm.runInContext(jsrender, context);
+    const block = index.match(/<section class="game-details-section" aria-labelledby="game-details-dlc-heading">[\s\S]*?<\/section>/)?.[0];
+    assert.ok(block, "DLC details section exists");
+    const template = context.window.jsrender.templates(block);
+    const rendered = template.render({
+        remote_available: true,
+        dlc: [
+            {titleId: "0100000000011001", name: "Dated pack", attributes: {releaseDate: 20240102, ParsedReleaseDate: "2024-01-02"}},
+            {titleId: "0100000000011002", name: "Undated pack", attributes: {ParsedReleaseDate: "0"}},
+            {titleId: "0100000000011003", name: "Empty date", attributes: {}}
+        ],
+        local_only_dlc: [{titleId: "0100000000011004", name: "Local-only pack"}]
+    });
+    assert.match(rendered, /Title ID<\/th><th scope="col">Release date<\/th><th scope="col">Versions/);
+    assert.match(rendered, /0100000000011001<\/code><\/td>\s*<td>2024-01-02<\/td>/);
+    for (const id of ["0100000000011002", "0100000000011003"]) {
+        assert.match(rendered, new RegExp(id + "</code></td>\\s*<td>Unknown</td>"));
+    }
+    const localOnly = rendered.slice(rendered.indexOf("Collected DLC absent from catalog"));
+    assert.match(localOnly, /Local-only pack/);
+    assert.doesNotMatch(localOnly, /Release date/);
+});

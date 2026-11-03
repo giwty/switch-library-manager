@@ -63,7 +63,7 @@ func (a *App) GetGameDetails(titleID string) (GameDetails, error) {
 		return GameDetails{}, fmt.Errorf("load missing-content settings: %w", err)
 	}
 
-	return buildGameDetails(titleID, a.state.localDB, a.state.switchDB, settingsObj.MissingContent)
+	return buildGameDetails(titleID, a.state.localDB, a.state.switchDB, settingsObj.MissingContent, settingsObj.Organization.AllowUnicodeFileNames)
 }
 
 func buildGameDetails(
@@ -71,6 +71,7 @@ func buildGameDetails(
 	localDB *db.LocalSwitchFilesDB,
 	switchDB *db.SwitchTitlesDB,
 	missingSettings settings.MissingContentSettings,
+	allowUnicode bool,
 ) (GameDetails, error) {
 	prefix, err := db.TitleIDPrefix(titleID)
 	if err != nil {
@@ -111,7 +112,7 @@ func buildGameDetails(
 			details.BasePath = switchFilePath(local.File)
 		}
 	}
-	details.Attributes.Name = db.ResolveGameTitleName(remote, local)
+	details.Attributes.Name = db.ResolveGameTitleName(remote, local, allowUnicode)
 	details.Name = details.Attributes.Name
 
 	ignoredUpdates := makeIgnoreIDs(missingSettings.IgnoreUpdateIDs)
@@ -155,10 +156,13 @@ func buildGameDetails(
 			dlcIDs = append(dlcIDs, strings.ToLower(id))
 		}
 		sort.Slice(dlcIDs, func(i, j int) bool {
-			left := remote.Dlc[dlcIDs[i]].Name
-			right := remote.Dlc[dlcIDs[j]].Name
-			if !strings.EqualFold(left, right) {
-				return strings.ToLower(left) < strings.ToLower(right)
+			left := remote.Dlc[dlcIDs[i]]
+			right := remote.Dlc[dlcIDs[j]]
+			if left.ReleaseDate != right.ReleaseDate {
+				return left.ReleaseDate > right.ReleaseDate
+			}
+			if !strings.EqualFold(left.Name, right.Name) {
+				return strings.ToLower(left.Name) < strings.ToLower(right.Name)
 			}
 			return dlcIDs[i] < dlcIDs[j]
 		})

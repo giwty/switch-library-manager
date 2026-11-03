@@ -68,7 +68,7 @@ func (a *App) OrganizeLibrary() (OrganizationResult, error) {
 			return OrganizationResult{
 				Status:        "blocked",
 				ConflictCount: len(plan.Conflicts),
-				Library:       a.libraryDataLocked(localDB),
+				Library:       a.libraryDataLocked(localDB, settingsObj.Organization.AllowUnicodeFileNames),
 			}, nil
 		}
 	}
@@ -104,7 +104,7 @@ func (a *App) OrganizeLibrary() (OrganizationResult, error) {
 	}
 	return OrganizationResult{
 		Status:  "completed",
-		Library: a.libraryDataLocked(a.state.localDB),
+		Library: a.libraryDataLocked(a.state.localDB, settingsObj.Organization.AllowUnicodeFileNames),
 	}, nil
 }
 

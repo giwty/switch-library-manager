@@ -29,16 +29,18 @@ func (sf *flagValue) IsSet() bool {
 }
 
 type ConsoleFlags struct {
-	Mode      flagValue
-	NspFolder flagValue
-	Recursive flagValue
-	ExportCsv flagValue
+	Mode       flagValue
+	NspFolder  flagValue
+	Recursive  flagValue
+	ExportCsv  flagValue
+	ExportXlsx flagValue
 }
 
 var mode string
 var nspFolder string
 var recursive bool
 var exportCsv string
+var exportXlsx string
 
 func InitializeFlags() {
 	if flag.Parsed() {
@@ -49,6 +51,7 @@ func InitializeFlags() {
 	flag.StringVar(&nspFolder, "f", "", "path to NSP folder")
 	flag.BoolVar(&recursive, "r", true, "recursively scan sub folders")
 	flag.StringVar(&exportCsv, "e", "", "output missing updates, dlcs and issues as csv")
+	flag.StringVar(&exportXlsx, "export-xlsx", "", "output missing updates, dlcs and issues as Excel workbooks")
 
 	flag.Parse()
 }
@@ -87,12 +90,17 @@ func GetFlagsValues() *ConsoleFlags {
 	if flagset["e"] {
 		exportCsvFlag.Set(exportCsv)
 	}
+	exportXlsxFlag := &flagValue{}
+	if flagset["export-xlsx"] {
+		exportXlsxFlag.Set(exportXlsx)
+	}
 
 	consoleFlagsInstance = &ConsoleFlags{
-		Mode:      *modeFlag,
-		NspFolder: *nspFolderFlag,
-		Recursive: *recursiveFlag,
-		ExportCsv: *exportCsvFlag,
+		Mode:       *modeFlag,
+		NspFolder:  *nspFolderFlag,
+		Recursive:  *recursiveFlag,
+		ExportCsv:  *exportCsvFlag,
+		ExportXlsx: *exportXlsxFlag,
 	}
 
 	return consoleFlagsInstance
@@ -105,6 +113,7 @@ func LogFlags(sugar *zap.SugaredLogger) {
 	logFlag(sugar, "f", values.NspFolder)
 	logFlag(sugar, "r", values.Recursive)
 	logFlag(sugar, "e", values.ExportCsv)
+	logFlag(sugar, "export-xlsx", values.ExportXlsx)
 }
 
 func logFlag(sugar *zap.SugaredLogger, flagName string, flag flagValue) {
