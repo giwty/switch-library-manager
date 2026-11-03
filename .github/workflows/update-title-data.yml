@@ -2,8 +2,13 @@ name: Update title data
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "17 4 * * *"
+      timezone: Europe/Stockholm
   workflow_dispatch:
+
+concurrency:
+  group: update-title-data-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -14,6 +19,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out release script
+        if: github.event_name == 'schedule'
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            /.github/scripts/update_title_data.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -65,21 +79,9 @@ jobs:
           path: generated-data/*.json
           if-no-files-found: error
 
-      - name: Publish data release
+      - name: Publish changed release assets
         if: github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: |
-          if ! gh release view data >/dev/null 2>&1; then
-            gh release create data \
-              --prerelease \
-              --latest=false \
-              --title "Switch Library Manager title data" \
-              --notes "Rolling US English titles.json and versions.json generated from blawar/titledb using blawar/nut."
-          fi
-
-          gh release upload data \
-            generated-data/titles.json \
-            generated-data/versions.json \
-            --clobber
+        run: python .github/scripts/update_title_data.py
