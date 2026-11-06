@@ -36,6 +36,7 @@
           <li class="nav-item" role="presentation"><a id="status-tab" href="#status" class="nav-link" role="tab" aria-controls="status" aria-selected="false">Issues</a></li>
           <li class="nav-item" role="presentation"><a id="settings-tab" href="#settings" class="nav-link" role="tab" aria-controls="settings" aria-selected="false">Settings</a></li>
         </ul>
+        <button type="button" class="shortcut-help-button" data-shortcut-help aria-label="Keyboard shortcuts" aria-haspopup="dialog" aria-keyshortcuts="F1">?</button>
       </nav>
       <div class="progress-container" role="status" aria-live="polite" aria-label="Loading application">
         <div class="progress-panel">
@@ -55,15 +56,28 @@
         </div>
       </div>
       <section id="tab-group" class="tabgroup" aria-hidden="true" inert>
-        <div id="library" role="tabpanel" aria-labelledby="library-tab"></div>
-        <div id="updates" role="tabpanel" aria-labelledby="updates-tab"></div>
-        <div id="missing" role="tabpanel" aria-labelledby="missing-tab"></div>
-        <div id="dlc" role="tabpanel" aria-labelledby="dlc-tab"></div>
-        <div id="organize" role="tabpanel" aria-labelledby="organize-tab"></div>
-        <div id="status" role="tabpanel" aria-labelledby="status-tab"></div>
-        <div id="settings" role="tabpanel" aria-labelledby="settings-tab"></div>
+        <div id="library" role="tabpanel" tabindex="-1" aria-labelledby="library-tab"></div>
+        <div id="updates" role="tabpanel" tabindex="-1" aria-labelledby="updates-tab"></div>
+        <div id="missing" role="tabpanel" tabindex="-1" aria-labelledby="missing-tab"></div>
+        <div id="dlc" role="tabpanel" tabindex="-1" aria-labelledby="dlc-tab"></div>
+        <div id="organize" role="tabpanel" tabindex="-1" aria-labelledby="organize-tab"></div>
+        <div id="status" role="tabpanel" tabindex="-1" aria-labelledby="status-tab"></div>
+        <div id="settings" role="tabpanel" tabindex="-1" aria-labelledby="settings-tab"></div>
       </section>
     </div>
+
+    <dialog id="keyboard-shortcuts-dialog" class="keyboard-shortcuts-dialog" aria-labelledby="keyboard-shortcuts-heading">
+      <div class="shortcut-help-heading">
+        <h2 id="keyboard-shortcuts-heading">Keyboard shortcuts</h2>
+        <button type="button" class="btn-close" data-shortcut-help-close aria-label="Close keyboard shortcuts" autofocus></button>
+      </div>
+      <p>Tab and Shift+Tab move between controls. Row shortcuts work when a game row has focus.</p>
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Shortcut</th><th scope="col">Action</th></tr></thead>
+        <tbody id="keyboard-shortcuts-body"></tbody>
+      </table>
+      <p class="shortcut-help-note">Tab numbers stay fixed when Missing games is hidden. Search applies to the current table. Commands pause during loading and while a dialog is open. Back/Forward remembers the last details until you change tabs or refresh data.</p>
+    </dialog>
 
     <dialog id="game-details-dialog" class="game-details-dialog" aria-label="Game details">
       <button type="button" class="btn-close game-details-close" aria-label="Close game details" data-game-details-close></button>
@@ -504,8 +518,8 @@
             <h4 id="organization-scan-heading">Refresh library data</h4>
             <p class="text-secondary">Rescan the configured folders, or use a hard rescan to rebuild the local scan data.</p>
             <div class="organization-actions">
-              <button type="button" class="btn btn-outline-secondary rescan-action" data-hard="false" aria-keyshortcuts="Control+r">Rescan (Ctrl+R)</button>
-              <button type="button" class="btn btn-outline-secondary rescan-action" data-hard="true" aria-keyshortcuts="Control+Shift+r">Hard rescan (Ctrl+Shift+R)</button>
+              <button type="button" class="btn btn-outline-secondary rescan-action" data-hard="false" aria-keyshortcuts="Control+r">Rescan</button>
+              <button type="button" class="btn btn-outline-secondary rescan-action" data-hard="true" aria-keyshortcuts="Control+Shift+r">Hard rescan</button>
             </div>
           </section>
        </div>

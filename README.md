@@ -59,8 +59,7 @@ The application creates a current `settings.json` on first launch. You can custo
 
 ### GUI keyboard shortcuts
 
-- Press `Ctrl+R` to rescan the library or `Ctrl+Shift+R` to perform a hard rescan from any tab.
-- On macOS, `Command+R` and `Command+Shift+R` are also supported; the corresponding `Ctrl` shortcuts continue to work.
+See the [keyboard shortcut guide](docs/keyboard-shortcuts.md), or press `F1` in the app to open shortcut help.
 
 ### Windows
 

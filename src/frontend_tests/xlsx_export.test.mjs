@@ -80,6 +80,8 @@ test("all five GUI tabs supply the correct report kind to the export adapter", (
         missingGames: [{name: "test"}]
     };
     const context = {state, $: () => ui, hideCurrentTab() {}, gameDetailsTableOptions: value => value, tableOptions: value => value,
+        activeTabTarget: "#library", tabRenderGeneration: 0, keyboardFocusTarget: null,
+        document: {querySelector() {return {}; }}, updateShortcutMetadata() {}, scheduleTabFocus() {},
         createTable(selector, options, kind) {captured.push({selector, options, kind});}};
     vm.createContext(context);
     vm.runInContext(appSource.slice(start, end), context);
@@ -96,6 +98,8 @@ test("Missing DLC sorts newest releases across games and exports dates with blan
     let options;
     const ui = {addClass() {return this;}, attr() {return this;}, show() {return this;}, html() {return this;}, render() {return "";}};
     const context = {
+        activeTabTarget: "#library", tabRenderGeneration: 0, keyboardFocusTarget: null,
+        updateShortcutMetadata() {}, scheduleTabFocus() {},
         state: {
             settings: {paths: {library_folder: "synthetic"}}, library: {},
             dlc: [
@@ -116,7 +120,7 @@ test("Missing DLC sorts newest releases across games and exports dates with blan
             ]
         },
         $: () => ui, hideCurrentTab() {}, gameDetailsTableOptions: value => value,
-        document: {createElement: () => ({textContent: ""})},
+        document: {createElement: () => ({textContent: ""}), querySelector: () => ({})},
         createTable(selector, value) {assert.equal(selector, "#dlc-table"); options = value;}
     };
     vm.createContext(context);

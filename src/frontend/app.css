@@ -39,14 +39,69 @@ body {
     top: 0;
     right: 0;
     left: 0;
-    overflow-x: auto;
+    display: flex;
     background: var(--bs-body-bg);
     box-shadow: var(--slm-nav-shadow);
 }
 
 .app-nav .nav {
-    min-width: max-content;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: 1;
     padding: 0.25rem 0.5rem 0;
+}
+
+.shortcut-help-button {
+    align-self: center;
+    flex: 0 0 auto;
+    margin: 0 0.5rem;
+    width: 1.8rem;
+    height: 1.8rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 50%;
+    color: var(--bs-emphasis-color);
+    background: var(--bs-body-bg);
+    font-weight: 600;
+}
+
+.keyboard-shortcuts-dialog {
+    width: min(42rem, calc(100% - 2rem));
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    padding: 1.25rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: 0.875rem;
+}
+
+.keyboard-shortcuts-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.shortcut-help-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.shortcut-help-heading h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.keyboard-shortcuts-dialog kbd {
+    display: inline-block;
+    white-space: normal;
+}
+
+.shortcut-help-note {
+    margin: 0;
+    color: var(--bs-secondary-color);
 }
 
 .app-nav .nav-link {

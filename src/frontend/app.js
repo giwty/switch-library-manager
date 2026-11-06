@@ -1,7 +1,7 @@
 import {
     CheckUpdate,
     ExportXLSX,
-    ConfirmOrganization,
+    ConfirmOrganization as ConfirmNativeOrganization,
     GetOrganizationPreview,
     GetMissingDLC,
     GetMissingGames,
@@ -13,9 +13,9 @@ import {
     Restart,
     RescanLibrary,
     SaveSettings,
-    SelectFolder,
+    SelectFolder as SelectNativeFolder,
     ShowInFolder,
-    ShowMessage,
+    ShowMessage as ShowNativeMessage,
     UpdateDB,
     UpdateLocalLibrary,
 } from './wailsjs/go/app/App.js'
@@ -26,7 +26,8 @@ import {
     WindowSetLightTheme,
     WindowSetSystemDefaultTheme,
 } from './wailsjs/runtime/runtime.js'
-import { registerRescanShortcuts } from './rescan_shortcuts.js'
+import { registerKeyboardShortcuts, TAB_SHORTCUTS, shortcutKeys, shortcutHelp } from './keyboard_shortcuts.js'
+import { createRowNavigation } from './row_navigation.js'
 import { exportTableXLSX } from './xlsx_export.js'
 
 $(function () {
@@ -55,14 +56,49 @@ $(function () {
     let settingsSavePending = false
     let scanInProgress = false
     let libraryDataGeneration = 0
+    let organizationPending = false;
+    let nativeDialogsPending = 0;
+    let activeTabTarget = "#library";
+    let keyboardFocusTarget = null;
+    let tabRenderGeneration = 0;
+    let currRowNavigation;
+    let lastGameDetails = null;
+    const pendingTabLoads = new Map();
+
+    function withNativeDialog(action) {
+        nativeDialogsPending++;
+        return Promise.resolve().then(action).finally(() => nativeDialogsPending--);
+    }
+    const ConfirmOrganization = () => withNativeDialog(() => ConfirmNativeOrganization());
+    const SelectFolder = () => withNativeDialog(() => SelectNativeFolder());
+    const ShowMessage = (...args) => withNativeDialog(() => ShowNativeMessage(...args));
+
+    function commandsBlocked() {
+        return restartRequired || settingsSavePending || scanInProgress || organizationPending || xlsxExportPending ||
+            nativeDialogsPending > 0 || wrapper.classList.contains("is-loading");
+    }
+
+    function openDialog() {
+        if (gameDetailsDialog.open) return "details";
+        if (shortcutDialog.open) return "help";
+        return null;
+    }
 
     function createTable(element, options, exportKind) {
         currTable = new Tabulator(element, options);
         activeTables.add(currTable);
         currTableExportKind = exportKind;
+        if (["games", "missing_games", "missing_updates", "missing_dlc"].includes(exportKind)) {
+            const table = currTable;
+            currRowNavigation = createRowNavigation(table, () => currTable === table);
+            currRowNavigation.sync();
+        }
     }
 
     function destroyTables() {
+        currRowNavigation?.destroy();
+        currRowNavigation = undefined;
+        lastGameDetails = null;
         for (const table of activeTables) {
             table.destroy();
         }
@@ -93,6 +129,7 @@ $(function () {
 
         tableOptions.renderComplete = function () {
             updatePaginationVisibility(this);
+            if (this === currTable) currRowNavigation?.sync();
             if (renderComplete) {
                 renderComplete.call(this);
             }
@@ -166,6 +203,9 @@ $(function () {
     const gameDetailsFileError = document.getElementById("game-details-file-error");
     const gameDetailsPathTooltip = document.getElementById("game-details-path-tooltip");
     const gameDetailsPathActionTemplate = document.getElementById("game-details-path-action-template");
+    const shortcutDialog = document.getElementById("keyboard-shortcuts-dialog");
+    const shortcutHelpBody = document.getElementById("keyboard-shortcuts-body");
+    let shortcutReturnFocus = null;
     let gameDetailsRequest = 0;
     let gameDetailsReturnFocus = null;
     let gameDetailsFileRequest = 0;
@@ -246,7 +286,7 @@ $(function () {
     }
 
     function openGameDetails(titleID, returnFocusElement) {
-        if (!titleID || !gameDetailsDialog || !gameDetailsContent) {
+        if (!titleID || commandsBlocked() || openDialog()) {
             return;
         }
 
@@ -255,6 +295,7 @@ $(function () {
         hideGameDetailsPathTooltip();
         clearGameDetailsFileError();
         gameDetailsReturnFocus = returnFocusElement || document.activeElement;
+        lastGameDetails = {titleID, returnFocusElement: gameDetailsReturnFocus};
         const loading = document.createElement("div");
         loading.className = "game-details-message";
         loading.setAttribute("role", "status");
@@ -347,12 +388,16 @@ $(function () {
     });
 
     gameDetailsDialog.addEventListener("close", () => {
+        // A close event can arrive after Forward has already reopened the dialog.
+        if (gameDetailsDialog.open) return;
         gameDetailsRequest++;
         gameDetailsFileRequest++;
         hideGameDetailsPathTooltip();
         clearGameDetailsFileError();
-        if (gameDetailsReturnFocus && gameDetailsReturnFocus.isConnected) {
-            gameDetailsReturnFocus.focus();
+        const active = document.activeElement;
+        if (!commandsBlocked() && (active === document.body || active === gameDetailsReturnFocus || gameDetailsDialog.contains(active))) {
+            if (gameDetailsReturnFocus?.isConnected) gameDetailsReturnFocus.focus();
+            else currRowNavigation?.focusFirst();
         }
         gameDetailsReturnFocus = null;
     });
@@ -388,7 +433,7 @@ $(function () {
             const element = row.getElement();
             const label = detailRowLabel(data, kind) || "game";
             element.dataset.gameDetailsRow = "true";
-            element.setAttribute("tabindex", "0");
+            element.setAttribute("tabindex", "-1");
             element.setAttribute("aria-haspopup", "dialog");
             element.setAttribute("aria-label", "Open details for " + label);
             if (rowFormatter) {
@@ -401,14 +446,96 @@ $(function () {
         return tableOptions(optionsWithDetails);
     }
 
-    document.addEventListener("keydown", event => {
-        const row = event.target.closest && event.target.closest(".tabulator-row[data-game-details-row='true']");
-        if (!row || (event.key !== "Enter" && event.key !== " ")) {
-            return;
+    document.addEventListener("focusin", event => {
+        if (event.target.matches?.(".tabulator-row[data-game-details-row='true']")) {
+            currRowNavigation?.remember(event.target);
+        } else {
+            currRowNavigation?.releaseFocus(event.target);
         }
-        event.preventDefault();
-        row.click();
     });
+
+    function renderShortcutHelp() {
+        const rows = shortcutHelp(state.platform === "darwin").map(shortcut => {
+            const row = document.createElement("tr");
+            const keys = document.createElement("td");
+            const label = document.createElement("td");
+            const kbd = document.createElement("kbd");
+            kbd.textContent = shortcut.keys;
+            keys.append(kbd);
+            label.textContent = shortcut.label;
+            row.append(keys, label);
+            return row;
+        });
+        shortcutHelpBody.replaceChildren(...rows);
+    }
+
+    function focusDialogControl(dialog, reverse) {
+        const controls = Array.from(dialog.querySelectorAll("button, [href], input, select, textarea, [tabindex]"))
+            .filter(element => !element.disabled && element.tabIndex >= 0 && element.getClientRects().length > 0);
+        const index = controls.indexOf(document.activeElement);
+        const next = index < 0 ? (reverse ? controls.length - 1 : 0)
+            : (index + (reverse ? -1 : 1) + controls.length) % controls.length;
+        (controls[next] || dialog).focus();
+    }
+
+    function showShortcutHelp() {
+        if (commandsBlocked() || openDialog()) return;
+        shortcutReturnFocus = document.activeElement;
+        renderShortcutHelp();
+        shortcutDialog.showModal();
+    }
+
+    shortcutDialog.addEventListener("close", () => {
+        if (shortcutDialog.open) return;
+        const active = document.activeElement;
+        if (shortcutReturnFocus?.isConnected && !commandsBlocked() &&
+            (active === document.body || active === shortcutReturnFocus || shortcutDialog.contains(active))) shortcutReturnFocus.focus();
+        shortcutReturnFocus = null;
+    });
+
+    function scheduleTabFocus(target) {
+        if (keyboardFocusTarget !== target) return;
+        const generation = tabRenderGeneration;
+        window.requestAnimationFrame(() => {
+            if (generation !== tabRenderGeneration || activeTabTarget !== target ||
+                keyboardFocusTarget !== target || commandsBlocked() || openDialog()) return;
+            keyboardFocusTarget = null;
+            if (!currRowNavigation?.focusFirst()) document.querySelector(target).focus();
+        });
+    }
+
+    function switchTab(target, keyboard = false) {
+        if (commandsBlocked() || openDialog() ||
+            (target === "#missing" && state.settings.gui.hide_missing_games)) return;
+        if (activeTabTarget === "#settings") captureSettingsDraft();
+        keyboardFocusTarget = keyboard ? target : null;
+        loadTab(target);
+    }
+
+    function requestTabData(target, cacheKey, fetchData) {
+        const generation = libraryDataGeneration;
+        if (pendingTabLoads.get(target)?.generation === generation) return;
+        const request = {generation};
+        pendingTabLoads.set(target, request);
+        $(target).html('<div class="game-details-message" role="status">Loading…</div>');
+        Promise.resolve().then(fetchData).then(data => {
+            if (generation !== libraryDataGeneration) return;
+            state[cacheKey] = data;
+            if (!restartRequired && activeTabTarget === target) loadTab(target);
+        }).catch(error => {
+            if (generation !== libraryDataGeneration) return;
+            if (activeTabTarget === target) {
+                const failure = document.createElement("div");
+                failure.className = "alert alert-danger";
+                failure.setAttribute("role", "alert");
+                failure.textContent = "Unable to load this tab. Select the tab again to retry. " + settingsErrorMessage(error);
+                document.querySelector(target).replaceChildren(failure);
+                scheduleTabFocus(target);
+            } else console.error("Could not load " + target + ":", error);
+        }).finally(() => {
+            if (pendingTabLoads.get(target) === request) pendingTabLoads.delete(target);
+        });
+    }
 
     function setLoading(loading) {
         loading = loading || restartRequired;
@@ -453,31 +580,16 @@ $(function () {
         restartButton.focus();
     }
 
-    function updateRescanControlLabels(root = document.querySelector("#organize")) {
-        if (!root) {
-            return;
-        }
+    function updateShortcutMetadata(root = document) {
         const isMacOS = state.platform === "darwin";
-        const labels = isMacOS
-            ? {
-                rescan: "⌘R",
-                hardRescan: "⌘⇧R",
-                rescanKeys: "Meta+r Control+r",
-                hardRescanKeys: "Meta+Shift+r Control+Shift+r"
-            }
-            : {
-                rescan: "Ctrl+R",
-                hardRescan: "Ctrl+Shift+R",
-                rescanKeys: "Control+r",
-                hardRescanKeys: "Control+Shift+r"
-            };
-
         root.querySelectorAll(".rescan-action").forEach(button => {
-            const hard = button.dataset.hard === "true";
-            button.textContent = hard
-                ? "Hard rescan (" + labels.hardRescan + ")"
-                : "Rescan (" + labels.rescan + ")";
-            button.setAttribute("aria-keyshortcuts", hard ? labels.hardRescanKeys : labels.rescanKeys);
+            button.setAttribute("aria-keyshortcuts", shortcutKeys(button.dataset.hard === "true" ? "hard-rescan" : "rescan", isMacOS, true));
+        });
+        root.querySelectorAll(".library-organize-action").forEach(button => {
+            button.setAttribute("aria-keyshortcuts", shortcutKeys("organize", isMacOS, true));
+        });
+        TAB_SHORTCUTS.forEach((tab, index) => {
+            root.querySelector("#tab_btns a[href='" + tab.target + "']")?.setAttribute("aria-keyshortcuts", shortcutKeys("tab-" + (index + 1), isMacOS, true));
         });
     }
 
@@ -515,7 +627,8 @@ $(function () {
         Environment()
             .then(environment => {
                 state.platform = environment.platform;
-                updateRescanControlLabels();
+                updateShortcutMetadata();
+                if (shortcutDialog.open) renderShortcutHelp();
             })
             .catch(error => console.error("Could not determine the current platform:", error));
         LoadSettings().then(function (message) {
@@ -741,6 +854,9 @@ $(function () {
         }
 
         function loadTab(target) {
+            activeTabTarget = target;
+            tabRenderGeneration++;
+            if (keyboardFocusTarget !== target) keyboardFocusTarget = null;
             hideCurrentTab();
 
             $("#tab_btns a[href='" + target + "']").addClass('active').attr('aria-selected', 'true');
@@ -753,48 +869,25 @@ $(function () {
                 const organization = state.settings.organization;
                 if (!folder) {
                     $(target).html($(target + "Template").render({folder: folder, organization: organization}));
-                    updateRescanControlLabels(document.querySelector(target));
+                    updateShortcutMetadata(document.querySelector(target));
+                    scheduleTabFocus(target);
                     return;
                 }
                 if (!state.organizationPreview || state.organizationPreview.root_folder !== folder) {
                     $(target).html($(target + "Template").render({folder: folder, organization: organization, previewLoading: true}));
-                    updateRescanControlLabels(document.querySelector(target));
-                    const generation = libraryDataGeneration;
-                    GetOrganizationPreview().then(preview => {
-                        if (generation !== libraryDataGeneration) {
-                            return;
-                        }
-                        state.organizationPreview = preview;
-                        if (!restartRequired && $(target).is(":visible")) {
-                            loadTab(target);
-                        }
-                    }).catch(error => {
-                        if (generation === libraryDataGeneration) {
-                            showError(error.message);
-                        }
-                    });
+                    updateShortcutMetadata(document.querySelector(target));
+                    requestTabData(target, "organizationPreview", GetOrganizationPreview);
                     return;
                 }
                 let html = $(target + "Template").render({folder: folder, organization: organization, preview: state.organizationPreview})
                 $(target).html(html);
-                updateRescanControlLabels(document.querySelector(target));
+                updateShortcutMetadata(document.querySelector(target));
             } else if (target === "#updates") {
                 if (state.settings.paths.library_folder && !state.library){
                     return
                 }
                 if (state.library && !state.updates){
-                    const generation = libraryDataGeneration;
-                    GetMissingUpdates().then(r => {
-                        if (generation !== libraryDataGeneration) {
-                            return;
-                        }
-                        state.updates = r
-                        loadTab("#updates")
-                    }).catch(error => {
-                        if (generation === libraryDataGeneration) {
-                            showError(error.message);
-                        }
-                    });
+                    requestTabData(target, "updates", GetMissingUpdates);
                     return
                 }
                 let html = $(target + "Template").render({folder: state.settings.paths.library_folder,updates:state.updates})
@@ -829,18 +922,7 @@ $(function () {
                     return
                 }
                 if (state.library && !state.dlc){
-                    const generation = libraryDataGeneration;
-                    GetMissingDLC().then(r => {
-                        if (generation !== libraryDataGeneration) {
-                            return;
-                        }
-                        state.dlc = r
-                        loadTab("#dlc")
-                    }).catch(error => {
-                        if (generation === libraryDataGeneration) {
-                            showError(error.message);
-                        }
-                    });
+                    requestTabData(target, "dlc", GetMissingDLC);
                     return
                 }
                 const missingDlcRows = (state.dlc || []).flatMap(game =>
@@ -954,18 +1036,7 @@ $(function () {
                     return
                 }
                 if (state.library && !state.missingGames){
-                    const generation = libraryDataGeneration;
-                    GetMissingGames().then(r => {
-                        if (generation !== libraryDataGeneration) {
-                            return;
-                        }
-                        state.missingGames = r
-                        loadTab("#missing")
-                    }).catch(error => {
-                        if (generation === libraryDataGeneration) {
-                            showError(error.message);
-                        }
-                    });
+                    requestTabData(target, "missingGames", GetMissingGames);
                     return
                 }
                 let html = $(target + "Template").render({folder: state.settings.paths.library_folder,missingGames:state.missingGames});
@@ -988,6 +1059,8 @@ $(function () {
                     }, "games"), "missing_games");
                 }
             }
+            updateShortcutMetadata(document.querySelector(target));
+            scheduleTabFocus(target);
         }
 
         $("body").on("click", ".folder-set", e => {
@@ -1023,7 +1096,7 @@ $(function () {
         });
 
         const requestRescan = hard => {
-            if (restartRequired || settingsSavePending || scanInProgress || wrapper.classList.contains("is-loading") || !state.settings.paths.library_folder) {
+            if (commandsBlocked() || openDialog() || !state.settings.paths.library_folder) {
                 return;
             }
             const returnTab = $("#tab_btns a.active").attr("href") || "#library";
@@ -1034,6 +1107,7 @@ $(function () {
                 gameDetailsDialog.close();
             }
             scanInProgress = true;
+            lastGameDetails = null;
             Promise.resolve()
                 .then(() => scanLocalFolder(Boolean(hard), false, returnTab))
                 .catch(error => showError(error.message, returnTab))
@@ -1046,12 +1120,55 @@ $(function () {
             requestRescan(e.currentTarget.dataset.hard === "true");
         });
 
-        registerRescanShortcuts(
-            window,
-            () => state.platform === "darwin",
-            () => restartRequired || settingsSavePending || scanInProgress || wrapper.classList.contains("is-loading") || !state.settings.paths.library_folder,
-            requestRescan
-        );
+        registerKeyboardShortcuts(window, {
+            isMacOS: () => state.platform === "darwin",
+            getContext: event => ({
+                blocked: commandsBlocked(),
+                dialog: openDialog(),
+                row: event.target.matches?.(".tabulator-row[data-game-details-row='true']") ? event.target : null
+            }),
+            onAction(shortcut, context, event) {
+                if (shortcut.target) {
+                    switchTab(shortcut.target, true);
+                    return;
+                }
+                switch (shortcut.id) {
+                case "organize": requestOrganization(); break;
+                case "rescan": requestRescan(false); break;
+                case "hard-rescan": requestRescan(true); break;
+                case "search": {
+                    const field = {games: "name", missing_games: "name", missing_updates: "Attributes.name", missing_dlc: "dlc.name"}[currTableExportKind];
+                    const input = field && currTable?.getColumn(field)?.getElement().querySelector(".tabulator-header-filter input");
+                    if (input) {
+                        input.focus();
+                        input.select();
+                    }
+                    break;
+                }
+                case "row-up":
+                case "row-down":
+                    currRowNavigation?.move(context.row, shortcut.id === "row-up" ? -1 : 1)
+                        .catch(error => console.error("Could not focus the next game row:", error));
+                    break;
+                case "open-details": context.row.click(); break;
+                case "dialog-tab": focusDialogControl(context.dialog === "help" ? shortcutDialog : gameDetailsDialog, event.shiftKey); break;
+                case "dismiss":
+                    if (context.dialog === "help") shortcutDialog.close();
+                    else if (!gameDetailsPathTooltip.hidden) hideGameDetailsPathTooltip();
+                    else gameDetailsDialog.close();
+                    break;
+                case "back": if (gameDetailsDialog.open) gameDetailsDialog.close(); break;
+                case "forward":
+                    if (lastGameDetails) openGameDetails(lastGameDetails.titleID, lastGameDetails.returnFocusElement);
+                    break;
+                case "help": showShortcutHelp(); break;
+                }
+            }
+        });
+
+        $("body").on("click", "[data-shortcut-help]", showShortcutHelp);
+        $("body").on("click", "[data-shortcut-help-close]", () => shortcutDialog.close());
+        updateShortcutMetadata();
 
         $("body").on("click", ".alert-dismiss", e => {
             $(e.currentTarget).closest(".alert").hide();
@@ -1128,17 +1245,21 @@ $(function () {
                 });
         });
 
-        $("body").on("click", ".library-organize-action", e => {
-            e.preventDefault();
+        function requestOrganization() {
+            if (commandsBlocked() || openDialog() || !state.settings.paths.library_folder) return;
+            if (activeTabTarget === "#settings") captureSettingsDraft();
+            organizationPending = true;
             if (state.settings.organization.create_folder_per_game === false &&
                 state.settings.organization.rename_files === false &&
                 state.settings.organization.move_scan_files_to_library === false){
-                ShowMessage("info", "Library organization is turned off", "Please update the settings to enable this feature", "Enable 'Move files from scan folders into the library', 'Rename files' or 'Create a folder for each game' in the Settings tab")
-                    .catch(error => showError(error.message));
-                return
+                return ShowMessage("info", "Library organization is turned off", "Please update the settings to enable this feature", "Enable 'Move files from scan folders into the library', 'Rename files' or 'Create a folder for each game' in the Settings tab")
+                    .catch(error => showError(error.message))
+                    .finally(() => organizationPending = false);
             }
-            ConfirmOrganization().then(confirmed => {
+            return ConfirmOrganization().then(confirmed => {
                 if (confirmed) {
+                    libraryDataGeneration++;
+                    lastGameDetails = null;
                     //show progress
                     $('.tabgroup > div').hide();
                     showProgress("Organizing local library...");
@@ -1157,7 +1278,7 @@ $(function () {
                         return result;
                     });
 
-                    OrganizeLibrary().then(result => {
+                    return OrganizeLibrary().then(result => {
                         state.library = result.library;
                         state.libraryRefreshError = undefined;
                         clearOrganizationCaches();
@@ -1183,7 +1304,7 @@ $(function () {
                         ShowMessage("info", "Success", "Operation completed successfully", "")
                             .catch(error => console.error("Could not display organization success message:", error));
                     }).catch(organizationError => {
-                        refreshOrganizationLibrary().then(() => {
+                        return refreshOrganizationLibrary().then(() => {
                             hideProgress();
                             loadTab("#library");
                             const detail = organizationError && organizationError.message
@@ -1212,14 +1333,19 @@ $(function () {
                         });
                     });
                 }
-            }).catch(error => showError(error.message));
+            }).catch(error => showError(error.message))
+                .finally(() => organizationPending = false);
+        }
 
+        $("body").on("click", ".library-organize-action", e => {
+            e.preventDefault();
+            requestOrganization();
         });
 
         $('#tab_btns a').click(function (e) {
             e.preventDefault();
             let target = $(e.currentTarget).attr('href');
-            loadTab(target);
+            switchTab(target);
         });
 
         function hideCurrentTab() {

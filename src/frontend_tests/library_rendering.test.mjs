@@ -24,6 +24,9 @@ function createLibraryRenderer(library, target = "#library") {
         }
     };
     const context = {
+        activeTabTarget: "#library", tabRenderGeneration: 0, keyboardFocusTarget: null,
+        document: {querySelector() {return {}; }},
+        updateShortcutMetadata() {}, scheduleTabFocus() {},
         state: {
             settings: {
                 paths: {library_folder: "C:/synthetic-library"},
