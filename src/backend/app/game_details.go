@@ -116,6 +116,7 @@ func buildGameDetails(
 	details.Name = details.Attributes.Name
 
 	ignoredUpdates := makeIgnoreIDs(missingSettings.IgnoreUpdateIDs)
+	_, gameUpdatesIgnored := ignoredUpdates[baseID]
 	ignoredDLC := makeIgnoreIDs(missingSettings.IgnoreDLCTitleIDs)
 	latestLocalUpdateVersion, hasLocalUpdate := 0, false
 	if local != nil {
@@ -201,7 +202,7 @@ func buildGameDetails(
 				dlcDetail.UpdateStatus = "unknown"
 			} else if dlcDetail.LocalVersion >= dlcDetail.AvailableVersion {
 				dlcDetail.UpdateStatus = "up_to_date"
-			} else if missingSettings.IgnoreDLCUpdates {
+			} else if missingSettings.IgnoreDLCUpdates || gameUpdatesIgnored {
 				dlcDetail.UpdateStatus = "ignored"
 			} else if _, ignored := ignoredUpdates[id]; ignored {
 				dlcDetail.UpdateStatus = "ignored"

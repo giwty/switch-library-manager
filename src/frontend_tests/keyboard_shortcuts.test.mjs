@@ -40,6 +40,9 @@ test("Back/Forward and dialog keys have exact platform bindings", () => {
     assert.equal(action({key: "[", ctrlKey: true}), undefined);
     assert.equal(action({key: "Escape"}), "dismiss");
     assert.equal(action({key: "F1"}), "help");
+    assert.equal(action({key: "F10", shiftKey: true}), "row-menu");
+    assert.equal(action({key: "ContextMenu"}), "row-menu");
+    assert.equal(action({key: "F10"}), undefined);
 });
 
 function registration() {

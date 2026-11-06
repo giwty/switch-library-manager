@@ -187,6 +187,7 @@ test("export click waits for save, prevents duplicate exports, and restores cont
     let calls = 0;
     const context = {
         currTable: {}, currTableExportKind: "games", xlsxExportPending: false,
+        rowContextMenu: {close() {}},
         document: {querySelectorAll: () => [button]},
         $: () => ({on(event, selector, callback) { handler = callback; }}),
         exportTableXLSX: () => { calls++; return new Promise((resolve, reject) => finish = {resolve, reject}); },

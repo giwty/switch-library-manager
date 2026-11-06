@@ -41,6 +41,7 @@ test("native dialog tracking blocks immediately and always clears on resolution 
     const pending = deferred();
     const context = {
         nativeDialogsPending: 0,
+        rowContextMenu: {close() {}},
         ConfirmNativeOrganization: () => pending.promise,
         SelectNativeFolder: async () => {throw new Error("synthetic picker failure");},
         ShowNativeMessage: async () => {}
@@ -237,6 +238,7 @@ test("help is generated from shortcut definitions, opens once, and restores focu
     const calls = [];
     const context = {
         state: {platform: "darwin"}, shortcutHelp, shortcutReturnFocus: null,
+        rowContextMenu: {close() {}},
         document: {
             activeElement: {isConnected: true, focus() {calls.push("focus");}},
             createElement: () => ({append() {}, textContent: ""})

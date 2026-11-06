@@ -13,6 +13,7 @@ import {
     Restart,
     RescanLibrary,
     SaveSettings,
+    SetContentIgnored,
     SelectFolder as SelectNativeFolder,
     ShowInFolder,
     ShowMessage as ShowNativeMessage,
@@ -29,6 +30,8 @@ import {
 import { registerKeyboardShortcuts, TAB_SHORTCUTS, shortcutKeys, shortcutHelp } from './keyboard_shortcuts.js'
 import { createRowNavigation } from './row_navigation.js'
 import { exportTableXLSX } from './xlsx_export.js'
+import { contentIgnoreAction, mergeIgnoreDraft } from './content_ignore.js'
+import { createRowContextMenu } from './row_context_menu.js'
 
 $(function () {
 
@@ -66,6 +69,7 @@ $(function () {
     const pendingTabLoads = new Map();
 
     function withNativeDialog(action) {
+        rowContextMenu.close(false);
         nativeDialogsPending++;
         return Promise.resolve().then(action).finally(() => nativeDialogsPending--);
     }
@@ -96,6 +100,7 @@ $(function () {
     }
 
     function destroyTables() {
+        rowContextMenu.close(false);
         currRowNavigation?.destroy();
         currRowNavigation = undefined;
         lastGameDetails = null;
@@ -212,6 +217,78 @@ $(function () {
     let gameDetailsPathTooltipTarget = null;
     let gameDetailsPathTooltipHideTimer;
 
+    const rowContextMenu = createRowContextMenu({
+        document, window,
+        isBlocked: () => commandsBlocked() || Boolean(openDialog()),
+        onAction: (action, row) => {void saveContentIgnore(action, row);}
+    });
+
+    function openRowMenu(event, row) {
+        const action = contentIgnoreAction(row.getData(), currTableExportKind, state.settings.missing_content);
+        rowContextMenu.open(event, row, action ? [action] : []);
+    }
+
+    async function saveContentIgnore(action, rowElement) {
+        if (commandsBlocked() || openDialog()) return;
+        rowContextMenu.close(false);
+        settingsSavePending = true;
+        const table = currTable;
+        const target = activeTabTarget;
+        const page = table.getPage();
+        const sorters = table.getSorters().map(({field, dir}) => ({column: field, dir}));
+        const filters = table.getHeaderFilters();
+        const rowIndex = table.getRows("display").findIndex(row => row.getElement() === rowElement);
+        let saved = false;
+        try {
+            const missing = await SetContentIgnored(action.kind, action.titleID, action.ignored);
+            saved = true;
+            state.settings.missing_content = missing;
+            mergeIgnoreDraft(state.settingsDraft, action);
+            const generation = ++libraryDataGeneration;
+            state.updates = undefined;
+            state.dlc = undefined;
+            lastGameDetails = null;
+            if (target === "#updates" || target === "#dlc") {
+                const data = await (target === "#updates" ? GetMissingUpdates() : GetMissingDLC());
+                if (generation !== libraryDataGeneration) return;
+                state[target === "#updates" ? "updates" : "dlc"] = data;
+            }
+            if (activeTabTarget !== target || currTable !== table) return;
+            // Library rows remain in place. Missing-content rows and counts need
+            // a new render, retaining the user's current view where possible.
+            if (target !== "#library") {
+                loadTab(target);
+                if (currTable) {
+                    currTable.setSort(sorters);
+                    filters.forEach(({field, value}) => currTable.setHeaderFilterValue(field, value));
+                    await currTable.setPage(Math.max(1, Math.min(page, currTable.getPageMax())));
+                    const rows = currTable.getRows("display");
+                    const next = rows[Math.min(Math.max(rowIndex, 0), rows.length - 1)];
+                    if (next) next.getElement().focus();
+                    else document.querySelector(target).focus();
+                } else document.querySelector(target).focus();
+            } else if (rowElement?.isConnected) rowElement.focus({preventScroll: true});
+        } catch (error) {
+            const title = saved ? "Ignore preference saved; refresh failed" : "Could not save ignore preference";
+            const message = saved ? "Your change was saved. Select this tab again to retry loading it."
+                : "Your ignore preference was not changed. Please try again.";
+            if (saved && activeTabTarget === target && target !== "#library") {
+                destroyTables();
+                const notice = document.createElement("div");
+                notice.className = "alert alert-danger";
+                notice.setAttribute("role", "alert");
+                notice.textContent = message;
+                document.querySelector(target).replaceChildren(notice);
+                document.querySelector(target).focus();
+            }
+            await ShowMessage("error", title, message, settingsErrorMessage(error))
+                .catch(failure => console.error("Could not show ignore error:", failure));
+            if (!saved && currTable === table && rowElement?.isConnected) rowElement.focus({preventScroll: true});
+        } finally {
+            settingsSavePending = false;
+        }
+    }
+
     function hideGameDetailsPathTooltip() {
         if (gameDetailsPathTooltipHideTimer !== undefined) {
             window.clearTimeout(gameDetailsPathTooltipHideTimer);
@@ -289,6 +366,8 @@ $(function () {
         if (!titleID || commandsBlocked() || openDialog()) {
             return;
         }
+
+        rowContextMenu.close(false);
 
         const request = ++gameDetailsRequest;
         gameDetailsFileRequest++;
@@ -425,7 +504,7 @@ $(function () {
         return data.name;
     }
 
-    function gameDetailsTableOptions(options, kind) {
+    function gameDetailsTableOptions(options, kind, withContextMenu = true) {
         const optionsWithDetails = Object.assign({}, options || {});
         const rowFormatter = optionsWithDetails.rowFormatter;
         optionsWithDetails.rowFormatter = function (row) {
@@ -436,6 +515,7 @@ $(function () {
             element.setAttribute("tabindex", "-1");
             element.setAttribute("aria-haspopup", "dialog");
             element.setAttribute("aria-label", "Open details for " + label);
+            if (withContextMenu) element.setAttribute("aria-keyshortcuts", "Enter Space Shift+F10 ContextMenu");
             if (rowFormatter) {
                 rowFormatter.call(this, row);
             }
@@ -443,6 +523,7 @@ $(function () {
         optionsWithDetails.rowClick = function (event, row) {
             openGameDetails(detailRowTitleID(row.getData(), kind), row.getElement());
         };
+        if (withContextMenu) optionsWithDetails.rowContext = openRowMenu;
         return tableOptions(optionsWithDetails);
     }
 
@@ -480,6 +561,7 @@ $(function () {
 
     function showShortcutHelp() {
         if (commandsBlocked() || openDialog()) return;
+        rowContextMenu.close();
         shortcutReturnFocus = document.activeElement;
         renderShortcutHelp();
         shortcutDialog.showModal();
@@ -539,6 +621,7 @@ $(function () {
 
     function setLoading(loading) {
         loading = loading || restartRequired;
+        if (loading) rowContextMenu.close(false);
         wrapper.classList.toggle('is-loading', loading);
         wrapper.setAttribute('aria-busy', String(loading));
 
@@ -1056,7 +1139,7 @@ $(function () {
                             {title: "Region", headerSort:true,headerFilter:"input",formatter:"textarea", field: "region"},
                             {title: "Release date", headerSort:true, field: "release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD"}},
                         ],
-                    }, "games"), "missing_games");
+                    }, "games", false), "missing_games");
                 }
             }
             updateShortcutMetadata(document.querySelector(target));
@@ -1084,6 +1167,7 @@ $(function () {
                 return;
             }
             xlsxExportPending = true;
+            rowContextMenu.close(false);
             document.querySelectorAll(".export-xlsx-btn").forEach(button => button.disabled = true);
             try {
                 await exportTableXLSX(currTable, currTableExportKind, ExportXLSX);
@@ -1151,6 +1235,11 @@ $(function () {
                         .catch(error => console.error("Could not focus the next game row:", error));
                     break;
                 case "open-details": context.row.click(); break;
+                case "row-menu": {
+                    const row = currTable?.getRows("display").find(row => row.getElement() === context.row);
+                    if (row) openRowMenu(event, row);
+                    break;
+                }
                 case "dialog-tab": focusDialogControl(context.dialog === "help" ? shortcutDialog : gameDetailsDialog, event.shiftKey); break;
                 case "dismiss":
                     if (context.dialog === "help") shortcutDialog.close();

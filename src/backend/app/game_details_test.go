@@ -160,7 +160,7 @@ func TestBuildGameDetailsMarksIgnoredEntriesWithoutHidingThem(t *testing.T) {
 		},
 	}}
 	ignoreSettings := settings.MissingContentSettings{
-		IgnoreDLCUpdates:  true,
+		IgnoreDLCUpdates:  false,
 		IgnoreDLCTitleIDs: []string{"0100000000011003"},
 		IgnoreUpdateIDs:   []string{"0100000000010000"},
 	}

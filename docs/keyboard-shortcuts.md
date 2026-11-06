@@ -38,12 +38,17 @@ Search uses the **Title** filter in Library, Missing games and Missing updates, 
 | Tab / Shift+Tab | Move between controls and the table’s focused row |
 | ↑ / ↓ | Focus the previous or next game row |
 | Enter / Space | Open details for the focused game row |
+| Shift+F10 / Context Menu key | Open row actions in Library, Missing updates, or Missing DLC |
 | Escape | Close game details; if a file-path tooltip is showing, hide it first |
 | Alt+← | Close game details and return to the originating row |
 | Alt+→ | Reopen the last game details |
 | Cmd+[ / Cmd+] (macOS) | Back / Forward aliases |
 
 Row navigation follows the current filtered and sorted results, moves across pages automatically, and stops at the first or last result. It applies only when a game row itself has focus, so arrow keys and Space retain their normal behavior inside form controls.
+
+Right-click a row in **Library** to **Ignore updates** or **Resume checking updates**. In **Missing updates**, choose **Ignore updates** for the displayed game or DLC. In **Missing DLC**, choose **Ignore DLC** for that individual item. The menu also supports arrow keys, Enter/Space to select, and Escape or Tab to close.
+
+Changes save immediately to `missing_content.ignore_update_title_ids` or `missing_content.ignore_dlc_title_ids` in `settings.json`, without restarting or rescanning. Ignoring a game's updates also suppresses updates for its DLC; ignoring an individual DLC's updates affects only that DLC. Ignoring missing DLC is a separate preference. To resume checking an individual ignored DLC or DLC update, remove its ID in **Settings**. Ignored missing-content rows disappear, while Library rows remain available.
 
 Back/Forward remembers one game-details entry. Opening another game replaces it. Switching tabs or refreshing library data clears it. Closing details restores focus to the originating row when it is still available.
 
