@@ -1,0 +1,317 @@
+{
+  "settings": {
+    "schema_version": 2,
+    "gui": {
+      "enabled": true,
+      "page_size": 2,
+      "hide_missing_games": false,
+      "hide_demo_games": false,
+      "hide_version_string": false,
+      "remember_window_state": false,
+      "theme": "light"
+    },
+    "paths": {
+      "library_folder": "/synthetic/library",
+      "scan_folders": [],
+      "prod_keys": ""
+    },
+    "scan": {
+      "recursive": false,
+      "rescan_on_startup": true,
+      "ignore_file_types": [],
+      "ignore_unsupported_file_types": false
+    },
+    "organization": {
+      "create_folder_per_game": false,
+      "move_scan_files_to_library": false,
+      "dlc_folder": "",
+      "updates_folder": "",
+      "rename_files": true,
+      "delete_empty_folders": false,
+      "delete_old_update_files": false,
+      "folder_name_template": "{TITLE_NAME}",
+      "allow_unicode_file_names": false,
+      "file_name_template": "{TITLE_NAME} [{TITLE_ID}]",
+      "include_base_type": false,
+      "process_when_missing_base_game": false
+    },
+    "missing_content": {
+      "check_for_updates": true,
+      "check_for_dlc": true,
+      "ignore_dlc_updates": false,
+      "ignore_dlc_title_ids": [],
+      "ignore_update_title_ids": []
+    },
+    "data_sources": {
+      "titles_url": "https://example.invalid/titles.json",
+      "versions_url": "https://example.invalid/versions.json"
+    },
+    "logging": {
+      "debug": false
+    }
+  },
+  "library": {
+    "library_data": [
+      {
+        "id": 1,
+        "name": "Amber Adventure",
+        "version": "1.0.0",
+        "dlc": "",
+        "titleId": "0100000000010000",
+        "path": "Amber Adventure.nsp",
+        "icon": "/test-icon.svg",
+        "update": 0,
+        "region": "USA",
+        "type": "NSP"
+      },
+      {
+        "id": 2,
+        "name": "Birch \u0026 Bloom",
+        "version": "1.0.0",
+        "dlc": "",
+        "titleId": "0100000000020000",
+        "path": "Birch \u0026 Bloom.nsp",
+        "icon": "/test-icon.svg",
+        "update": 0,
+        "region": "USA",
+        "type": "NSP"
+      },
+      {
+        "id": 3,
+        "name": "Cobalt Quest",
+        "version": "1.0.0",
+        "dlc": "",
+        "titleId": "0100000000030000",
+        "path": "Cobalt Quest.nsp",
+        "icon": "/test-icon.svg",
+        "update": 0,
+        "region": "USA",
+        "type": "NSP"
+      }
+    ],
+    "issues": [
+      {
+        "key": "/synthetic/library/notes.txt",
+        "value": "file type is not supported"
+      }
+    ],
+    "num_files": 4
+  },
+  "missingGames": [
+    {
+      "name": "Distant Demo",
+      "titleId": "0100000000040000",
+      "icon": "/test-icon.svg",
+      "region": "EUR",
+      "release_date": "2026-04-01"
+    }
+  ],
+  "missingUpdates": [
+    {
+      "Attributes": {
+        "id": "0100000000010000",
+        "name": "Amber Adventure",
+        "region": "USA",
+        "ParsedReleaseDate": "2026-01-01",
+        "publisher": "Synthetic Studio",
+        "bannerUrl": "/test-icon.svg"
+      },
+      "Meta": null,
+      "local_update": 0,
+      "local_display_version": "",
+      "latest_update": 65536,
+      "latest_update_date": "2026-02-01",
+      "missing_dlc": [
+        {
+          "id": "0100000000011001",
+          "name": "Amber Expansion",
+          "release_date": "2026-03-01"
+        }
+      ]
+    }
+  ],
+  "missingDLC": [
+    {
+      "Attributes": {
+        "id": "0100000000010000",
+        "name": "Amber Adventure",
+        "region": "USA",
+        "ParsedReleaseDate": "2026-01-01",
+        "publisher": "Synthetic Studio",
+        "bannerUrl": "/test-icon.svg"
+      },
+      "Meta": null,
+      "local_update": 0,
+      "local_display_version": "",
+      "latest_update": 65536,
+      "latest_update_date": "2026-02-01",
+      "missing_dlc": [
+        {
+          "id": "0100000000011001",
+          "name": "Amber Expansion",
+          "release_date": "2026-03-01"
+        }
+      ]
+    }
+  ],
+  "details": {
+    "attributes": {
+      "id": "0100000000010000",
+      "name": "Amber Adventure",
+      "region": "USA",
+      "ParsedReleaseDate": "2026-01-01",
+      "publisher": "Synthetic Studio",
+      "bannerUrl": "/test-icon.svg"
+    },
+    "titleId": "0100000000010000",
+    "name": "Amber Adventure",
+    "release_date_text": "2026-01-01",
+    "remote_available": true,
+    "metadata_available": true,
+    "base_collected": true,
+    "base_path": "/synthetic/library/Amber Adventure.nsp",
+    "updates": [
+      {
+        "version": 65536,
+        "date": "2026-02-01",
+        "status": "missing",
+        "path": ""
+      }
+    ],
+    "local_only_updates": [],
+    "dlc": [
+      {
+        "titleId": "0100000000011001",
+        "name": "Amber Expansion",
+        "attributes": {
+          "id": "0100000000011001",
+          "ParsedReleaseDate": ""
+        },
+        "status": "missing",
+        "update_status": "",
+        "local_version": 0,
+        "has_local_version": false,
+        "available_version": 0,
+        "has_available_version": false,
+        "path": ""
+      }
+    ],
+    "local_only_dlc": []
+  },
+  "preview": {
+    "root_folder": "/synthetic/library",
+    "entries": [
+      {
+        "kind": "game",
+        "path": "Amber Adventure [0100000000010000].nsp"
+      }
+    ]
+  },
+  "organization": {
+    "status": "completed",
+    "conflict_count": 0,
+    "library": {
+      "library_data": [
+        {
+          "id": 1,
+          "name": "Amber Adventure",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000010000",
+          "path": "Amber Adventure.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        },
+        {
+          "id": 2,
+          "name": "Birch \u0026 Bloom",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000020000",
+          "path": "Birch \u0026 Bloom.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        },
+        {
+          "id": 3,
+          "name": "Cobalt Quest",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000030000",
+          "path": "Cobalt Quest.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        }
+      ],
+      "issues": [
+        {
+          "key": "/synthetic/library/notes.txt",
+          "value": "file type is not supported"
+        }
+      ],
+      "num_files": 4
+    }
+  },
+  "blockedOrganization": {
+    "status": "blocked",
+    "conflict_count": 1,
+    "library": {
+      "library_data": [
+        {
+          "id": 1,
+          "name": "Amber Adventure",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000010000",
+          "path": "Amber Adventure.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        },
+        {
+          "id": 2,
+          "name": "Birch \u0026 Bloom",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000020000",
+          "path": "Birch \u0026 Bloom.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        },
+        {
+          "id": 3,
+          "name": "Cobalt Quest",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000030000",
+          "path": "Cobalt Quest.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        }
+      ],
+      "issues": [
+        {
+          "key": "/synthetic/library/conflict.nsp",
+          "value": "organization conflict: destination exists"
+        }
+      ],
+      "num_files": 4
+    }
+  },
+  "progress": {
+    "curr": 1,
+    "total": 2,
+    "message": "Synthetic scan"
+  }
+}

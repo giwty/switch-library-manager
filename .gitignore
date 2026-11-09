@@ -7,3 +7,4 @@ bind_*_amd64.go
 astilectron-bundler.exe
 games/
 prod.keys
+node_modules/

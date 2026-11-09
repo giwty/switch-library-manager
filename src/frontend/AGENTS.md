@@ -25,3 +25,10 @@
 
 - Avoid adding browser or Node APIs when a Wails runtime or Go binding is more appropriate.
 - Do not put secrets, prod.keys, or game paths into frontend fixtures or logs.
+
+## Automated Validation
+
+- From `src`, run `npm run test:unit` and `npm run test:ui`. Prefer headless Chromium and saved screenshots/traces for UI validation. Do not request desktop control for routine UI changes, test failures, or setup problems; native desktop automation requires an explicit user request.
+- Browser tests load the real frontend and generated Wails wrappers with a simulated Go/runtime bridge. Keep test-only code outside `frontend` so it is not embedded in packaged builds.
+- Update shared synthetic fixtures through `TestFrontendFixtureContracts` when DTOs change, then review the resulting JSON and browser behavior together. Unexpected bridge calls, browser errors, and external requests must fail tests.
+- Test light/dark themes at both configured window sizes. Artifacts are saved under ignored `build/test-results` relative to `src`; reports and browsers must not open automatically.

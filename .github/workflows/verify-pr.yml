@@ -16,8 +16,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    env:
+      GOFLAGS: -tags=webkit2_41
     steps:
       - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment
@@ -26,42 +32,64 @@ jobs:
 
       - name: Run Go tests
         working-directory: ./src
-        shell: bash
-        run: |
-          set -euo pipefail
-          go test -tags webkit2_41 ./...
-          go vet -tags webkit2_41 ./...
+        run: npm run test:backend
 
       - name: Analyze core coverage
         working-directory: ./src
-        shell: bash
-        run: |
-          set -euo pipefail
+        run: npm run test:coverage
 
-          packages=(./backend/db ./backend/fileio ./backend/process ./backend/settings ./backend/switchfs ./backend/switchfs/_crypto)
-          coverage_file="$(mktemp)"
-          trap 'rm -f "$coverage_file"' EXIT
-          first_profile=true
-
-          for package in "${packages[@]}"; do
-            package_profile="$(mktemp)"
-            go test -tags webkit2_41 -count=1 -covermode=atomic -coverprofile="$package_profile" "$package"
-            if [[ "$first_profile" == true ]]; then
-              cat "$package_profile" > "$coverage_file"
-              first_profile=false
-            else
-              tail -n +2 "$package_profile" >> "$coverage_file"
-            fi
-            rm -f "$package_profile"
-          done
-
-          go tool cover -func="$coverage_file"
-          coverage="$(go tool cover -func="$coverage_file" | awk '/^total:/ {gsub(/%/, "", $3); print $3}')"
-          echo "Core logic statement coverage: ${coverage}%"
-          awk -v coverage="$coverage" 'BEGIN { if (coverage < 90) exit 1 }'
+      - name: Run race detector
+        working-directory: ./src
+        env:
+          CGO_ENABLED: "1"
+        run: npm run test:race
 
       - name: Build app
         uses: ./.github/actions/build-app
         with:
           platform: linux/amd64
           webkit-version: "4.1"
+
+  backend-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27"
+          cache-dependency-path: src/go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Run Go tests and vet
+        working-directory: ./src
+        run: npm run test:backend
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ./src
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run JavaScript unit tests
+        run: npm run test:unit
+      - name: Run headless UI tests
+        run: npm run test:ui
+      - name: Upload browser validation artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: headless-ui-results
+          path: |
+            src/build/test-results/playwright-report
+            src/build/test-results/ui
+          if-no-files-found: warn
+          retention-days: 7

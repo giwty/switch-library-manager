@@ -1,0 +1,17 @@
+{
+  "name": "switch-library-manager-validation",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "test": "node scripts/test.mjs all",
+    "test:backend": "node scripts/test.mjs backend",
+    "test:unit": "node scripts/test.mjs unit",
+    "test:ui": "node scripts/test.mjs ui",
+    "test:coverage": "node scripts/test.mjs coverage",
+    "test:race": "node scripts/test.mjs race"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}

@@ -38,13 +38,17 @@ When adding reusable logic, put it in the narrowest package that owns the behavi
 
 ## Commands
 
+Prefer the shared automated workflow below. Do not request desktop control for routine validation or setup failures; native desktop automation requires an explicit user request.
+
 ```text
 cd src
-gofmt -w <changed-go-files>
-go test ./...
-go vet ./...
+npm test
+npm run test:coverage
+npm run test:race
 ```
 
+- `npm run test:backend` runs Go formatting checks, `go test ./...`, explicit crypto tests, and vet. The runner normalizes CRLF only in disposable formatting copies and never rewrites source files.
+- `npm run test:unit` and `npm run test:ui` run the JavaScript and headless Chromium layers independently. Node.js 24 and the pinned development dependencies are test tooling, not an application frontend build pipeline.
 - Always run `go test ./...` when verifying a Go task; a task is not complete until the tests pass.
 - Core logic coverage is required to be at least 90% in aggregate across `backend/db`, `backend/fileio`, `backend/process`, `backend/settings`, `backend/switchfs`, and `backend/switchfs/_crypto`. The GUI, CLI orchestration, and generated bindata are not part of that threshold.
 - The repository uses synthetic fixtures and temporary directories for tests. Report whether verification used filename fallback, synthetic parser/filesystem fixtures, or real encrypted Switch files.

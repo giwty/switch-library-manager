@@ -47,14 +47,22 @@
 
 ## Verification
 
+Use backend, JavaScript, and headless UI tests as the default verification workflow. Do not request Windows or desktop control for routine testing, test failures, or environment setup problems. Use native desktop automation only when the user explicitly requests it; otherwise report any native behavior that remains unverified.
+
+Follow the [agent validation guide](docs/testing.md) for setup, fixtures, screenshots, and troubleshooting. Do not add this guide to the README; it is agent-facing documentation.
+
 From `src`:
 
 ```text
-gofmt -l .
-go test ./...
-go vet ./...
+npm ci
+npx playwright install chromium
+npm test
 ```
 
+- `npm test` checks Go formatting, runs `go test ./...`, explicitly tests the underscore-prefixed crypto package, runs Go vet, runs the Node unit tests, and runs headless Chromium UI tests. Focused commands are `npm run test:backend`, `npm run test:unit`, and `npm run test:ui`.
+- Use `npm run test:coverage` for the 90% core coverage gate and `npm run test:race` for race checks. On Linux with WebKitGTK 4.1, set `GOFLAGS=-tags=webkit2_41` for these commands.
+- Tests use per-run temporary directories under ignored `src/build/test-results`. Browser reports never open automatically. Inspect saved screenshots and traces instead of requesting desktop access.
+- Localhost access is required for HTTP fixtures and the UI server. If command sandbox permissions block it, use the normal command approval mechanism or CI; do not request desktop control or silently skip failing tests.
 - Every task that changes Go code must run `go test ./...` before it is considered complete. Report the test command and result in the task summary.
 - Core logic coverage is measured for `backend/db`, `backend/fileio`, `backend/process`, `backend/settings`, `backend/switchfs`, and `backend/switchfs/_crypto`; presentation packages and generated bindata are excluded from the coverage threshold.
 - The required aggregate core-logic statement coverage is 90%. The `verify-pr` workflow generates and analyzes the combined coverage profile.

@@ -22,3 +22,6 @@
 - PR verification builds the Linux application against WebKitGTK 4.1 on Ubuntu 24.04. Run `go test -tags webkit2_41 ./...` and `go vet -tags webkit2_41 ./...` from `src` before the build. Master and tagged-release workflows continue building both variants: WebKitGTK 4.0 on Ubuntu 22.04 and 4.1 on Ubuntu 24.04.
 - `workflows/verify-pr.yml` must analyze aggregate statement coverage for `backend/db`, `backend/fileio`, `backend/process`, `backend/settings`, `backend/switchfs`, and `backend/switchfs/_crypto`, and fail when coverage is below 90%.
 - For workflow edits, validate YAML structure and reason about missing artifact behavior (`if-no-files-found: error`) before merging.
+- PR verification uses the shared Node 24 test runner: Go tests/vet on Linux and Windows, Linux coverage/race checks, and an Ubuntu headless Chromium job including the existing Node unit tests. Preserve the Linux packaged build and Xvfb startup smoke check.
+- Browser artifacts use `src/build/test-results`, never open reports automatically, and are uploaded even when tests fail. Missing artifacts after setup failures should warn rather than hide the original failure.
+- Prefer automated backend and headless UI validation. Do not request desktop control for test failures or setup problems; native desktop automation requires an explicit user request.
