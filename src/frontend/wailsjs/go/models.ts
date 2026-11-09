@@ -587,6 +587,7 @@ export namespace settings {
 	    hide_version_string: boolean;
 	    remember_window_state: boolean;
 	    theme: string;
+	    date_format: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GUISettings(source);
@@ -601,6 +602,7 @@ export namespace settings {
 	        this.hide_version_string = source["hide_version_string"];
 	        this.remember_window_state = source["remember_window_state"];
 	        this.theme = source["theme"];
+	        this.date_format = source["date_format"];
 	    }
 	}
 	export class AppSettings {

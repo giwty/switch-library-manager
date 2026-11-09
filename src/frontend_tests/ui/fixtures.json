@@ -8,7 +8,8 @@
       "hide_demo_games": false,
       "hide_version_string": false,
       "remember_window_state": false,
-      "theme": "light"
+      "theme": "light",
+      "date_format": "YYYY-MM-DD"
     },
     "paths": {
       "library_folder": "/synthetic/library",
@@ -60,7 +61,8 @@
         "hide_demo_games": false,
         "hide_version_string": false,
         "remember_window_state": false,
-        "theme": "light"
+        "theme": "light",
+        "date_format": "YYYY-MM-DD"
       },
       "paths": {
         "library_folder": "/synthetic/library",
@@ -115,7 +117,8 @@
         "hide_demo_games": false,
         "hide_version_string": false,
         "remember_window_state": false,
-        "theme": "light"
+        "theme": "light",
+        "date_format": "YYYY-MM-DD"
       },
       "paths": {
         "library_folder": "/synthetic/another-library",
@@ -224,6 +227,7 @@
         "id": "0100000000010000",
         "name": "Amber Adventure",
         "region": "USA",
+        "releaseDate": 20260101,
         "ParsedReleaseDate": "2026-01-01",
         "publisher": "Synthetic Studio",
         "bannerUrl": "/test-icon.svg"
@@ -248,6 +252,7 @@
         "id": "0100000000010000",
         "name": "Amber Adventure",
         "region": "USA",
+        "releaseDate": 20260101,
         "ParsedReleaseDate": "2026-01-01",
         "publisher": "Synthetic Studio",
         "bannerUrl": "/test-icon.svg"
@@ -271,6 +276,7 @@
       "id": "0100000000010000",
       "name": "Amber Adventure",
       "region": "USA",
+      "releaseDate": 20260101,
       "ParsedReleaseDate": "2026-01-01",
       "publisher": "Synthetic Studio",
       "bannerUrl": "/test-icon.svg"
@@ -297,7 +303,8 @@
         "name": "Amber Expansion",
         "attributes": {
           "id": "0100000000011001",
-          "ParsedReleaseDate": ""
+          "releaseDate": 20260301,
+          "ParsedReleaseDate": "2026-03-01"
         },
         "status": "missing",
         "update_status": "",

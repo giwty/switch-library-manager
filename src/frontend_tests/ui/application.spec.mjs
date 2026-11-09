@@ -413,6 +413,13 @@ for (const theme of ['light', 'dark']) for (const width of [1280, 800]) {
         await app.tab('Settings');
         await expect(page.locator('#settings-gui-page-size')).toBeVisible();
         await capture('settings');
+        await page.locator('#settings-gui-date-format').selectOption('custom');
+        await page.locator('#settings-gui-date-format-custom').fill('MMMM D, YYYY');
+        await expect(page.locator('#settings-date-format-example')).toHaveText('Example: November 23, 2026');
+        const dateInput = await page.locator('#settings-gui-date-format-custom').boundingBox();
+        expect(dateInput.x).toBeGreaterThanOrEqual(0);
+        expect(dateInput.x + dateInput.width).toBeLessThanOrEqual(width + 1);
+        await capture('settings-custom-date');
         await app.tab('Library');
         await expect(page.locator('#library-tab')).toHaveAttribute('aria-selected', 'true');
     });

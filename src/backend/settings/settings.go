@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/mcuadros/go-version"
+	"github.com/trembon/switch-library-manager/backend/dateformat"
 	"go.uber.org/zap"
 )
 
@@ -60,6 +61,7 @@ type GUISettings struct {
 	HideVersionString   bool   `json:"hide_version_string"`
 	RememberWindowState bool   `json:"remember_window_state"`
 	Theme               string `json:"theme"`
+	DateFormat          string `json:"date_format"`
 }
 
 type PathSettings struct {
@@ -258,6 +260,9 @@ func PrepareSettings(baseFolder string) (*SettingsPreparation, error) {
 		return nil, fmt.Errorf("decode settings: %w; the file was not changed", err)
 	}
 	verifySettings(loaded)
+	if _, err := dateformat.New(loaded.GUI.DateFormat); err != nil {
+		return nil, fmt.Errorf("gui.date_format: %w; the file was not changed", err)
+	}
 	settingsInstance = loaded
 	return &SettingsPreparation{Settings: settingsInstance}, nil
 }
@@ -301,9 +306,10 @@ func defaultSettings() *AppSettings {
 	return &AppSettings{
 		SchemaVersion: SETTINGS_SCHEMA_VERSION,
 		GUI: GUISettings{
-			Enabled:  true,
-			PageSize: 100,
-			Theme:    ThemeInherit,
+			Enabled:    true,
+			PageSize:   100,
+			Theme:      ThemeInherit,
+			DateFormat: dateformat.Default,
 		},
 		Paths: PathSettings{ScanFolders: []string{}},
 		Scan:  ScanSettings{Recursive: true, IgnoreFileTypes: []string{}},
@@ -328,6 +334,7 @@ func defaultSettings() *AppSettings {
 
 func verifySettings(settings *AppSettings) {
 	settings.GUI.Theme = NormalizeTheme(settings.GUI.Theme)
+	settings.GUI.DateFormat = dateformat.Normalize(settings.GUI.DateFormat)
 	if settings.DataSources.TitlesURL == "" {
 		settings.DataSources.TitlesURL = DEFAULT_TITLES_JSON_URL
 	}
@@ -442,6 +449,9 @@ func ValidateSettings(settings *AppSettings) error {
 }
 
 func validateSettings(settings *AppSettings) error {
+	if _, err := dateformat.New(settings.GUI.DateFormat); err != nil {
+		return fmt.Errorf("gui.date_format: %w", err)
+	}
 	if err := validateDataSourceURL("titles_url", settings.DataSources.TitlesURL); err != nil {
 		return err
 	}

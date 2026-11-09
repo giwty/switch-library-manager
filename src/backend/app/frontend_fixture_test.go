@@ -30,7 +30,7 @@ type frontendFixture struct {
 }
 
 func TestFrontendFixtureContracts(t *testing.T) {
-	attributes := db.TitleAttributes{Id: detailsBaseID, Name: "Amber Adventure", Region: "USA", Publisher: "Synthetic Studio", ParsedReleaseDate: "2026-01-01", BannerUrl: "/test-icon.svg"}
+	attributes := db.TitleAttributes{Id: detailsBaseID, Name: "Amber Adventure", Region: "USA", Publisher: "Synthetic Studio", ReleaseDate: 20260101, ParsedReleaseDate: "2026-01-01", BannerUrl: "/test-icon.svg"}
 	rows := []LibraryTemplateData{}
 	for i, name := range []string{"Amber Adventure", "Birch & Bloom", "Cobalt Quest"} {
 		rows = append(rows, LibraryTemplateData{Id: i + 1, Name: name, TitleId: []string{detailsBaseID, "0100000000020000", "0100000000030000"}[i], Path: name + ".nsp", Icon: "/test-icon.svg", Region: "USA", Type: "NSP", Version: "1.0.0"})
@@ -40,7 +40,7 @@ func TestFrontendFixtureContracts(t *testing.T) {
 	fixture := frontendFixture{
 		Settings: settings.AppSettings{
 			SchemaVersion:  settings.SETTINGS_SCHEMA_VERSION,
-			GUI:            settings.GUISettings{Enabled: true, PageSize: 2, Theme: settings.ThemeLight},
+			GUI:            settings.GUISettings{Enabled: true, PageSize: 2, Theme: settings.ThemeLight, DateFormat: "YYYY-MM-DD"},
 			Paths:          settings.PathSettings{LibraryFolder: "/synthetic/library", ScanFolders: []string{}},
 			Scan:           settings.ScanSettings{IgnoreFileTypes: []string{}, RescanOnStartup: true},
 			Organization:   settings.OrganizationSettings{RenameFiles: true, FolderNameTemplate: "{TITLE_NAME}", FileNameTemplate: "{TITLE_NAME} [{TITLE_ID}]"},
@@ -50,7 +50,7 @@ func TestFrontendFixtureContracts(t *testing.T) {
 		Library:        library,
 		MissingGames:   []SwitchTitle{{Name: "Distant Demo", TitleId: "0100000000040000", Icon: "/test-icon.svg", Region: "EUR", ReleaseDate: "2026-04-01"}},
 		MissingUpdates: []process.IncompleteTitle{incomplete}, MissingDLC: []process.IncompleteTitle{incomplete},
-		Details:             GameDetails{Attributes: attributes, TitleID: detailsBaseID, Name: attributes.Name, ReleaseDateText: "2026-01-01", RemoteAvailable: true, MetadataAvailable: true, BaseCollected: true, BasePath: "/synthetic/library/Amber Adventure.nsp", Updates: []GameUpdateDetail{{Version: 65536, Date: "2026-02-01", Status: "missing"}}, LocalOnlyUpdates: []GameUpdateDetail{}, DLC: []GameDLCDetail{{TitleID: detailsDLCID, Name: "Amber Expansion", Attributes: db.TitleAttributes{Id: detailsDLCID}, Status: "missing"}}, LocalOnlyDLC: []GameDLCDetail{}},
+		Details:             GameDetails{Attributes: attributes, TitleID: detailsBaseID, Name: attributes.Name, ReleaseDateText: "2026-01-01", RemoteAvailable: true, MetadataAvailable: true, BaseCollected: true, BasePath: "/synthetic/library/Amber Adventure.nsp", Updates: []GameUpdateDetail{{Version: 65536, Date: "2026-02-01", Status: "missing"}}, LocalOnlyUpdates: []GameUpdateDetail{}, DLC: []GameDLCDetail{{TitleID: detailsDLCID, Name: "Amber Expansion", Attributes: db.TitleAttributes{Id: detailsDLCID, ReleaseDate: 20260301, ParsedReleaseDate: "2026-03-01"}, Status: "missing"}}, LocalOnlyDLC: []GameDLCDetail{}},
 		Preview:             OrganizationPreview{RootFolder: "/synthetic/library", Entries: []OrganizationPreviewEntry{{Kind: "game", Path: "Amber Adventure [0100000000010000].nsp"}}},
 		Organization:        OrganizationResult{Status: "completed", Library: library},
 		BlockedOrganization: OrganizationResult{Status: "blocked", ConflictCount: 1, Library: LocalLibraryData{LibraryData: rows, NumFiles: 4, Issues: []Pair{{Key: "/synthetic/library/conflict.nsp", Value: "organization conflict: destination exists"}}}},

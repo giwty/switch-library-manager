@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
+import {dateColumnOptions, formatDate} from "../frontend/date_format.js";
 
 const source = await readFile(new URL("../frontend/app.js", import.meta.url), "utf8");
 const functionStart = source.indexOf("        function loadTab(target) {");
@@ -24,6 +25,7 @@ function createLibraryRenderer(library, target = "#library") {
         }
     };
     const context = {
+        dateColumnOptions,
         activeTabTarget: "#library", tabRenderGeneration: 0, keyboardFocusTarget: null,
         document: {querySelector() {return {}; }},
         updateShortcutMetadata() {}, scheduleTabFocus() {},
@@ -107,6 +109,7 @@ test("Game Details renders DLC release dates and unknowns without changing the l
     const context = {window: {}};
     vm.createContext(context);
     vm.runInContext(jsrender, context);
+    vm.runInContext(await readFile(new URL("../frontend/lib/js/moment/moment.min.js", import.meta.url), "utf8"), context);
     const block = index.match(/<section class="game-details-section" aria-labelledby="game-details-dlc-heading">[\s\S]*?<\/section>/)?.[0];
     assert.ok(block, "DLC details section exists");
     const template = context.window.jsrender.templates(block);
@@ -118,7 +121,7 @@ test("Game Details renders DLC release dates and unknowns without changing the l
             {titleId: "0100000000011003", name: "Empty date", attributes: {}}
         ],
         local_only_dlc: [{titleId: "0100000000011004", name: "Local-only pack"}]
-    });
+    }, {formatDate: value => formatDate(value, "YYYY-MM-DD", context.moment) || "Unknown"});
     assert.match(rendered, /Title ID<\/th><th scope="col">Release date<\/th><th scope="col">Versions/);
     assert.match(rendered, /0100000000011001<\/code><\/td>\s*<td>2024-01-02<\/td>/);
     for (const id of ["0100000000011002", "0100000000011003"]) {

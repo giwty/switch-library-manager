@@ -32,6 +32,7 @@ import { createRowNavigation } from './row_navigation.js'
 import { exportTableXLSX } from './xlsx_export.js'
 import { contentIgnoreAction, mergeIgnoreDraft } from './content_ignore.js'
 import { createRowContextMenu } from './row_context_menu.js'
+import { DATE_FORMAT_PRESETS, dateFormatError, formatDate, dateColumnOptions } from './date_format.js'
 
 $(function () {
 
@@ -388,7 +389,9 @@ $(function () {
                 return;
             }
             gameDetailsDialog.setAttribute("aria-label", details.name ? "Game details for " + details.name : "Game details");
-            gameDetailsContent.innerHTML = $("#gameDetailsTemplate").render(details);
+            gameDetailsContent.innerHTML = $("#gameDetailsTemplate").render(details, {
+                formatDate: value => formatDate(value, state.settings.gui.date_format) || "Unknown"
+            });
             renderGameDetailsFileActions();
         }).catch(error => {
             if (request !== gameDetailsRequest || !gameDetailsDialog.open) {
@@ -846,10 +849,32 @@ $(function () {
                 state.settingsDraft = cloneSettings(state.settings);
             }
             let templateData = Object.assign({}, state.settingsDraft, {
-                feedback: state.settingsFeedback
+                feedback: state.settingsFeedback,
+                dateFormatPreset: DATE_FORMAT_PRESETS.includes(state.settingsDraft.gui.date_format) ? state.settingsDraft.gui.date_format : "custom"
             });
             let settingsHtml = $("#settingsTemplate").render(templateData);
             $("#settings").html(settingsHtml);
+            updateDateFormatControls();
+        }
+
+        function updateDateFormatControls() {
+            const preset = document.getElementById("settings-gui-date-format");
+            if (!preset) return true;
+            const input = document.getElementById("settings-gui-date-format-custom");
+            const custom = preset.value === "custom";
+            document.getElementById("settings-date-format-custom-row").hidden = !custom;
+            input.disabled = !custom;
+            input.required = custom;
+            if (!custom) input.value = preset.value;
+            const pattern = custom ? input.value : preset.value;
+            const error = custom && !pattern.trim() ? "Enter a custom date format." : dateFormatError(pattern);
+            input.setCustomValidity(error);
+            input.classList.toggle("is-invalid", Boolean(error));
+            input.setAttribute("aria-invalid", String(Boolean(error)));
+            document.getElementById("settings-date-format-error").textContent = error;
+            document.getElementById("settings-date-format-example").textContent = error ? "Example unavailable" :
+                "Example: " + formatDate("2026-11-23", pattern);
+            return !error;
         }
 
         function showSettingsFeedback(type, message) {
@@ -874,7 +899,9 @@ $(function () {
                     hide_demo_games: form.elements.gui_hide_demo_games.checked,
                     hide_version_string: form.elements.gui_hide_version_string.checked,
                     remember_window_state: form.elements.gui_remember_window_state.checked,
-                    theme: form.elements.gui_theme.value
+                    theme: form.elements.gui_theme.value,
+                    date_format: form.elements.gui_date_format_preset.value === "custom" ?
+                        form.elements.gui_date_format_custom.value : form.elements.gui_date_format_preset.value
                 },
                 paths: {
                     library_folder: form.elements.paths_library_folder.value.trim(),
@@ -1023,7 +1050,7 @@ $(function () {
                                 return content;
                             }},
                             {title: "Available update", headerSort:false, field: "latest_update", hozAlign: "right"},
-                            {title: "Update date", headerSort:true, field: "latest_update_date",sorter:"date", sorterParams:{format:"YYYY-MM-DD"}}
+                            {title: "Update date", headerSort:true, field: "latest_update_date", ...dateColumnOptions(state.settings.gui?.date_format)}
                         ],
                     }, "updates"), "missing_updates");
                 }
@@ -1060,11 +1087,7 @@ $(function () {
                             {formatter:"rownum",download:false},
                             {title: "Missing DLC", field: "dlc.name", headerFilter:"input", formatter:"textarea"},
                             {title: "DLC ID", field: "dlc.id", headerFilter:"input"},
-                            {title: "Release date", field: "dlc.release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD", alignEmptyValues:"bottom"}, formatter: function (cell) {
-                                const content = document.createElement("span");
-                                content.textContent = cell.getValue() || "Unknown";
-                                return content;
-                            }},
+                            {title: "Release date", field: "dlc.release_date", ...dateColumnOptions(state.settings.gui?.date_format)},
                             {title: "Title", field: "game.name", headerFilter:"input", formatter:"textarea", width:350},
                             {title: "Title ID", field: "game.id", headerFilter:"input"}
                         ],
@@ -1164,7 +1187,7 @@ $(function () {
                             {field: "name",title: "Title",  headerFilter:"input",formatter:"textarea",width:350},
                             {title: "Title ID", headerSort:false, headerFilter:"input", field: "titleId"},
                             {title: "Region", headerSort:true,headerFilter:"input",formatter:"textarea", field: "region"},
-                            {title: "Release date", headerSort:true, field: "release_date", sorter:"date", sorterParams:{format:"YYYY-MM-DD"}},
+                            {title: "Release date", headerSort:true, field: "release_date", ...dateColumnOptions(state.settings.gui?.date_format)},
                         ],
                     }, "games", false), "missing_games");
                 }
@@ -1301,6 +1324,7 @@ $(function () {
         });
 
         $("body").on("input change", "#settings-form input, #settings-form select", () => {
+            updateDateFormatControls();
             captureSettingsDraft();
             state.settingsFeedback = undefined;
         });
@@ -1342,6 +1366,10 @@ $(function () {
         $("body").on("submit", "#settings-form", e => {
             e.preventDefault();
             if (commandsBlocked() || openDialog()) {
+                return;
+            }
+            if (!updateDateFormatControls()) {
+                document.getElementById("settings-gui-date-format-custom").reportValidity();
                 return;
             }
             const value = collectSettings(e.currentTarget);

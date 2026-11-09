@@ -22,7 +22,7 @@ func TestSettingsRestartPolicyCoversEverySetting(t *testing.T) {
 	expected := map[string]impact{}
 	for _, path := range []string{
 		"SchemaVersion", "GUI.Enabled", "GUI.PageSize", "GUI.HideMissingGames", "GUI.HideDemoGames",
-		"GUI.HideVersionString", "GUI.RememberWindowState", "GUI.Theme", "Scan.RescanOnStartup",
+		"GUI.HideVersionString", "GUI.RememberWindowState", "GUI.Theme", "GUI.DateFormat", "Scan.RescanOnStartup",
 		"MissingContent.CheckForUpdates", "MissingContent.CheckForDLC", "MissingContent.IgnoreDLCUpdates",
 		"MissingContent.IgnoreDLCTitleIDs", "MissingContent.IgnoreUpdateIDs",
 		"Organization.CreateFolderPerGame", "Organization.MoveScanFilesToLibrary", "Organization.DlcFolder",
@@ -100,7 +100,7 @@ func TestSettingsRestartPolicyCoversEverySetting(t *testing.T) {
 func TestSettingsSaveIntegration(t *testing.T) {
 	scenario := os.Getenv("SLM_SETTINGS_SCENARIO")
 	if scenario == "" {
-		for _, name := range []string{"live", "unchanged", "restart", "invalid", "snapshot failure", "save failure"} {
+		for _, name := range []string{"live", "date format", "unchanged", "restart", "invalid", "snapshot failure", "save failure"} {
 			t.Run(name, func(t *testing.T) { runSettingsProcess(t, name, "") })
 		}
 		return
@@ -176,6 +176,8 @@ func TestSettingsSaveIntegration(t *testing.T) {
 	}
 	candidate := normalizeSettings(initial)
 	switch scenario {
+	case "date format":
+		candidate.GUI.DateFormat = "MMMM D, YYYY"
 	case "live":
 		candidate.Organization.RenameFiles = true
 		candidate.Organization.AllowUnicodeFileNames = true
@@ -190,6 +192,7 @@ func TestSettingsSaveIntegration(t *testing.T) {
 	case "restart", "save failure":
 		candidate.Paths.LibraryFolder = newFolder
 		candidate.Organization.AllowUnicodeFileNames = true
+		candidate.GUI.DateFormat = "MMMM D, YYYY"
 		if scenario == "save failure" {
 			a.baseFolder = filepath.Join(base, "nonexistent")
 		}
@@ -241,6 +244,22 @@ func TestSettingsSaveIntegration(t *testing.T) {
 	}
 	if result.RestartRequired != (scenario == "restart") {
 		t.Fatalf("restart = %v for %s", result.RestartRequired, scenario)
+	}
+	if scenario == "date format" {
+		if result.Library != nil || result.Settings.GUI.DateFormat != candidate.GUI.DateFormat {
+			t.Fatalf("date format save result = %#v", result)
+		}
+		loaded, err := settings.ReadSettings(base)
+		if err != nil || loaded.GUI.DateFormat != candidate.GUI.DateFormat {
+			t.Fatalf("date format was not published: %#v, %v", loaded, err)
+		}
+		if err := os.WriteFile(filepath.Join(initial.Paths.LibraryFolder, "Extra [0100000000020000][v0].nsp"), []byte("synthetic"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		library, err := a.UpdateLocalLibrary(false)
+		if err != nil || library.NumFiles != 1 {
+			t.Fatalf("date-only save invalidated snapshot: %#v, %v", library, err)
+		}
 	}
 	if scenario == "restart" {
 		if result.Library != nil || !reflect.DeepEqual(result.RestartReasons, []string{"Library folder"}) {

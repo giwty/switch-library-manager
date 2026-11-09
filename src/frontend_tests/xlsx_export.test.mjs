@@ -3,6 +3,7 @@ import {readFile} from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 import {exportTableXLSX, reportFromExportList} from "../frontend/xlsx_export.js";
+import {dateColumnOptions} from "../frontend/date_format.js";
 
 const appSource = await readFile(new URL("../frontend/app.js", import.meta.url), "utf8");
 const tabulatorSource = await readFile(new URL("../frontend/lib/js/tabulator/tabulator.min.js", import.meta.url), "utf8");
@@ -14,23 +15,30 @@ const modules = libraryContext.Tabulator.prototype.moduleBindings;
 
 function column(definition) {
     const column = {
-        definition, columns: [], visible: definition.visible !== false,
+        definition, modules: {}, columns: [], visible: definition.visible !== false,
         getComponent() { return {_column: column}; },
-        getFieldValue(data) { return definition.field?.split(".").reduce((value, key) => value?.[key], data); }
+        getFieldValue(data) { return definition.field?.split(".").reduce((value, key) => value?.[key], data); },
+        setFieldValue(data, value) {
+            const path = definition.field.split(".");
+            const key = path.pop();
+            path.reduce((value, key) => value[key], data)[key] = value;
+        }
     };
     return column;
 }
 
 function tableFor(definitions, data) {
     const columns = definitions.map(column);
-    const rows = data.map(value => ({type: "row", getData: () => value, getComponent: () => ({})}));
+    const rows = data.map(value => ({type: "row", getData: type => type ? table.modules.accessor.transformRow(value, type) : value, getComponent: () => ({})}));
     const table = {
         options: {},
-        columnManager: {columns, columnsByIndex: columns},
+        columnManager: {columns, columnsByIndex: columns, traverse: callback => columns.forEach(callback)},
         rowManager: {rows, getDisplayRows: () => rows.slice(0, 1)},
         modExists: () => false,
         modules: {},
     };
+    table.modules.accessor = new modules.accessor(table);
+    columns.forEach(column => table.modules.accessor.initializeColumn(column));
     table.modules.export = new modules.export(table);
     table.modules.download = new modules.download(table);
     table.download = (...args) => table.modules.download.download(...args);
@@ -80,6 +88,7 @@ test("all five GUI tabs supply the correct report kind to the export adapter", (
         missingGames: [{name: "test"}]
     };
     const context = {state, $: () => ui, hideCurrentTab() {}, gameDetailsTableOptions: value => value, tableOptions: value => value,
+        dateColumnOptions: pattern => dateColumnOptions(pattern, libraryContext.moment),
         activeTabTarget: "#library", tabRenderGeneration: 0, keyboardFocusTarget: null,
         document: {querySelector() {return {}; }}, updateShortcutMetadata() {}, scheduleTabFocus() {},
         createTable(selector, options, kind) {captured.push({selector, options, kind});}};
@@ -98,6 +107,7 @@ test("Missing DLC sorts newest releases across games and exports dates with blan
     let options;
     const ui = {addClass() {return this;}, attr() {return this;}, show() {return this;}, html() {return this;}, render() {return "";}};
     const context = {
+        dateColumnOptions: pattern => dateColumnOptions(pattern, libraryContext.moment),
         activeTabTarget: "#library", tabRenderGeneration: 0, keyboardFocusTarget: null,
         updateShortcutMetadata() {}, scheduleTabFocus() {},
         state: {
@@ -134,7 +144,6 @@ test("Missing DLC sorts newest releases across games and exports dates with blan
     table.columnManager.findColumn = field => table.columnManager.columns.find(value => value.definition.field === field);
     table.modules.sort = new modules.sort(table);
     for (const value of table.columnManager.columns) {
-        value.modules = {};
         value.getField = () => value.definition.field;
         value.getElement = () => ({setAttribute() {}});
         table.modules.sort.initializeColumn(value, {});
@@ -147,8 +156,8 @@ test("Missing DLC sorts newest releases across games and exports dates with blan
     ]);
 
     const dateColumn = options.columns.find(value => value.field === "dlc.release_date");
-    assert.equal(dateColumn.formatter({getValue: () => "2024-01-02"}).textContent, "2024-01-02");
-    assert.equal(dateColumn.formatter({getValue: () => ""}).textContent, "Unknown");
+    assert.equal(dateColumn.formatter({getValue: () => "2024-01-02"}), "2024-01-02");
+    assert.equal(dateColumn.formatter({getValue: () => ""}), "Unknown");
     let report;
     await exportTableXLSX(table, "missing_dlc", async value => {report = value;});
     assert.deepEqual(report.headers, ["Missing DLC", "DLC ID", "Release date", "Title", "Title ID"]);
@@ -175,6 +184,41 @@ test("XLSX rejects unsupported data instead of serializing formulas or objects",
     assert.throws(() => reportFromExportList("games", [{type: "header", columns: [{depth: 2, value: "Group"}]}]), /flat table header/);
     assert.throws(() => reportFromExportList("games", [{type: "row", columns: [{value: {html: "test"}}]}]), /unsupported cell value/);
     assert.deepEqual(reportFromExportList("games", [{type: "row", columns: [{value: undefined}, {value: false}]}]).rows, [[null, false]]);
+});
+
+test("every date format retains chronological sorting and matches CSV/Excel without mutating rows", async () => {
+    const cases = JSON.parse(await readFile(new URL("../backend/dateformat/testdata/cases.json", import.meta.url), "utf8"));
+    for (const {pattern, expected} of cases.formats) {
+        const data = [{date: "2026-11-23"}, {date: "2024-02-29"}, {date: ""}, {date: "2025-01-07"}];
+        const before = JSON.stringify(data);
+        const table = tableFor([{title: "Date", field: "date", ...dateColumnOptions(pattern, libraryContext.moment)}], data);
+        table.options = {headerSort: false};
+        table.rowManager.activeRows = table.rowManager.rows;
+        table.columnManager.getRealColumns = () => table.columnManager.columns;
+        table.columnManager.findColumn = () => table.columnManager.columns[0];
+        table.modules.sort = new modules.sort(table);
+        for (const value of table.columnManager.columns) {
+            value.getField = () => value.definition.field;
+            value.getElement = () => ({setAttribute() {}});
+            table.modules.sort.initializeColumn(value, {});
+        }
+        for (const [dir, dates] of [
+            ["asc", ["2024-02-29", "2025-01-07", "2026-11-23", ""]],
+            ["desc", ["2026-11-23", "2025-01-07", "2024-02-29", ""]]
+        ]) {
+            table.modules.sort.setSort("date", dir);
+            table.modules.sort.sort(table.rowManager.rows);
+            assert.deepEqual(table.rowManager.rows.map(row => row.getData().date), dates, pattern);
+        }
+        let report;
+        await exportTableXLSX(table, "missing_games", async value => { report = value; });
+        assert.equal(report.rows[0][0], expected);
+        assert.equal(report.rows[3][0], "");
+        let csv;
+        table.modules.download.downloaders.csv(table.modules.download.generateExportList("all"), {bom: true}, content => csv = content);
+        assert.ok(csv.includes(`"${expected}"`), pattern);
+        assert.equal(JSON.stringify(data), before, "downloads must not change source dates");
+    }
 });
 
 test("export click waits for save, prevents duplicate exports, and restores controls on cancellation and error", async () => {

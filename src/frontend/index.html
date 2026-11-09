@@ -120,6 +120,23 @@
               </select>
             </div>
           </div>
+          <div class="mt-3">
+            <label class="form-label" for="settings-gui-date-format">Date format</label>
+            <select class="form-select" name="gui_date_format_preset" id="settings-gui-date-format" aria-describedby="settings-date-format-help settings-date-format-example">
+              <option value="YYYY-MM-DD" {{if dateFormatPreset === "YYYY-MM-DD"}}selected{{/if}}>ISO (YYYY-MM-DD)</option>
+              <option value="MM/DD/YYYY" {{if dateFormatPreset === "MM/DD/YYYY"}}selected{{/if}}>Month first (MM/DD/YYYY)</option>
+              <option value="DD/MM/YYYY" {{if dateFormatPreset === "DD/MM/YYYY"}}selected{{/if}}>Day first (DD/MM/YYYY)</option>
+              <option value="custom" {{if dateFormatPreset === "custom"}}selected{{/if}}>Custom</option>
+            </select>
+            <div class="form-text" id="settings-date-format-help">Applies to GUI and console dates, including CSV and Excel values. Export filenames use ISO dates.</div>
+            <div class="mt-2" id="settings-date-format-custom-row" {{if dateFormatPreset !== "custom"}}hidden{{/if}}>
+              <label class="form-label" for="settings-gui-date-format-custom">Custom date format</label>
+              <input class="form-control" type="text" name="gui_date_format_custom" id="settings-gui-date-format-custom" value="{{attr:gui.date_format}}" aria-describedby="settings-date-format-tokens settings-date-format-error" {{if dateFormatPreset !== "custom"}}disabled{{/if}}>
+              <div class="invalid-feedback" id="settings-date-format-error" role="alert"></div>
+              <div class="form-text" id="settings-date-format-tokens">Use YYYY once for the year, M/MM/MMM/MMMM once for the month, and D/DD once for the day, in any order. Separate them with spaces or / - . , (maximum 32 characters). Month names are English. Examples: DD.MM.YYYY, D MMM YYYY, MMMM D, YYYY.</div>
+            </div>
+            <div class="form-text" id="settings-date-format-example" role="status" aria-live="polite"></div>
+          </div>
           <div class="form-check mt-3">
             <input class="form-check-input" type="checkbox" name="gui_hide_missing_games" id="settings-gui-hide-missing" {{if gui.hide_missing_games}}checked{{/if}}>
             <label class="form-check-label" for="settings-gui-hide-missing">Hide missing games tab</label>
@@ -567,7 +584,7 @@
             <dl class="game-details-metadata">
               {{if attributes.publisher}}<div><dt>Publisher</dt><dd>{{:attributes.publisher}}</dd></div>{{/if}}
               {{if attributes.region}}<div><dt>Region</dt><dd>{{:attributes.region}}</dd></div>{{/if}}
-              {{if release_date_text}}<div><dt>Release date</dt><dd>{{:release_date_text}}</dd></div>{{/if}}
+              {{if release_date_text}}<div><dt>Release date</dt><dd>{{>~formatDate(release_date_text)}}</dd></div>{{/if}}
               {{if attributes.id}}<div><dt>Title ID</dt><dd><code>{{:attributes.id}}</code></dd></div>{{/if}}
             </dl>
             {{if base_collected && base_path}}
@@ -604,7 +621,7 @@
                   {{for updates}}
                   <tr>
                     <th scope="row">v{{:version}}</th>
-                    <td>{{if date}}{{:date}}{{else}}Unknown{{/if}}</td>
+                    <td>{{>~formatDate(date)}}</td>
                     <td>{{if status === "collected"}}<span class="badge text-bg-success">Collected</span>{{else status === "ignored"}}<span class="badge text-bg-secondary">Ignored</span>{{else}}<span class="badge text-bg-warning">Missing</span>{{/if}}</td>
                     <td>{{if path}}<span class="game-details-file-action-placeholder" data-file-path="{{attr:path}}"></span>{{else}}<span class="text-secondary">—</span>{{/if}}</td>
                   </tr>
@@ -650,7 +667,7 @@
                   <tr>
                     <th scope="row">{{if name}}{{:name}}{{else}}Unnamed DLC{{/if}}</th>
                     <td><code>{{:titleId}}</code></td>
-                    <td>{{if attributes.releaseDate && attributes.ParsedReleaseDate}}{{>attributes.ParsedReleaseDate}}{{else}}Unknown{{/if}}</td>
+                    <td>{{if attributes.releaseDate}}{{>~formatDate(attributes.ParsedReleaseDate)}}{{else}}Unknown{{/if}}</td>
                     <td>{{if has_available_version && has_local_version}}Local v{{:local_version}} / latest v{{:available_version}}{{else has_available_version}}Local version unknown / latest v{{:available_version}}{{else has_local_version}}Local v{{:local_version}} / latest unknown{{else}}—{{/if}}</td>
                     <td>
                       {{if status === "collected"}}

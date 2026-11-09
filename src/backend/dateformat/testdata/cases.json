@@ -1,0 +1,44 @@
+{
+  "formats": [
+    {"pattern":"", "expected":"2026-11-23"},
+    {"pattern":" \t\r\n", "expected":"2026-11-23"},
+    {"pattern":"YYYY-MM-DD", "expected":"2026-11-23"},
+    {"pattern":"MM/DD/YYYY", "expected":"11/23/2026"},
+    {"pattern":"DD/MM/YYYY", "expected":"23/11/2026"},
+    {"pattern":"DD.MM.YYYY", "expected":"23.11.2026"},
+    {"pattern":" \tD MMM YYYY\n", "expected":"23 Nov 2026"},
+    {"pattern":"MMMM D, YYYY", "expected":"November 23, 2026"},
+    {"pattern":"YYYY D MMMM", "expected":"2026 23 November"},
+    {"pattern":"MM YYYY DD", "expected":"11 2026 23"},
+    {"pattern":"DD YYYY MM", "expected":"23 2026 11"},
+    {"pattern":"YYYY            MM            DD", "expected":"2026            11            23"}
+  ],
+  "dates": [
+    {"date":"2024-02-09", "pattern":"D/M/YYYY", "expected":"9/2/2024"},
+    {"date":"2024-02-09", "pattern":"DD/MM/YYYY", "expected":"09/02/2024"},
+    {"date":"2024-02-29", "pattern":"D MMM YYYY", "expected":"29 Feb 2024"},
+    {"date":"2000-02-29", "pattern":"MMMM D, YYYY", "expected":"February 29, 2000"},
+    {"date":"0001-01-01", "pattern":"YYYY-MM-DD", "expected":"0001-01-01"},
+    {"date":"2026-03-29", "pattern":"YYYY-MM-DD", "expected":"2026-03-29"},
+    {"date":"2026-10-25", "pattern":"YYYY-MM-DD", "expected":"2026-10-25"},
+    {"date":"", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"-", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"0", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"1900-02-29", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-02-29", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-13-01", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-00-01", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-11-31", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-11-00", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-2-03", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-11-23T00:00:00Z", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"2026-11-23\n", "pattern":"YYYY-MM-DD", "expected":""},
+    {"date":"<img src=x>", "pattern":"YYYY-MM-DD", "expected":""}
+  ],
+  "invalidPatterns": [
+    "YY-MM-DD", "yyyy-mm-dd", "YYYYMMDD", "YYYY-MM", "YYYY-MM-DD HH:mm",
+    "YYYY-MM-DD-DD", "YYYY-DD-DD", "YYYY-MM-MM", "DD/MM/MMMM", "YYYY-MMM-DDD",
+    "YYYY[year]MM[month]DD", "YYYY-MM-DD<script>", "YYYY\nMM-DD", "YYYY😀MM-DD",
+    "YYYY             MM            DD", "YYYY-0M-DD", "[YYYY]-MM-DD"
+  ]
+}

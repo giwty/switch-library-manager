@@ -26,7 +26,8 @@ On macOS, runtime files are stored in `~/Library/Application Support/Switch Libr
     "hide_demo_games": false,
     "hide_version_string": false,
     "remember_window_state": false,
-    "theme": "inherit"
+    "theme": "inherit",
+    "date_format": "YYYY-MM-DD"
   },
   "paths": {
     "library_folder": "",
@@ -72,6 +73,16 @@ On macOS, runtime files are stored in `~/Library/Application Support/Switch Libr
 
 ## Settings reference
 
+### Date format
+
+`gui.date_format` is a string defaulting to ISO 8601 (`YYYY-MM-DD`). In **Settings → Interface → Date format**, choose ISO, month first (`MM/DD/YYYY`), day first (`DD/MM/YYYY`), or **Custom**. Custom formats show validation feedback and a live example.
+
+The preference controls release/update dates in GUI tables and Game Details, console tables, and date values in both GUI and console CSV/Excel exports. Excel date values remain literal text. Source dates, chronological sorting, and ISO dates in export filenames are preserved. Unavailable or malformed source dates show **Unknown** in date cells and export as blank; absent optional metadata is omitted.
+
+Custom patterns contain exactly one `YYYY`, one month token (`M`, `MM`, `MMM`, `MMMM`), and one day token (`D`, `DD`), in any order. Separate tokens with one or more spaces or `/`, `-`, `.`, `,`. `M`/`D` omit leading zeroes, `MM`/`DD` include them, and `MMM`/`MMMM` use abbreviated/full English month names. Patterns are limited to 32 characters after trimming surrounding ASCII whitespace. Examples: `DD.MM.YYYY`, `D MMM YYYY`, `MMMM D, YYYY`. Time tokens, arbitrary literal text, and repeated date components are unsupported.
+
+### All settings
+
 | Setting                                       | Type         | Default                                               | Purpose                                                                                                                                                                                                                      |
 | --------------------------------------------- | ------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `schema_version`                              | integer      | `2`                                                   | Identifies the settings format. It is required and is not an operational preference.                                                                                                                                         |
@@ -82,6 +93,7 @@ On macOS, runtime files are stored in `~/Library/Application Support/Switch Libr
 | `gui.hide_version_string`                     | boolean      | `false`                                               | Hides the Library Version column and dotted local version strings in Missing Updates.                                                                                                                                        |
 | `gui.remember_window_state`                   | boolean      | `false`                                               | Restores and saves the GUI window size and position when enabled. Saved bounds are kept but ignored while disabled.                                                                                                          |
 | `gui.theme`                                   | string       | `"inherit"`                                           | GUI color mode: `inherit` follows the operating system, while `light` and `dark` force a mode. Invalid or missing values use `inherit`.                                                                                      |
+| `gui.date_format`                             | string       | `"YYYY-MM-DD"`                                        | Date format for GUI/console views and CSV/Excel values. See Date format above for supported tokens, validation, and examples.                                                                                                |
 | `paths.library_folder`                        | string       | `""`                                                  | Main folder scanned by the GUI and console workflow. The `-f` flag overrides it for a console run.                                                                                                                           |
 | `paths.scan_folders`                          | string array | `[]`                                                  | Additional folders scanned alongside the main library folder. They are read-only for organization unless `move_scan_files_to_library` is enabled.                                                                            |
 | `paths.prod_keys`                             | string       | `""`                                                  | Optional file or directory containing `prod.keys`. If it does not resolve, the application checks its data directory and the home `.switch` folder.                                                                          |

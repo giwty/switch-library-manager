@@ -14,6 +14,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/schollz/progressbar/v3"
 	"github.com/trembon/switch-library-manager/backend/console"
+	"github.com/trembon/switch-library-manager/backend/dateformat"
 	"github.com/trembon/switch-library-manager/backend/db"
 	"github.com/trembon/switch-library-manager/backend/export"
 	"github.com/trembon/switch-library-manager/backend/process"
@@ -307,6 +308,11 @@ func (c *Console) processIssues(localDB *db.LocalSwitchFilesDB, csvOutput string
 }
 
 func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, settingsObj *settings.AppSettings, csvOutput string) {
+	dateFormatter, err := dateformat.New(settingsObj.GUI.DateFormat)
+	if err != nil {
+		c.reportExportError(fmt.Errorf("gui.date_format: %w", err))
+		return
+	}
 	ignoreIds := map[string]struct{}{}
 	for _, id := range settingsObj.MissingContent.IgnoreUpdateIDs {
 		ignoreIds[strings.ToLower(id)] = struct{}{}
@@ -328,9 +334,13 @@ func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB
 	t.AppendHeader(table.Row{"#", "Title", "TitleId", "Local version", "Latest Version", "Update Date"})
 	i := 0
 	for _, v := range incompleteTitles {
-		report.Rows = append(report.Rows, []any{v.Attributes.Name, v.Attributes.Id, v.LocalUpdate, v.LatestUpdate, v.LatestUpdateDate})
+		date := dateFormatter.FormatISO(v.LatestUpdateDate)
+		report.Rows = append(report.Rows, []any{v.Attributes.Name, v.Attributes.Id, v.LocalUpdate, v.LatestUpdate, date})
+		if date == "" {
+			date = "Unknown"
+		}
 
-		t.AppendRow([]interface{}{i, v.Attributes.Name, v.Attributes.Id, v.LocalUpdate, v.LatestUpdate, v.LatestUpdateDate})
+		t.AppendRow([]interface{}{i, v.Attributes.Name, v.Attributes.Id, v.LocalUpdate, v.LatestUpdate, date})
 		i++
 	}
 	t.AppendFooter(table.Row{"", "", "", "", "Total", len(incompleteTitles)})
