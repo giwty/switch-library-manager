@@ -213,8 +213,14 @@ func TestWindowStateSaveIsOptInAndNormalOnly(t *testing.T) {
 }
 
 func TestSaveSettingsUpdatesRememberWindowStateFlag(t *testing.T) {
-	application := &App{baseFolder: t.TempDir()}
-	if err := application.SaveSettings(settings.AppSettings{
+	base := t.TempDir()
+	manager, err := db.NewLocalSwitchDBManager(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer manager.Close()
+	application := &App{baseFolder: base, localDbManager: manager}
+	if _, err := application.SaveSettings(settings.AppSettings{
 		GUI: settings.GUISettings{RememberWindowState: true},
 	}); err != nil {
 		t.Fatal(err)
@@ -222,7 +228,7 @@ func TestSaveSettingsUpdatesRememberWindowStateFlag(t *testing.T) {
 	if !application.rememberWindowState {
 		t.Fatal("remember-window-state flag was not enabled after settings save")
 	}
-	if err := application.SaveSettings(settings.AppSettings{}); err != nil {
+	if _, err := application.SaveSettings(settings.AppSettings{}); err != nil {
 		t.Fatal(err)
 	}
 	if application.rememberWindowState {

@@ -47,10 +47,12 @@ test('empty library and folder selection cancellation/success remain usable', as
     await app.called('SelectFolder');
     expect(await app.calls('SaveSettings')).toHaveLength(0);
     await app.queue('SelectFolder', [{result: '/synthetic/another-library'}]);
+    await app.queue('SaveSettings', [{result: fixtures.settingsRestart}]);
     await page.getByRole('button', {name: 'Set Folder', exact: true}).click();
     await app.called('SaveSettings');
-    await app.ready();
+    await expect(page.getByRole('button', {name: 'Restart now'})).toBeVisible();
     expect((await app.calls('SaveSettings'))[0].args[0].paths.library_folder).toBe('/synthetic/another-library');
+    expect(await app.calls('RescanLibrary')).toHaveLength(0);
 });
 
 for (const platform of ['windows', 'darwin']) {
@@ -86,18 +88,199 @@ test('settings failure retains draft; successful save locks for restart and rest
     await app.open();
     await app.tab('Settings');
     await page.locator('#settings-gui-page-size').fill('7');
-    await app.queue('SaveSettings', [{error: 'Synthetic settings write failed'}, {}]);
+    await page.locator('#settings-library-folder').fill('/synthetic/another-library');
+    const result = structuredClone(fixtures.settingsRestart);
+    result.settings.gui.page_size = 7;
+    await app.queue('SaveSettings', [{error: 'Synthetic settings write failed'}, {result}]);
     await page.locator('#settings-form').getByRole('button', {name: /save/i}).click();
     await expect(page.locator('#settings')).toContainText('Synthetic settings write failed');
     await expect(page.locator('#settings-gui-page-size')).toHaveValue('7');
+    expect(await page.locator('#tab-group').evaluate(element => element.scrollTop)).toBe(0);
     await page.locator('#settings-form').getByRole('button', {name: /save/i}).click();
     await expect(page.getByRole('button', {name: 'Restart now'})).toBeVisible();
+    await expect(page.locator('.progress-msg')).toContainText('Library folder');
+    expect(await app.calls('ShowMessage')).toHaveLength(0);
     expect((await app.calls('SaveSettings'))[1].args[0].gui.page_size).toBe(7);
     await app.queue('Restart', [{error: 'Synthetic restart failure'}, {}]);
     await page.getByRole('button', {name: 'Restart now'}).click();
     await expect(page.locator('.progress-msg')).toContainText('Synthetic restart failure');
     await page.getByRole('button', {name: 'Restart now'}).click();
     await app.called('Restart', 2);
+});
+
+test('saving at the bottom scrolls to the top before confirmation and blocks commands until acknowledgement', async ({app, page}) => {
+    const data = structuredClone(fixtures);
+    data.settings.gui.theme = 'dark';
+    await page.setViewportSize({width: 800, height: 600});
+    await app.open({data, responses: {SaveSettings: [{defer: 'save'}], ShowMessage: [{defer: 'saved-modal'}]}});
+    await app.tab('Settings');
+    await page.locator('#settings-gui-page-size').fill('1');
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await app.called('SaveSettings');
+    expect(await page.locator('#tab-group').evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+    expect(await app.calls('ShowMessage')).toHaveLength(0);
+    await app.resolve('save');
+    await app.called('ShowMessage');
+    expect((await app.calls('ShowMessage'))[0].args).toEqual([
+        'info', 'Settings saved', 'Your settings have been saved.',
+        'Startup preferences apply the next time you launch SLM.'
+    ]);
+    expect(await page.locator('#tab-group').evaluate(element => element.scrollTop)).toBe(0);
+    await expect(page.locator('#settings .alert-success')).toHaveCount(0);
+    await page.evaluate(() => document.getElementById('settings-form').requestSubmit());
+    await page.keyboard.press('Control+r');
+    await app.tab('Library');
+    await expect(page.locator('#settings-tab')).toHaveAttribute('aria-selected', 'true');
+    expect(await app.calls('SaveSettings')).toHaveLength(1);
+    expect(await app.calls('ShowMessage')).toHaveLength(1);
+    expect(await app.calls('RescanLibrary')).toHaveLength(0);
+    await app.resolve('saved-modal');
+    await expect(page.locator('#settings')).toBeFocused();
+    expect(await page.locator('#tab-group').evaluate(element => element.scrollTop)).toBe(0);
+    await app.tab('Library');
+    await expect(rows(page)).toHaveCount(1);
+});
+
+test('confirmation errors preserve saved settings and show a warning at the top', async ({app, page}) => {
+    await app.open({responses: {ShowMessage: [{error: 'Synthetic dialog failure'}]}});
+    await app.tab('Settings');
+    await page.locator('#settings-gui-page-size').fill('1');
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await expect(page.locator('#settings .alert-warning')).toContainText('Your settings were saved, but the confirmation could not be displayed. Synthetic dialog failure');
+    await expect(page.locator('#settings .alert-danger')).toHaveCount(0);
+    await expect(page.locator('#settings')).toBeFocused();
+    expect(await page.locator('#tab-group').evaluate(element => element.scrollTop)).toBe(0);
+    await expect(page.locator('#settings-gui-page-size')).toHaveValue('1');
+    expect(await app.calls('SaveSettings')).toHaveLength(1);
+    await app.tab('Library');
+    await expect(rows(page)).toHaveCount(1);
+    await app.tab('Settings');
+    await expect(page.locator('#settings-gui-page-size')).toHaveValue('1');
+});
+
+test('live settings refresh appearance, previews and missing content without rebuilding the library', async ({app, page}) => {
+    await app.open();
+    for (const tab of ['Organize', 'Missing games', 'Missing updates', 'Missing DLC']) await app.tab(tab);
+    await app.tab('Settings');
+    await page.locator('#settings-gui-theme').selectOption('dark');
+    await page.locator('#settings-gui-page-size').fill('1');
+    await page.locator('#settings-gui-hide-version').check();
+    await page.locator('#settings-gui-hide-demo').check();
+    await page.locator('#settings-org-file-template').fill('{TITLE_ID} {TITLE_NAME}');
+    for (const [name, id] of [['ignore_update_title_ids', fixtures.details.titleId], ['ignore_dlc_title_ids', fixtures.details.dlc[0].titleId]]) {
+        await page.locator(`[data-settings-list-add="${name}"]`).click();
+        await page.locator(`[data-settings-list="${name}"]`).fill(id);
+    }
+    const preview = structuredClone(fixtures.preview);
+    preview.entries[0].path = 'New organization preview.nsp';
+    await app.queue('GetOrganizationPreview', [{result: preview}]);
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await app.called('ShowMessage');
+    await expect(page.locator('#settings')).toBeFocused();
+    await expect(page.locator('html')).toHaveAttribute('data-bs-theme', 'dark');
+    await expect(page.getByRole('button', {name: 'Restart now'})).not.toBeVisible();
+    await app.tab('Library');
+    await expect(rows(page)).toHaveCount(1);
+    await expect(page.locator('#library-table .tabulator-col[tabulator-field="version"]')).not.toBeVisible();
+    await app.tab('Organize');
+    await expect(page.locator('#organize')).toContainText('New organization preview.nsp');
+    await app.called('GetOrganizationPreview', 2);
+    await app.tab('Missing games');
+    await expect(page.locator('#missingGames-table')).toHaveCount(0);
+    await app.called('GetMissingGames', 2);
+    await app.tab('Missing updates');
+    await expect(page.locator('#updates')).toContainText('not missing any updates');
+    await app.tab('Missing DLC');
+    await expect(page.locator('#dlc-table')).toHaveCount(0);
+    expect(await app.calls('UpdateDB')).toHaveLength(1);
+    expect(await app.calls('UpdateLocalLibrary')).toHaveLength(1);
+    for (const name of ['RescanLibrary', 'Restart', 'OrganizeLibrary']) expect(await app.calls(name)).toHaveLength(0);
+});
+
+test('tab visibility and startup preferences save without forcing a restart', async ({app, page}) => {
+    await app.open();
+    await app.tab('Settings');
+    await page.locator('#settings-gui-hide-missing').check();
+    await page.locator('#settings-gui-enabled').uncheck();
+    await page.locator('#settings-scan-rescan-on-startup').uncheck();
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await app.called('ShowMessage');
+    await expect(page.locator('#settings')).toBeFocused();
+    await expect(page.getByRole('tab', {name: 'Missing games', exact: true})).not.toBeVisible();
+    await page.locator('#settings-gui-hide-missing').uncheck();
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await app.called('ShowMessage', 2);
+    await expect(page.getByRole('tab', {name: 'Missing games', exact: true})).toBeVisible();
+    expect(await app.calls('Restart')).toHaveLength(0);
+    expect(await app.calls('RescanLibrary')).toHaveLength(0);
+});
+
+test('Unicode save replaces library display rows and preserves issues', async ({app, page}) => {
+    await app.open();
+    const result = structuredClone(fixtures.settingsSaved);
+    result.settings.organization.allow_unicode_file_names = true;
+    result.library = structuredClone(fixtures.library);
+    result.library.library_data[0].name = '日本語';
+    await app.queue('SaveSettings', [{result}]);
+    await app.tab('Settings');
+    await page.locator('#settings-org-unicode-names').check();
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await app.called('ShowMessage');
+    await expect(page.locator('#settings')).toBeFocused();
+    await app.tab('Library');
+    await page.locator('#library-table button[data-page="next"]').click();
+    await expect(page.locator('#library-table')).toContainText('日本語');
+    await app.tab('Issues');
+    await expect(page.locator('#status-table')).toContainText('file type is not supported');
+    expect(await app.calls('RescanLibrary')).toHaveLength(0);
+});
+
+test('responses from before a successful save cannot restore stale previews or missing content', async ({app, page}) => {
+    const stale = structuredClone(fixtures.preview);
+    stale.entries[0].path = 'STALE PREVIEW.nsp';
+    await app.open({responses: {
+        GetMissingUpdates: [{defer: 'old-updates', result: fixtures.missingUpdates}],
+        GetOrganizationPreview: [{defer: 'old-preview', result: stale}]
+    }});
+    await app.tab('Missing updates');
+    await app.called('GetMissingUpdates');
+    await app.tab('Organize');
+    await app.called('GetOrganizationPreview');
+    await app.tab('Settings');
+    await page.locator('[data-settings-list-add="ignore_update_title_ids"]').click();
+    await page.locator('[data-settings-list="ignore_update_title_ids"]').fill(fixtures.details.titleId);
+    await page.locator('#settings-form').getByRole('button', {name: 'Save settings', exact: true}).click();
+    await app.called('ShowMessage');
+    await expect(page.locator('#settings')).toBeFocused();
+    await app.tab('Missing updates');
+    await expect(page.locator('#updates')).toContainText('not missing any updates');
+    await app.called('GetMissingUpdates', 2);
+    await app.resolve('old-updates');
+    await app.tab('Organize');
+    await app.called('GetOrganizationPreview', 2);
+    await expect(page.locator('#organize')).toContainText(fixtures.preview.entries[0].path);
+    await app.resolve('old-preview');
+    await app.tab('Missing updates');
+    await expect(page.locator('#updates')).toContainText('not missing any updates');
+    await app.tab('Organize');
+    await expect(page.locator('#organize')).not.toContainText('STALE PREVIEW');
+});
+
+test('failed folder save retains the active library and cancelled pickers do not save', async ({app, page}) => {
+    const data = structuredClone(fixtures);
+    data.library = {library_data: [], issues: [], num_files: 0};
+    await app.open({data});
+    await app.queue('SelectFolder', [{result: '/synthetic/another-library'}]);
+    await app.queue('SaveSettings', [{error: 'Synthetic folder save failure'}]);
+    await page.getByRole('button', {name: 'Set Folder', exact: true}).click();
+    await app.called('ShowMessage');
+    await app.ready();
+    await expect(page.locator('#library')).toContainText('/synthetic/library');
+    await expect(page.getByRole('button', {name: 'Restart now'})).not.toBeVisible();
+    await page.getByRole('button', {name: 'Set Folder', exact: true}).click();
+    await app.called('SelectFolder', 2);
+    expect(await app.calls('SaveSettings')).toHaveLength(1);
+    expect(await app.calls('RescanLibrary')).toHaveLength(0);
 });
 
 test('pending startup emits progress and prevents commands until scan completes', async ({app, page}) => {

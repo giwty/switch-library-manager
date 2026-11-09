@@ -16,6 +16,8 @@ import (
 // checked-in output is also consumed by the headless browser bridge.
 type frontendFixture struct {
 	Settings            settings.AppSettings      `json:"settings"`
+	SettingsSaved       SettingsSaveResult        `json:"settingsSaved"`
+	SettingsRestart     SettingsSaveResult        `json:"settingsRestart"`
 	Library             LocalLibraryData          `json:"library"`
 	MissingGames        []SwitchTitle             `json:"missingGames"`
 	MissingUpdates      []process.IncompleteTitle `json:"missingUpdates"`
@@ -54,6 +56,10 @@ func TestFrontendFixtureContracts(t *testing.T) {
 		BlockedOrganization: OrganizationResult{Status: "blocked", ConflictCount: 1, Library: LocalLibraryData{LibraryData: rows, NumFiles: 4, Issues: []Pair{{Key: "/synthetic/library/conflict.nsp", Value: "organization conflict: destination exists"}}}},
 		Progress:            ProgressUpdate{Curr: 1, Total: 2, Message: "Synthetic scan"},
 	}
+	fixture.SettingsSaved = SettingsSaveResult{Settings: fixture.Settings, RestartReasons: []string{}}
+	restartSettings := fixture.Settings
+	restartSettings.Paths.LibraryFolder = "/synthetic/another-library"
+	fixture.SettingsRestart = SettingsSaveResult{Settings: restartSettings, RestartRequired: true, RestartReasons: []string{"Library folder"}}
 	want, err := json.MarshalIndent(fixture, "", "  ")
 	if err != nil {
 		t.Fatal(err)

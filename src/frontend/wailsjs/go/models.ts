@@ -279,6 +279,42 @@ export namespace app {
 		}
 	}
 	
+	export class SettingsSaveResult {
+	    settings: settings.AppSettings;
+	    restart_required: boolean;
+	    restart_reasons: string[];
+	    library?: LocalLibraryData;
+	
+	    static createFrom(source: any = {}) {
+	        return new SettingsSaveResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.settings = this.convertValues(source["settings"], settings.AppSettings);
+	        this.restart_required = source["restart_required"];
+	        this.restart_reasons = source["restart_reasons"];
+	        this.library = this.convertValues(source["library"], LocalLibraryData);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SwitchTitle {
 	    name: string;
 	    titleId: string;

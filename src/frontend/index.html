@@ -104,7 +104,7 @@
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" name="gui_enabled" id="settings-gui-enabled" aria-describedby="settings-gui-enabled-help" {{if gui.enabled}}checked{{/if}}>
             <label class="form-check-label" for="settings-gui-enabled">Start with the graphical interface</label>
-            <div class="form-text" id="settings-gui-enabled-help">Turn this off to start SLM in console mode. Launch it from a terminal (Command Prompt or PowerShell on Windows); double-clicking the executable on Windows will not open a window. To open the graphical interface again, launch SLM with <code>-m gui</code>.</div>
+            <div class="form-text" id="settings-gui-enabled-help">Applies the next time you launch SLM. Turn this off to start in console mode. Launch it from a terminal (Command Prompt or PowerShell on Windows); double-clicking the executable on Windows will not open a window. To open the graphical interface again, launch SLM with <code>-m gui</code>.</div>
           </div>
           <div class="row g-3">
             <div class="col-md-4">
@@ -140,6 +140,7 @@
 
         <div class="settings-section">
           <h4>Paths</h4>
+          <p class="form-text">Changing paths requires restarting the application.</p>
           <label class="form-label" for="settings-library-folder">Library folder</label>
           <div class="input-group mb-3">
             <input class="form-control" type="text" name="paths_library_folder" id="settings-library-folder" value="{{:paths.library_folder}}">
@@ -163,6 +164,7 @@
 
         <div class="settings-section">
           <h4>Scanning</h4>
+          <p class="form-text">Changing scan rules requires restarting. The startup rescan preference applies at the next launch.</p>
           <div class="form-check form-switch mb-3">
             <input class="form-check-input" type="checkbox" name="scan_recursive" id="settings-scan-recursive" {{if scan.recursive}}checked{{/if}}>
             <label class="form-check-label" for="settings-scan-recursive">Scan subfolders recursively</label>
@@ -250,11 +252,11 @@
           <h4>Missing content</h4>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" name="missing_check_for_updates" id="settings-missing-updates" {{if missing_content.check_for_updates}}checked{{/if}}>
-            <label class="form-check-label" for="settings-missing-updates">Check for missing updates</label>
+            <label class="form-check-label" for="settings-missing-updates">Check for missing updates in console mode</label>
           </div>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" name="missing_check_for_dlc" id="settings-missing-dlc" {{if missing_content.check_for_dlc}}checked{{/if}}>
-            <label class="form-check-label" for="settings-missing-dlc">Check for missing DLC</label>
+            <label class="form-check-label" for="settings-missing-dlc">Check for missing DLC in console mode</label>
           </div>
           <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" name="missing_ignore_dlc_updates" id="settings-missing-ignore-dlc" {{if missing_content.ignore_dlc_updates}}checked{{/if}}>
@@ -286,6 +288,7 @@
 
         <div class="settings-section">
           <h4>Data sources</h4>
+          <p class="form-text">Changing data sources requires restarting the application.</p>
           <label class="form-label" for="settings-data-titles">Titles URL</label>
           <input class="form-control mb-3" type="url" name="data_titles_url" id="settings-data-titles" value="{{:data_sources.titles_url}}" required>
           <label class="form-label" for="settings-data-versions">Versions URL</label>
@@ -297,6 +300,7 @@
           <div class="form-check form-switch">
             <input class="form-check-input" type="checkbox" name="logging_debug" id="settings-logging-debug" {{if logging.debug}}checked{{/if}}>
             <label class="form-check-label" for="settings-logging-debug">Enable debug logging</label>
+            <div class="form-text">Requires restarting the application.</div>
           </div>
         </div>
 
@@ -482,7 +486,7 @@
             {{else organization.move_scan_files_to_library}}
               <p class="text-secondary mb-0">Recognized files outside the library will be moved into it. Original filenames will be kept; configured Updates/DLC subfolders may change destinations as shown below.</p>
             {{else}}
-              <div class="alert alert-info mb-0" role="status">Organization is disabled. Enable importing scan-folder files, renaming files, or per-game folders in Settings and restart the application to apply the change.</div>
+              <div class="alert alert-info mb-0" role="status">Organization is disabled. Enable importing scan-folder files, renaming files, or per-game folders in Settings and save your changes.</div>
             {{/if}}
           </section>
 

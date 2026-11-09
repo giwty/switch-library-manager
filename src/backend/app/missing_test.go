@@ -63,7 +63,7 @@ func TestMissingGettersSettingsIntegration(t *testing.T) {
 		return
 	}
 	if scenario != "reload" {
-		if err := a.SaveSettings(settings.AppSettings{SchemaVersion: settings.SETTINGS_SCHEMA_VERSION, GUI: settings.GUISettings{HideDemoGames: true}}); err != nil {
+		if err := settings.SaveSettingsWithError(&settings.AppSettings{SchemaVersion: settings.SETTINGS_SCHEMA_VERSION, GUI: settings.GUISettings{HideDemoGames: true}}, base); err != nil {
 			t.Fatal(err)
 		}
 		games, err := a.GetMissingGames()
@@ -106,7 +106,7 @@ func TestMissingGettersSettingsIntegration(t *testing.T) {
 	}
 	changed := *loaded
 	changed.GUI.HideDemoGames = false
-	if err := a.SaveSettings(changed); err != nil {
+	if _, err := a.SaveSettings(changed); err != nil {
 		t.Fatal(err)
 	}
 	games, err := a.GetMissingGames()

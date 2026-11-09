@@ -13,13 +13,13 @@ function installBridge({data, responses, platform}) {
     const queues = copy(responses);
     const defaults = {
         LoadSettings: () => data.settings,
-        SaveSettings: value => { data.settings = copy(value); return null; },
+        SaveSettings: value => ({...data.settingsSaved, settings: value}),
         UpdateDB: () => null,
         UpdateLocalLibrary: () => data.library,
         RescanLibrary: () => data.library,
         IsKeysFileAvailable: () => false,
         CheckUpdate: () => false,
-        GetMissingGames: () => data.missingGames,
+        GetMissingGames: () => data.settings.gui.hide_demo_games ? [] : data.missingGames,
         GetMissingUpdates: () => data.missingUpdates.filter(row => !data.settings.missing_content.ignore_update_title_ids.includes(row.Attributes.id)),
         GetMissingDLC: () => data.missingDLC.map(row => ({...row, missing_dlc: row.missing_dlc.filter(dlc => !data.settings.missing_content.ignore_dlc_title_ids.includes(dlc.id))})).filter(row => row.missing_dlc.length),
         GetOrganizationPreview: () => data.preview,
@@ -62,7 +62,9 @@ function installBridge({data, responses, platform}) {
             });
         }
         if (action.error) throw new Error(action.error);
-        return copy(Object.hasOwn(action, 'result') ? action.result : handler(...args));
+        const result = copy(Object.hasOwn(action, 'result') ? action.result : handler(...args));
+        if (name === 'SaveSettings') data.settings = copy(result.settings);
+        return result;
     }]));
     window.go = {app: {App: strict(methods, 'Go bridge')}};
     window.runtime = strict({

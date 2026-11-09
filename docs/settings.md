@@ -2,7 +2,13 @@
 
 Switch Library Manager uses a categorized `settings.json` format. The file is valid JSON and must contain the current `"schema_version"` value, which is currently `2`.
 
-When using the graphical interface, the Settings tab provides a structured editor for these options. The schema version and internal cache values are not shown. Saving settings writes the JSON file and blocks the interface until the application restarts. Select **Restart now** on the notice to restart the graphical interface, or close and relaunch the application manually. The existing folder picker remains an immediate path-and-rescan workflow.
+When using the graphical interface, the Settings tab provides a structured editor for these options. The schema version and internal cache values are not shown. Saving applies organization rules, appearance, page size, missing-content preferences, and window-state recording immediately. Organization changes affect previews and the next Organize action; saving never organizes or deletes files.
+
+After a save that does not require restarting, the Settings panel returns to the top and a **Settings saved** dialog confirms the result. Select **OK** to continue. Save errors remain visible at the top of the editor with your draft preserved. If the confirmation dialog cannot be displayed, an inline warning explains that the settings were still saved.
+
+Changes to library folders, scan folders, keys paths, scan rules, data-source URLs, or debug logging require restarting. The notice lists the reasons and blocks other actions until you select **Restart now**, or close and relaunch the application. A save containing both immediate and restart-required changes follows this restart flow. The Library folder picker uses the same policy. Changed paths or scan rules invalidate the library snapshot so the next launch scans the new configuration even when startup rescanning is disabled; cached deep metadata is retained.
+
+The default GUI mode and startup rescan preference apply at the next launch without forcing a restart. The missing-update and missing-DLC check switches control console mode only; the GUI tabs remain available. Manual edits to `settings.json` require restarting and are not watched automatically.
 
 ## Runtime data directory
 

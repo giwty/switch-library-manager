@@ -411,17 +411,7 @@ func SaveSettings(settings *AppSettings, baseFolder string) *AppSettings {
 }
 
 func SaveSettingsWithError(settings *AppSettings, baseFolder string) error {
-	if settings == nil {
-		return errors.New("settings are nil")
-	}
-	if settings.SchemaVersion == 0 {
-		settings.SchemaVersion = SETTINGS_SCHEMA_VERSION
-	}
-	if settings.SchemaVersion != SETTINGS_SCHEMA_VERSION {
-		return fmt.Errorf("unsupported settings schema_version %d", settings.SchemaVersion)
-	}
-	verifySettings(settings)
-	if err := validateSettings(settings); err != nil {
+	if err := ValidateSettings(settings); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(settings, "", " ")
@@ -433,6 +423,22 @@ func SaveSettingsWithError(settings *AppSettings, baseFolder string) error {
 	}
 	settingsInstance = settings
 	return nil
+}
+
+// ValidateSettings normalizes defaults and validates a candidate without saving
+// or publishing it. Callers can validate before invalidating dependent caches.
+func ValidateSettings(settings *AppSettings) error {
+	if settings == nil {
+		return errors.New("settings are nil")
+	}
+	if settings.SchemaVersion == 0 {
+		settings.SchemaVersion = SETTINGS_SCHEMA_VERSION
+	}
+	if settings.SchemaVersion != SETTINGS_SCHEMA_VERSION {
+		return fmt.Errorf("unsupported settings schema_version %d", settings.SchemaVersion)
+	}
+	verifySettings(settings)
+	return validateSettings(settings)
 }
 
 func validateSettings(settings *AppSettings) error {

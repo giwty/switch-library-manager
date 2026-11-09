@@ -651,11 +651,12 @@ $(function () {
         setLoading(false);
     }
 
-    function lockForRestart() {
+    function lockForRestart(reasons = []) {
         restartRequired = true;
         wrapper.classList.add('restart-required');
         $('.progress-type').text('Restart required');
-        $('.progress-msg').text('Settings were saved. Restart the application to apply your changes.');
+        $('.progress-msg').text('Settings were saved. Restart the application to apply your changes.' +
+            (reasons.length ? ' Changed: ' + reasons.join(', ') + '.' : ''));
         $('.progress-container').attr('aria-label', 'Application restart required');
         const restartButton = document.getElementById('restart-button');
         restartButton.hidden = false;
@@ -720,9 +721,7 @@ $(function () {
             state.settingsFeedback = undefined;
             applyTheme(state.settings.gui && state.settings.gui.theme);
 
-            if(state.settings.gui.hide_missing_games){
-                document.getElementById("tab_btns").classList.add("hide_missing_games");
-            }
+            document.getElementById("tab_btns").classList.toggle("hide_missing_games", state.settings.gui.hide_missing_games);
             return UpdateDB();
         }).then(function () {
             return scanLocalFolder(Boolean(state.settings.scan.rescan_on_startup), true);
@@ -742,6 +741,7 @@ $(function () {
         showProgress("Downloading latest Switch titles/versions ...");
 
         let openFolderPicker = function (mode) {
+            if (commandsBlocked() || openDialog()) return;
             SelectFolder()
                 .then(path => updateFolder(mode, path))
                 .catch(error => showError(error.message));
@@ -774,41 +774,67 @@ $(function () {
         };
 
         let updateFolder = function (mode,path) {
-            if (!path) {
+            if (!path || commandsBlocked()) {
                 return
             }
-
+            const candidate = cloneSettings(state.settings);
             if (mode === "add"){
-                state.settings.paths.scan_folders = state.settings.paths.scan_folders || []
-                if (!state.settings.paths.scan_folders.includes(path)){
-                    state.settings.paths.scan_folders.push(path);
+                if (!candidate.paths.scan_folders.includes(path)){
+                    candidate.paths.scan_folders.push(path);
                 }else{
                     return;
                 }
 
             }else{
-                state.settings.paths.library_folder = path;
+                if (candidate.paths.library_folder === path) return;
+                candidate.paths.library_folder = path;
             }
-            $('.tabgroup > div').hide();
-            showProgress("Scanning local library...");
-            console.log("selected folder:"+path);
-            state.library = undefined;
-            state.updates = undefined;
-            state.dlc = undefined;
-            state.missingGames = undefined;
-            state.organizationPreview = undefined;
-            state.libraryRefreshError = undefined;
-            SaveSettings(state.settings)
-                .then(() => {
-                    state.settingsDraft = undefined;
-                    return scanLocalFolder(false);
-                })
-                .catch(error => showError(error.message));
+            return saveSettings(candidate, activeTabTarget);
         };
 
 
         function cloneSettings(value) {
             return JSON.parse(JSON.stringify(value));
+        }
+
+        async function saveSettings(value, returnTab = "#settings") {
+            settingsSavePending = true;
+            try {
+                const result = await SaveSettings(value);
+                // Ignore responses from requests made with the previous settings.
+                libraryDataGeneration++;
+                gameDetailsRequest++;
+                lastGameDetails = null;
+                state.settings = result.settings;
+                state.settingsDraft = cloneSettings(result.settings);
+                state.settingsFeedback = undefined;
+                if (result.restart_required) {
+                    tabGroup.scrollTop = 0;
+                    lockForRestart(result.restart_reasons);
+                    return;
+                }
+                if (result.library) {
+                    state.library = result.library;
+                    state.libraryRefreshError = undefined;
+                }
+                state.updates = undefined;
+                state.dlc = undefined;
+                state.missingGames = undefined;
+                state.organizationPreview = undefined;
+                applyTheme(state.settings.gui.theme);
+                document.getElementById("tab_btns").classList.toggle("hide_missing_games", state.settings.gui.hide_missing_games);
+                loadTab(returnTab);
+                tabGroup.scrollTop = 0;
+                try {
+                    await ShowMessage("info", "Settings saved", "Your settings have been saved.",
+                        "Startup preferences apply the next time you launch SLM.");
+                } catch (error) {
+                    showSettingsFeedback("warning", "Your settings were saved, but the confirmation could not be displayed. " + settingsErrorMessage(error));
+                }
+                document.querySelector(returnTab)?.focus({preventScroll: true});
+            } finally {
+                settingsSavePending = false;
+            }
         }
 
         function settingsErrorMessage(error) {
@@ -829,6 +855,7 @@ $(function () {
         function showSettingsFeedback(type, message) {
             state.settingsFeedback = {type: type, message: message};
             renderSettingsTab();
+            tabGroup.scrollTop = 0;
         }
 
         function listValues(form, name) {
@@ -1314,24 +1341,13 @@ $(function () {
 
         $("body").on("submit", "#settings-form", e => {
             e.preventDefault();
-            if (settingsSavePending || restartRequired) {
+            if (commandsBlocked() || openDialog()) {
                 return;
             }
             const value = collectSettings(e.currentTarget);
             state.settingsDraft = value;
-            settingsSavePending = true;
-            SaveSettings(value)
-                .then(() => LoadSettings())
-                .then(saved => {
-                    state.settings = saved;
-                    state.settingsDraft = cloneSettings(saved);
-                    state.settingsFeedback = undefined;
-                    lockForRestart();
-                })
-                .catch(error => showSettingsFeedback("danger", settingsErrorMessage(error)))
-                .finally(() => {
-                    settingsSavePending = false;
-                });
+            saveSettings(value)
+                .catch(error => showSettingsFeedback("danger", settingsErrorMessage(error)));
         });
 
         function requestOrganization() {
