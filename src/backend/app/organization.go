@@ -25,6 +25,7 @@ func (a *App) GetOrganizationPreview() (OrganizationPreview, error) {
 		settingsObj.Organization,
 		a.state.localDB,
 		a.state.switchDB,
+		settingsObj.TitleNameOverrides,
 	)
 	if err != nil {
 		return OrganizationPreview{}, err
@@ -59,7 +60,7 @@ func (a *App) OrganizeLibrary() (OrganizationResult, error) {
 	var plan process.OrganizationPlan
 	organizationEnabled := settingsObj.Organization.RenameFiles || settingsObj.Organization.CreateFolderPerGame || settingsObj.Organization.MoveScanFilesToLibrary
 	if organizationEnabled {
-		plan, err = process.BuildOrganizationPlan(settingsObj.Paths.LibraryFolder, localDB, a.state.switchDB, settingsObj.Organization)
+		plan, err = process.BuildOrganizationPlan(settingsObj.Paths.LibraryFolder, localDB, a.state.switchDB, settingsObj.Organization, settingsObj.TitleNameOverrides)
 		if err != nil {
 			return OrganizationResult{}, err
 		}
@@ -68,7 +69,7 @@ func (a *App) OrganizeLibrary() (OrganizationResult, error) {
 			return OrganizationResult{
 				Status:        "blocked",
 				ConflictCount: len(plan.Conflicts),
-				Library:       a.libraryDataLocked(localDB, settingsObj.Organization.AllowUnicodeFileNames),
+				Library:       a.libraryDataLocked(localDB, settingsObj.Organization.AllowUnicodeFileNames, settingsObj.TitleNameOverrides),
 			}, nil
 		}
 	}
@@ -104,7 +105,7 @@ func (a *App) OrganizeLibrary() (OrganizationResult, error) {
 	}
 	return OrganizationResult{
 		Status:  "completed",
-		Library: a.libraryDataLocked(a.state.localDB, settingsObj.Organization.AllowUnicodeFileNames),
+		Library: a.libraryDataLocked(a.state.localDB, settingsObj.Organization.AllowUnicodeFileNames, settingsObj.TitleNameOverrides),
 	}, nil
 }
 

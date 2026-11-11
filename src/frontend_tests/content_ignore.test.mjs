@@ -148,7 +148,7 @@ test("a pending response from before an ignore save cannot restore an ignored ro
     assert.equal(f.context.state.updates, undefined);
 });
 
-test("row context menus do not replace normal details clicks and are omitted from Missing games", () => {
+test("row context menus preserve normal details clicks and can be explicitly disabled", () => {
     const calls = [];
     const context = {tableOptions: options => options, openRowMenu: () => calls.push("menu"),
         detailRowTitleID: data => data.titleId, openGameDetails: id => calls.push(id)};

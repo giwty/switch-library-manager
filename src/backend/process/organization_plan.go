@@ -57,6 +57,7 @@ func BuildOrganizationPlan(
 	localDB *db.LocalSwitchFilesDB,
 	titlesDB *db.SwitchTitlesDB,
 	options settings.OrganizeOptions,
+	overrides ...map[string]string,
 ) (OrganizationPlan, error) {
 	if localDB == nil {
 		return OrganizationPlan{}, fmt.Errorf("local library has not been scanned")
@@ -82,7 +83,7 @@ func BuildOrganizationPlan(
 		if titlesDB != nil {
 			title = titlesDB.TitlesMap[key]
 		}
-		titleName := db.ResolveGameTitleName(title, game, options.AllowUnicodeFileNames)
+		titleName := db.GameName(key+"000", db.ResolveGameTitleName(title, game, options.AllowUnicodeFileNames), overrides...)
 		templateData := map[string]string{
 			settings.TEMPLATE_TITLE_NAME:  titleName,
 			settings.TEMPLATE_VERSION_TXT: "",
@@ -546,7 +547,7 @@ func OrganizeByFolders(baseFolder string, localDB *db.LocalSwitchFilesDB, titles
 	if libraryRoot == "" {
 		libraryRoot = baseFolder
 	}
-	plan, err := BuildOrganizationPlan(libraryRoot, localDB, titlesDB, settingsObj.Organization)
+	plan, err := BuildOrganizationPlan(libraryRoot, localDB, titlesDB, settingsObj.Organization, settingsObj.TitleNameOverrides)
 	if err != nil {
 		return err
 	}

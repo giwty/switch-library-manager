@@ -25,9 +25,25 @@ function installBridge({data, responses, platform}) {
         GetOrganizationPreview: () => data.preview,
         GetGameDetails: id => {
             const details = copy(data.details);
-            const row = data.library.library_data.find(row => row.titleId === id);
-            if (row) Object.assign(details, {titleId: id, name: row.name, attributes: {...details.attributes, id, name: row.name}});
+            const base = id.endsWith('000') ? id : details.titleId;
+            const row = data.library.library_data.find(row => row.titleId === base) || data.missingGames.find(row => row.titleId === base);
+            const automatic = row?.automatic_name || row?.name || details.automatic_name;
+            const custom = data.settings.title_name_overrides?.[base] || '';
+            Object.assign(details, {titleId: base, automatic_name: automatic, custom_name: custom, name: custom || automatic, attributes: {...details.attributes, id: base, name: custom || automatic}});
             return details;
+        },
+        SetGameNameOverride: (id, name) => {
+            const automatic = defaults.GetGameDetails(id).automatic_name;
+            if (name) data.settings.title_name_overrides[id] = name.trim();
+            else delete data.settings.title_name_overrides[id];
+            const effective = name.trim() || automatic;
+            for (const row of [...data.library.library_data, ...data.missingGames]) {
+                if (row.titleId === id) { row.automatic_name ??= row.name; row.name = effective; }
+            }
+            for (const row of [...data.missingUpdates, ...data.missingDLC]) {
+                if (row.Attributes.id === id) row.Attributes.name = effective;
+            }
+            return {title_name_overrides: data.settings.title_name_overrides, library: data.library, details: defaults.GetGameDetails(id)};
         },
         SetContentIgnored: (kind, id, ignored) => {
             const key = kind === 'updates' ? 'ignore_update_title_ids' : 'ignore_dlc_title_ids';

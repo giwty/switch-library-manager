@@ -6,6 +6,17 @@ import (
 	"unicode"
 )
 
+// GameName overlays a base-game name without modifying catalog or scan data.
+// The optional map keeps callers without custom names source-compatible.
+func GameName(titleID, automatic string, overrides ...map[string]string) string {
+	if len(overrides) > 0 && strings.HasSuffix(titleID, "000") {
+		if name := overrides[0][strings.ToLower(titleID)]; name != "" {
+			return name
+		}
+	}
+	return automatic
+}
+
 func containsCJK(name string) bool {
 	for _, character := range name {
 		if unicode.In(character, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul) {

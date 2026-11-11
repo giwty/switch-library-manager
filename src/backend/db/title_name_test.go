@@ -6,6 +6,21 @@ import (
 	"github.com/trembon/switch-library-manager/backend/switchfs"
 )
 
+func TestGameNameOverrides(t *testing.T) {
+	names := map[string]string{"0100abcdef123000": "私の Game"}
+	if got := GameName("0100ABCDEF123000", "Automatic", names); got != "私の Game" {
+		t.Fatal(got)
+	}
+	for _, id := range []string{"0100abcdef124000", "0100abcdef124001", "0100abcdef123800"} {
+		if got := GameName(id, "Automatic", names); got != "Automatic" {
+			t.Fatal(got)
+		}
+	}
+	if got := GameName("0100abcdef123000", "Automatic"); got != "Automatic" {
+		t.Fatal(got)
+	}
+}
+
 func TestResolveGameTitleName(t *testing.T) {
 	japanese := &SwitchTitle{Attributes: TitleAttributes{Id: "010044901C5C2000", Name: "カプコン ファイティング コレクション2"}}
 	tests := []struct {

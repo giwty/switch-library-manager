@@ -33,7 +33,7 @@ func (a *App) GetMissingDLC() ([]process.IncompleteTitle, error) {
 		return nil, err
 	}
 	ignoreIDs := makeIgnoreIDs(settingsObj.MissingContent.IgnoreDLCTitleIDs)
-	missing := process.ScanForMissingDLC(a.state.localDB.TitlesMap, a.state.switchDB.TitlesMap, ignoreIDs)
+	missing := process.ScanForMissingDLC(a.state.localDB.TitlesMap, a.state.switchDB.TitlesMap, ignoreIDs, settingsObj.TitleNameOverrides)
 	values := make([]process.IncompleteTitle, 0, len(missing))
 	for _, value := range missing {
 		values = append(values, value)
@@ -57,6 +57,7 @@ func (a *App) GetMissingUpdates() ([]process.IncompleteTitle, error) {
 		a.state.switchDB.TitlesMap,
 		ignoreIDs,
 		settingsObj.MissingContent.IgnoreDLCUpdates,
+		settingsObj.TitleNameOverrides,
 	)
 	values := make([]process.IncompleteTitle, 0, len(missing))
 	for _, value := range missing {
@@ -87,7 +88,7 @@ func getMissingGames(localDB *db.LocalSwitchFilesDB, switchDB *db.SwitchTitlesDB
 		}
 		result = append(result, SwitchTitle{
 			TitleId:     title.Attributes.Id,
-			Name:        title.Attributes.Name,
+			Name:        db.GameName(key+"000", title.Attributes.Name, settingsObj.TitleNameOverrides),
 			Icon:        title.Attributes.BannerUrl,
 			Region:      title.Attributes.Region,
 			ReleaseDate: title.Attributes.ParsedReleaseDate,

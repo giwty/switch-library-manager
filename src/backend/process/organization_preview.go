@@ -22,7 +22,7 @@ type OrganizationPreviewEntry struct {
 // BuildOrganizationPreview returns one example for each supported content
 // kind. Entries from the scanned library are preferred, with deterministic
 // examples filling any missing kinds.
-func BuildOrganizationPreview(baseFolder string, options settings.OrganizeOptions, localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB) ([]OrganizationPreviewEntry, error) {
+func BuildOrganizationPreview(baseFolder string, options settings.OrganizeOptions, localDB *db.LocalSwitchFilesDB, titlesDB *db.SwitchTitlesDB, overrides ...map[string]string) ([]OrganizationPreviewEntry, error) {
 	byKind := map[string]OrganizationPreviewEntry{}
 
 	if localDB != nil {
@@ -41,7 +41,8 @@ func BuildOrganizationPreview(baseFolder string, options settings.OrganizeOption
 			if titlesDB != nil {
 				title = titlesDB.TitlesMap[key]
 			}
-			entries, err := organizationPreviewForGame(baseFolder, options, game, title)
+			name := db.GameName(key+"000", db.ResolveGameTitleName(title, game, options.AllowUnicodeFileNames), overrides...)
+			entries, err := organizationPreviewForGame(baseFolder, options, game, title, name)
 			if err != nil {
 				return nil, err
 			}
@@ -77,12 +78,15 @@ func BuildOrganizationPreview(baseFolder string, options settings.OrganizeOption
 	return result, nil
 }
 
-func organizationPreviewForGame(baseFolder string, options settings.OrganizeOptions, game *db.SwitchGameFiles, title *db.SwitchTitle) ([]OrganizationPreviewEntry, error) {
+func organizationPreviewForGame(baseFolder string, options settings.OrganizeOptions, game *db.SwitchGameFiles, title *db.SwitchTitle, name ...string) ([]OrganizationPreviewEntry, error) {
 	if !game.BaseExist && !options.ProcessWhenMissingBaseGame {
 		return nil, nil
 	}
 
 	titleName := db.ResolveGameTitleName(title, game, options.AllowUnicodeFileNames)
+	if len(name) > 0 {
+		titleName = name[0]
+	}
 	templateData := map[string]string{
 		settings.TEMPLATE_TITLE_NAME:  titleName,
 		settings.TEMPLATE_VERSION_TXT: "",

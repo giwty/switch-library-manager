@@ -188,7 +188,7 @@ func (c *Console) Start() {
 	var organizationConflicts []process.OrganizationConflict
 	var organizationPlan process.OrganizationPlan
 	if organizationEnabled {
-		organizationPlan, err = process.BuildOrganizationPlan(folderToScan, localDB, titlesDB, settingsObj.Organization)
+		organizationPlan, err = process.BuildOrganizationPlan(folderToScan, localDB, titlesDB, settingsObj.Organization, settingsObj.TitleNameOverrides)
 		if err != nil {
 			fmt.Printf("\nFailed to preflight library organization: %v\n", err)
 			canMutate = false
@@ -318,7 +318,7 @@ func (c *Console) processMissingUpdates(localDB *db.LocalSwitchFilesDB, titlesDB
 		ignoreIds[strings.ToLower(id)] = struct{}{}
 	}
 
-	incompleteTitles := process.ScanForMissingUpdates(localDB.TitlesMap, titlesDB.TitlesMap, ignoreIds, settingsObj.MissingContent.IgnoreDLCUpdates)
+	incompleteTitles := process.ScanForMissingUpdates(localDB.TitlesMap, titlesDB.TitlesMap, ignoreIds, settingsObj.MissingContent.IgnoreDLCUpdates, settingsObj.TitleNameOverrides)
 	if len(incompleteTitles) != 0 {
 		fmt.Print("\nFound available updates:\n\n")
 	} else {
@@ -354,7 +354,7 @@ func (c *Console) processMissingDLC(localDB *db.LocalSwitchFilesDB, titlesDB *db
 	for _, id := range settingsObj.MissingContent.IgnoreDLCTitleIDs {
 		ignoreIds[strings.ToLower(id)] = struct{}{}
 	}
-	incompleteTitles := process.ScanForMissingDLC(localDB.TitlesMap, titlesDB.TitlesMap, ignoreIds)
+	incompleteTitles := process.ScanForMissingDLC(localDB.TitlesMap, titlesDB.TitlesMap, ignoreIds, settingsObj.TitleNameOverrides)
 	rows := flattenMissingDLC(incompleteTitles)
 	if len(rows) != 0 {
 		fmt.Print("\nFound missing DLCs:\n\n")

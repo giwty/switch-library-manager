@@ -34,6 +34,20 @@ test("tables have one row tab stop and remember pointer or keyboard focus", () =
     assert.equal(f.focused, 1);
 });
 
+test("replacing table data tolerates Tabulator invalidating old row elements", () => {
+    const f = fixture();
+    f.nav.focusFirst();
+    f.all[0].getElement = () => false;
+    f.filterSort([f.all[2], f.all[3]]);
+    assert.equal(f.nav.focusFirst(), true);
+    assert.equal(f.focused, 2);
+    assert.equal(f.all[2].getElement().tabIndex, 0);
+    // The previous component can also be invalidated immediately before a new row gains focus.
+    f.all[2].getElement = () => false;
+    f.nav.remember(f.all[3].getElement());
+    assert.equal(f.all[3].getElement().tabIndex, 0);
+});
+
 test("redrawing preserves row focus without taking focus from filter controls", () => {
     const f = fixture();
     f.nav.focusFirst();

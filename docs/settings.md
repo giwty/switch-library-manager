@@ -10,6 +10,14 @@ Changes to library folders, scan folders, keys paths, scan rules, data-source UR
 
 The default GUI mode and startup rescan preference apply at the next launch without forcing a restart. The missing-update and missing-DLC check switches control console mode only; the GUI tabs remain available. Manual edits to `settings.json` require restarting and are not watched automatically.
 
+## Custom game names
+
+Use **Edit game name…** from a game row's right-click menu, or the pencil beside the name in game details. Both open the same editor with lowercase, uppercase, Title Case, and Sentence case tools. **Save** applies a custom name immediately; Cancel, closing, or Escape discards the draft. **Restore automatic name** stages removal of the override until you save.
+
+Names are stored in the top-level `title_name_overrides` dictionary, for example `"title_name_overrides": {"0100000000010000": "My Game Name"}`. Keys must be 16-character hexadecimal base-game IDs ending in `000`; they are saved in lowercase. Names are trimmed at the edges, must not be blank or contain control characters, and retain Unicode and internal spacing. The default is `{}`; existing schema-version-2 files need no migration. Manual JSON edits take effect after restarting.
+
+Overrides take precedence over catalog, embedded, and filename-derived game names in the GUI, console reports, CSV/Excel exports, and organization's `{TITLE_NAME}` placeholder. Individual DLC names and `{DLC_NAME}` keep their existing behavior. Saving a name never moves or renames files; subsequent Organize operations use the existing filename sanitization and conflict checks. Restoring uses the currently available automatic name, not a historical filename.
+
 ## Runtime data directory
 
 On macOS, runtime files are stored in `~/Library/Application Support/Switch Library Manager/`. Windows and Linux continue to store them beside the executable. Existing files in the former macOS location are left untouched and are not copied into the new profile. On macOS, `prod.keys` lookup checks this application data directory before the home `.switch` directory; it does not check beside the app.

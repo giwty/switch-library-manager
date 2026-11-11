@@ -66,6 +66,10 @@ export function SetContentIgnored(arg1, arg2, arg3) {
   return window['go']['app']['App']['SetContentIgnored'](arg1, arg2, arg3);
 }
 
+export function SetGameNameOverride(arg1, arg2) {
+  return window['go']['app']['App']['SetGameNameOverride'](arg1, arg2);
+}
+
 export function ShowInFolder(arg1) {
   return window['go']['app']['App']['ShowInFolder'](arg1);
 }

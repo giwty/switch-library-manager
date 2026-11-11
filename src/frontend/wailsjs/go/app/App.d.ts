@@ -37,6 +37,8 @@ export function SelectFolder():Promise<string>;
 
 export function SetContentIgnored(arg1:string,arg2:string,arg3:boolean):Promise<settings.MissingContentSettings>;
 
+export function SetGameNameOverride(arg1:string,arg2:string):Promise<app.GameNameOverrideResult>;
+
 export function ShowInFolder(arg1:string):Promise<void>;
 
 export function ShowMessage(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;

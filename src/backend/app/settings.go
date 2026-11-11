@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -56,8 +57,8 @@ func (a *App) SaveSettings(value settings.AppSettings) (SettingsSaveResult, erro
 	result := SettingsSaveResult{
 		Settings: normalizeSettings(value), RestartRequired: len(reasons) > 0, RestartReasons: reasons,
 	}
-	if !result.RestartRequired && current.Organization.AllowUnicodeFileNames != value.Organization.AllowUnicodeFileNames && a.state.localDB != nil {
-		library := a.libraryDataLocked(a.state.localDB, value.Organization.AllowUnicodeFileNames)
+	if !result.RestartRequired && (current.Organization.AllowUnicodeFileNames != value.Organization.AllowUnicodeFileNames || !maps.Equal(current.TitleNameOverrides, value.TitleNameOverrides)) && a.state.localDB != nil {
+		library := a.libraryDataLocked(a.state.localDB, value.Organization.AllowUnicodeFileNames, value.TitleNameOverrides)
 		result.Library = &library
 	}
 	return result, nil
@@ -92,6 +93,9 @@ func settingsRestartReasons(current, candidate settings.AppSettings) ([]string, 
 }
 
 func normalizeSettings(value settings.AppSettings) settings.AppSettings {
+	names := make(map[string]string, len(value.TitleNameOverrides))
+	maps.Copy(names, value.TitleNameOverrides)
+	value.TitleNameOverrides = names
 	value.Paths.ScanFolders = append([]string{}, value.Paths.ScanFolders...)
 	value.MissingContent.IgnoreDLCTitleIDs = append([]string{}, value.MissingContent.IgnoreDLCTitleIDs...)
 	value.MissingContent.IgnoreUpdateIDs = append([]string{}, value.MissingContent.IgnoreUpdateIDs...)

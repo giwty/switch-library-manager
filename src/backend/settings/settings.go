@@ -133,14 +133,15 @@ func (options *OrganizationSettings) UnmarshalJSON(data []byte) error {
 type OrganizeOptions = OrganizationSettings
 
 type AppSettings struct {
-	SchemaVersion  int                    `json:"schema_version"`
-	GUI            GUISettings            `json:"gui"`
-	Paths          PathSettings           `json:"paths"`
-	Scan           ScanSettings           `json:"scan"`
-	Organization   OrganizationSettings   `json:"organization"`
-	MissingContent MissingContentSettings `json:"missing_content"`
-	DataSources    DataSourceSettings     `json:"data_sources"`
-	Logging        LoggingSettings        `json:"logging"`
+	TitleNameOverrides map[string]string      `json:"title_name_overrides"`
+	SchemaVersion      int                    `json:"schema_version"`
+	GUI                GUISettings            `json:"gui"`
+	Paths              PathSettings           `json:"paths"`
+	Scan               ScanSettings           `json:"scan"`
+	Organization       OrganizationSettings   `json:"organization"`
+	MissingContent     MissingContentSettings `json:"missing_content"`
+	DataSources        DataSourceSettings     `json:"data_sources"`
+	Logging            LoggingSettings        `json:"logging"`
 }
 
 type Cache struct {
@@ -260,6 +261,10 @@ func PrepareSettings(baseFolder string) (*SettingsPreparation, error) {
 		return nil, fmt.Errorf("decode settings: %w; the file was not changed", err)
 	}
 	verifySettings(loaded)
+	loaded.TitleNameOverrides, err = NormalizeTitleNameOverrides(loaded.TitleNameOverrides)
+	if err != nil {
+		return nil, fmt.Errorf("%w; the file was not changed", err)
+	}
 	if _, err := dateformat.New(loaded.GUI.DateFormat); err != nil {
 		return nil, fmt.Errorf("gui.date_format: %w; the file was not changed", err)
 	}
@@ -304,7 +309,8 @@ func restoreOldSettings(filename, backupPath string) error {
 
 func defaultSettings() *AppSettings {
 	return &AppSettings{
-		SchemaVersion: SETTINGS_SCHEMA_VERSION,
+		TitleNameOverrides: map[string]string{},
+		SchemaVersion:      SETTINGS_SCHEMA_VERSION,
 		GUI: GUISettings{
 			Enabled:    true,
 			PageSize:   100,
@@ -449,6 +455,11 @@ func ValidateSettings(settings *AppSettings) error {
 }
 
 func validateSettings(settings *AppSettings) error {
+	names, err := NormalizeTitleNameOverrides(settings.TitleNameOverrides)
+	if err != nil {
+		return err
+	}
+	settings.TitleNameOverrides = names
 	if _, err := dateformat.New(settings.GUI.DateFormat); err != nil {
 		return fmt.Errorf("gui.date_format: %w", err)
 	}

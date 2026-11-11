@@ -23,6 +23,7 @@ type frontendFixture struct {
 	MissingUpdates      []process.IncompleteTitle `json:"missingUpdates"`
 	MissingDLC          []process.IncompleteTitle `json:"missingDLC"`
 	Details             GameDetails               `json:"details"`
+	GameNameSaved       GameNameOverrideResult    `json:"gameNameSaved"`
 	Preview             OrganizationPreview       `json:"preview"`
 	Organization        OrganizationResult        `json:"organization"`
 	BlockedOrganization OrganizationResult        `json:"blockedOrganization"`
@@ -39,24 +40,26 @@ func TestFrontendFixtureContracts(t *testing.T) {
 	incomplete := process.IncompleteTitle{Attributes: attributes, LatestUpdate: 65536, LatestUpdateDate: "2026-02-01", MissingDLC: []process.MissingDLC{{Id: detailsDLCID, Name: "Amber Expansion", ReleaseDate: "2026-03-01"}}}
 	fixture := frontendFixture{
 		Settings: settings.AppSettings{
-			SchemaVersion:  settings.SETTINGS_SCHEMA_VERSION,
-			GUI:            settings.GUISettings{Enabled: true, PageSize: 2, Theme: settings.ThemeLight, DateFormat: "YYYY-MM-DD"},
-			Paths:          settings.PathSettings{LibraryFolder: "/synthetic/library", ScanFolders: []string{}},
-			Scan:           settings.ScanSettings{IgnoreFileTypes: []string{}, RescanOnStartup: true},
-			Organization:   settings.OrganizationSettings{RenameFiles: true, FolderNameTemplate: "{TITLE_NAME}", FileNameTemplate: "{TITLE_NAME} [{TITLE_ID}]"},
-			MissingContent: settings.MissingContentSettings{CheckForUpdates: true, CheckForDLC: true, IgnoreDLCTitleIDs: []string{}, IgnoreUpdateIDs: []string{}},
-			DataSources:    settings.DataSourceSettings{TitlesURL: "https://example.invalid/titles.json", VersionsURL: "https://example.invalid/versions.json"},
+			TitleNameOverrides: map[string]string{},
+			SchemaVersion:      settings.SETTINGS_SCHEMA_VERSION,
+			GUI:                settings.GUISettings{Enabled: true, PageSize: 2, Theme: settings.ThemeLight, DateFormat: "YYYY-MM-DD"},
+			Paths:              settings.PathSettings{LibraryFolder: "/synthetic/library", ScanFolders: []string{}},
+			Scan:               settings.ScanSettings{IgnoreFileTypes: []string{}, RescanOnStartup: true},
+			Organization:       settings.OrganizationSettings{RenameFiles: true, FolderNameTemplate: "{TITLE_NAME}", FileNameTemplate: "{TITLE_NAME} [{TITLE_ID}]"},
+			MissingContent:     settings.MissingContentSettings{CheckForUpdates: true, CheckForDLC: true, IgnoreDLCTitleIDs: []string{}, IgnoreUpdateIDs: []string{}},
+			DataSources:        settings.DataSourceSettings{TitlesURL: "https://example.invalid/titles.json", VersionsURL: "https://example.invalid/versions.json"},
 		},
 		Library:        library,
 		MissingGames:   []SwitchTitle{{Name: "Distant Demo", TitleId: "0100000000040000", Icon: "/test-icon.svg", Region: "EUR", ReleaseDate: "2026-04-01"}},
 		MissingUpdates: []process.IncompleteTitle{incomplete}, MissingDLC: []process.IncompleteTitle{incomplete},
-		Details:             GameDetails{Attributes: attributes, TitleID: detailsBaseID, Name: attributes.Name, ReleaseDateText: "2026-01-01", RemoteAvailable: true, MetadataAvailable: true, BaseCollected: true, BasePath: "/synthetic/library/Amber Adventure.nsp", Updates: []GameUpdateDetail{{Version: 65536, Date: "2026-02-01", Status: "missing"}}, LocalOnlyUpdates: []GameUpdateDetail{}, DLC: []GameDLCDetail{{TitleID: detailsDLCID, Name: "Amber Expansion", Attributes: db.TitleAttributes{Id: detailsDLCID, ReleaseDate: 20260301, ParsedReleaseDate: "2026-03-01"}, Status: "missing"}}, LocalOnlyDLC: []GameDLCDetail{}},
+		Details:             GameDetails{Attributes: attributes, TitleID: detailsBaseID, Name: attributes.Name, AutomaticName: attributes.Name, ReleaseDateText: "2026-01-01", RemoteAvailable: true, MetadataAvailable: true, BaseCollected: true, BasePath: "/synthetic/library/Amber Adventure.nsp", Updates: []GameUpdateDetail{{Version: 65536, Date: "2026-02-01", Status: "missing"}}, LocalOnlyUpdates: []GameUpdateDetail{}, DLC: []GameDLCDetail{{TitleID: detailsDLCID, Name: "Amber Expansion", Attributes: db.TitleAttributes{Id: detailsDLCID, ReleaseDate: 20260301, ParsedReleaseDate: "2026-03-01"}, Status: "missing"}}, LocalOnlyDLC: []GameDLCDetail{}},
 		Preview:             OrganizationPreview{RootFolder: "/synthetic/library", Entries: []OrganizationPreviewEntry{{Kind: "game", Path: "Amber Adventure [0100000000010000].nsp"}}},
 		Organization:        OrganizationResult{Status: "completed", Library: library},
 		BlockedOrganization: OrganizationResult{Status: "blocked", ConflictCount: 1, Library: LocalLibraryData{LibraryData: rows, NumFiles: 4, Issues: []Pair{{Key: "/synthetic/library/conflict.nsp", Value: "organization conflict: destination exists"}}}},
 		Progress:            ProgressUpdate{Curr: 1, Total: 2, Message: "Synthetic scan"},
 	}
 	fixture.SettingsSaved = SettingsSaveResult{Settings: fixture.Settings, RestartReasons: []string{}}
+	fixture.GameNameSaved = GameNameOverrideResult{TitleNameOverrides: map[string]string{}, Library: library, Details: fixture.Details}
 	restartSettings := fixture.Settings
 	restartSettings.Paths.LibraryFolder = "/synthetic/another-library"
 	fixture.SettingsRestart = SettingsSaveResult{Settings: restartSettings, RestartRequired: true, RestartReasons: []string{"Library folder"}}

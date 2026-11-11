@@ -17,6 +17,55 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
+func TestConsoleCustomGameNamesInExports(t *testing.T) {
+	const id, key = "0100000000010000", "0100000000010"
+	local := &db.LocalSwitchFilesDB{TitlesMap: map[string]*db.SwitchGameFiles{key: {BaseExist: true}}}
+	remote := &db.SwitchTitlesDB{TitlesMap: map[string]*db.SwitchTitle{key: {
+		Attributes: db.TitleAttributes{Id: id, Name: "Catalog"}, Updates: map[int]string{2: "2026-01-01"},
+		Dlc: map[string]db.TitleAttributes{"0100000000011001": {Id: "0100000000011001", Name: "Expansion"}},
+	}}}
+	options := &settings.AppSettings{TitleNameOverrides: map[string]string{id: "Custom 日本語"}}
+	root := t.TempDir()
+	c := CreateConsole("", nil, nil)
+	c.xlsxOutput = root
+	for _, report := range []struct {
+		kind, sheet string
+		run         func(string)
+	}{
+		{csvMissingUpdatesKind, "Missing updates", func(path string) { c.processMissingUpdates(local, remote, options, path) }},
+		{csvMissingDLCKind, "Missing DLC", func(path string) { c.processMissingDLC(local, remote, options, path) }},
+	} {
+		path := filepath.Join(root, report.kind+".csv")
+		report.run(path)
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err := csv.NewReader(bytes.NewReader(contents[3:])).ReadAll()
+		if err != nil || rows[1][0] != "Custom 日本語" {
+			t.Fatalf("CSV = %v, %v", rows, err)
+		}
+		files, err := filepath.Glob(filepath.Join(root, "slm_"+report.kind+".*.xlsx"))
+		if err != nil || len(files) != 1 {
+			t.Fatalf("Excel paths = %v, %v", files, err)
+		}
+		book, err := excelize.OpenFile(files[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		xlsxRows, err := book.GetRows(report.sheet)
+		if err != nil || !reflect.DeepEqual(xlsxRows, rows) {
+			t.Fatalf("Excel = %v, CSV = %v, error = %v", xlsxRows, rows, err)
+		}
+		if err := book.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if remote.TitlesMap[key].Attributes.Name != "Catalog" {
+		t.Fatal("report mutated catalog")
+	}
+}
+
 func TestConsoleReportsSupportCSVAndXLSXIndependently(t *testing.T) {
 	date := time.Date(2026, 11, 2, 12, 0, 0, 0, time.Local)
 	local := &db.LocalSwitchFilesDB{

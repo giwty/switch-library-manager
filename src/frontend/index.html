@@ -79,6 +79,32 @@
       <p class="shortcut-help-note">Tab numbers stay fixed when Missing games is hidden. Search applies to the current table. Commands pause during loading and while a dialog is open. Back/Forward remembers the last details until you change tabs or refresh data.</p>
     </dialog>
 
+    <dialog id="game-name-dialog" class="game-name-dialog" aria-labelledby="game-name-heading">
+      <button type="button" class="btn-close game-details-close" aria-label="Close name editor" data-name-close></button>
+      <h2 id="game-name-heading">Edit game name</h2>
+      <p class="text-secondary">Title ID: <code data-name-id></code></p>
+      <form novalidate>
+        <fieldset>
+          <label class="form-label" for="game-name-input">Game name</label>
+          <input id="game-name-input" class="form-control" name="name" type="text" autocomplete="off">
+          <div class="game-name-case-tools" aria-label="Change capitalization">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-name-case="lower">lowercase</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-name-case="upper">UPPERCASE</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-name-case="title">Title Case</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-name-case="sentence">Sentence case</button>
+          </div>
+          <p class="game-name-automatic">Automatic name: <span data-name-automatic></span></p>
+          <p class="form-text">Used throughout SLM and the next time you organize files. Saving a name does not move or rename files.</p>
+          <div class="game-name-actions">
+            <button type="button" class="btn btn-outline-secondary" data-name-restore>Restore automatic name</button>
+            <button type="button" class="btn btn-secondary" data-name-close>Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </fieldset>
+      </form>
+      <p class="game-name-message" role="status" data-name-message hidden></p>
+    </dialog>
+
     <dialog id="game-details-dialog" class="game-details-dialog" aria-label="Game details">
       <button type="button" class="btn-close game-details-close" aria-label="Close game details" data-game-details-close></button>
       <div class="game-details-layout">
@@ -564,7 +590,11 @@
           <img class="game-details-icon" src="{{:attributes.iconUrl}}" alt="">
           {{/if}}
           <div class="game-details-title-block">
-            <h1 id="game-details-title">{{if name}}{{:name}}{{else}}Unknown game{{/if}}</h1>
+            <div class="game-details-name-line">
+              <h1 id="game-details-title">{{if name}}{{>name}}{{else}}Unknown game{{/if}}</h1>
+              <button type="button" class="btn btn-outline-secondary game-name-edit" aria-label="Edit game name" title="Edit game name" data-edit-game-name="{{attr:titleId}}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m13.5 2.5 4 4-10 10-5 1 1-5Z M11.5 4.5l4 4"/></svg></button>
+            </div>
+            {{if custom_name}}<span class="badge text-bg-secondary">Custom name</span>{{/if}}
             <div class="game-details-title-id">{{:titleId}}</div>
           </div>
         </div>

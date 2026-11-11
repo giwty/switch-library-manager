@@ -14,6 +14,7 @@ import {
     RescanLibrary,
     SaveSettings,
     SetContentIgnored,
+    SetGameNameOverride,
     SelectFolder as SelectNativeFolder,
     ShowInFolder,
     ShowMessage as ShowNativeMessage,
@@ -32,6 +33,7 @@ import { createRowNavigation } from './row_navigation.js'
 import { exportTableXLSX } from './xlsx_export.js'
 import { contentIgnoreAction, mergeIgnoreDraft } from './content_ignore.js'
 import { createRowContextMenu } from './row_context_menu.js'
+import { createGameNameEditor, gameNameAction } from './game_name_editor.js'
 import { DATE_FORMAT_PRESETS, dateFormatError, formatDate, dateColumnOptions } from './date_format.js'
 
 $(function () {
@@ -84,6 +86,7 @@ $(function () {
     }
 
     function openDialog() {
+        if (document.getElementById("game-name-dialog").open) return "name";
         if (gameDetailsDialog.open) return "details";
         if (shortcutDialog.open) return "help";
         return null;
@@ -221,13 +224,58 @@ $(function () {
     const rowContextMenu = createRowContextMenu({
         document, window,
         isBlocked: () => commandsBlocked() || Boolean(openDialog()),
-        onAction: (action, row) => {void saveContentIgnore(action, row);}
+        onAction: (action, row) => {
+            if (action.type === "game-name") void gameNameEditor.open(action.titleID, row);
+            else void saveContentIgnore(action, row);
+        }
     });
 
     function openRowMenu(event, row) {
         const action = contentIgnoreAction(row.getData(), currTableExportKind, state.settings.missing_content);
-        rowContextMenu.open(event, row, action ? [action] : []);
+        const edit = gameNameAction(row.getData(), currTableExportKind);
+        rowContextMenu.open(event, row, [edit, action].filter(Boolean));
     }
+
+    const gameNameEditor = createGameNameEditor({
+        document, load: GetGameDetails, save: SetGameNameOverride,
+        onBusyChange: pending => { settingsSavePending = pending; },
+        restoreFocus(origin, titleID) {
+            if (gameDetailsDialog.open) gameDetailsContent.querySelector("[data-edit-game-name]")?.focus();
+            else if (origin?.isConnected) origin.focus({preventScroll: true});
+            else {
+                const row = currTable?.getRows("display").find(row => row.getData().titleId === titleID);
+                if (row) row.getElement().focus({preventScroll: true});
+                else currRowNavigation?.focusFirst();
+            }
+        },
+        async onSaved(result) {
+            const generation = ++libraryDataGeneration;
+            gameDetailsRequest++;
+            lastGameDetails = null;
+            state.settings.title_name_overrides = {...result.title_name_overrides};
+            if (state.settingsDraft) state.settingsDraft.title_name_overrides = {...result.title_name_overrides};
+            state.library = result.library;
+            state.updates = state.dlc = state.missingGames = state.organizationPreview = undefined;
+            if (gameDetailsDialog.open) renderGameDetails(result.details);
+            const target = activeTabTarget;
+            const table = currTable;
+            const page = table?.getPage();
+            let rows = result.library.library_data;
+            const fetches = {"#updates": ["updates", GetMissingUpdates], "#dlc": ["dlc", GetMissingDLC], "#missing": ["missingGames", GetMissingGames]};
+            if (fetches[target]) {
+                const [key, fetch] = fetches[target];
+                const data = await fetch();
+                if (generation !== libraryDataGeneration) return;
+                state[key] = data;
+                rows = target === "#dlc" ? data.flatMap(game => game.missing_dlc.map(dlc => ({game: game.Attributes, dlc}))) : data;
+            }
+            if (generation !== libraryDataGeneration || currTable !== table || activeTabTarget !== target) return;
+            if (table) {
+                await table.replaceData(rows);
+                await table.setPage(Math.max(1, Math.min(page, table.getPageMax())));
+            }
+        }
+    });
 
     async function saveContentIgnore(action, rowElement) {
         if (commandsBlocked() || openDialog()) return;
@@ -388,11 +436,7 @@ $(function () {
             if (request !== gameDetailsRequest || !gameDetailsDialog.open) {
                 return;
             }
-            gameDetailsDialog.setAttribute("aria-label", details.name ? "Game details for " + details.name : "Game details");
-            gameDetailsContent.innerHTML = $("#gameDetailsTemplate").render(details, {
-                formatDate: value => formatDate(value, state.settings.gui.date_format) || "Unknown"
-            });
-            renderGameDetailsFileActions();
+            renderGameDetails(details);
         }).catch(error => {
             if (request !== gameDetailsRequest || !gameDetailsDialog.open) {
                 return;
@@ -405,6 +449,21 @@ $(function () {
             gameDetailsContent.replaceChildren(failure);
         });
     }
+
+    function renderGameDetails(details) {
+        gameDetailsDialog.setAttribute("aria-label", details.name ? "Game details for " + details.name : "Game details");
+        gameDetailsContent.innerHTML = $("#gameDetailsTemplate").render(details, {
+            formatDate: value => formatDate(value, state.settings.gui.date_format) || "Unknown"
+        });
+        renderGameDetailsFileActions();
+    }
+
+    gameDetailsContent.addEventListener("click", event => {
+        const button = event.target.closest("[data-edit-game-name]");
+        if (button && !commandsBlocked() && openDialog() === "details") {
+            void gameNameEditor.open(button.dataset.editGameName, button);
+        }
+    });
 
     gameDetailsDialog.addEventListener("pointerover", event => {
         const button = event.target.closest && event.target.closest(".game-details-path-info");
@@ -555,7 +614,7 @@ $(function () {
 
     function focusDialogControl(dialog, reverse) {
         const controls = Array.from(dialog.querySelectorAll("button, [href], input, select, textarea, [tabindex]"))
-            .filter(element => !element.disabled && element.tabIndex >= 0 && element.getClientRects().length > 0);
+            .filter(element => !element.disabled && !element.matches?.(":disabled") && element.tabIndex >= 0 && element.getClientRects().length > 0);
         const index = controls.indexOf(document.activeElement);
         const next = index < 0 ? (reverse ? controls.length - 1 : 0)
             : (index + (reverse ? -1 : 1) + controls.length) % controls.length;
@@ -892,6 +951,7 @@ $(function () {
         function collectSettings(form) {
             return {
                 schema_version: state.settings.schema_version,
+                title_name_overrides: {...state.settings.title_name_overrides},
                 gui: {
                     enabled: form.elements.gui_enabled.checked,
                     page_size: Number(form.elements.gui_page_size.value),
@@ -1189,7 +1249,7 @@ $(function () {
                             {title: "Region", headerSort:true,headerFilter:"input",formatter:"textarea", field: "region"},
                             {title: "Release date", headerSort:true, field: "release_date", ...dateColumnOptions(state.settings.gui?.date_format)},
                         ],
-                    }, "games", false), "missing_games");
+                    }, "games"), "missing_games");
                 }
             }
             updateShortcutMetadata(document.querySelector(target));
@@ -1290,13 +1350,17 @@ $(function () {
                     if (row) openRowMenu(event, row);
                     break;
                 }
-                case "dialog-tab": focusDialogControl(context.dialog === "help" ? shortcutDialog : gameDetailsDialog, event.shiftKey); break;
+                case "dialog-tab": focusDialogControl(context.dialog === "name" ? document.getElementById("game-name-dialog") : context.dialog === "help" ? shortcutDialog : gameDetailsDialog, event.shiftKey); break;
                 case "dismiss":
-                    if (context.dialog === "help") shortcutDialog.close();
+                    if (context.dialog === "name") gameNameEditor.close();
+                    else if (context.dialog === "help") shortcutDialog.close();
                     else if (!gameDetailsPathTooltip.hidden) hideGameDetailsPathTooltip();
                     else gameDetailsDialog.close();
                     break;
-                case "back": if (gameDetailsDialog.open) gameDetailsDialog.close(); break;
+                case "back":
+                    if (context.dialog === "name") gameNameEditor.close();
+                    else if (gameDetailsDialog.open) gameDetailsDialog.close();
+                    break;
                 case "forward":
                     if (lastGameDetails) openGameDetails(lastGameDetails.titleID, lastGameDetails.returnFocusElement);
                     break;

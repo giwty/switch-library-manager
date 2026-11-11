@@ -892,3 +892,25 @@ body {
         padding: 0.9rem;
     }
 }
+/* The editor can sit above the existing game-details dialog. */
+.game-name-dialog {
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    padding: 24px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 10px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+.game-name-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.game-name-dialog .game-details-close { position: absolute; top: 16px; right: 16px; }
+.game-name-dialog h2 { padding-right: 24px; font-size: 1.4rem; }
+.game-name-case-tools, .game-name-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.game-name-actions { justify-content: flex-end; }
+.game-name-automatic { margin-top: 16px; overflow-wrap: anywhere; }
+.game-name-message { margin: 16px 0 0; overflow-wrap: anywhere; }
+.game-details-name-line { display: flex; align-items: center; gap: 10px; }
+.game-details-name-line h1 { min-width: 0; }
+.game-name-edit { flex: 0 0 auto; padding: 5px; line-height: 1; }
+.game-name-edit svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; }

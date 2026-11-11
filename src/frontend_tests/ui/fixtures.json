@@ -1,5 +1,6 @@
 {
   "settings": {
+    "title_name_overrides": {},
     "schema_version": 2,
     "gui": {
       "enabled": true,
@@ -53,6 +54,7 @@
   },
   "settingsSaved": {
     "settings": {
+      "title_name_overrides": {},
       "schema_version": 2,
       "gui": {
         "enabled": true,
@@ -109,6 +111,7 @@
   },
   "settingsRestart": {
     "settings": {
+      "title_name_overrides": {},
       "schema_version": 2,
       "gui": {
         "enabled": true,
@@ -283,6 +286,8 @@
     },
     "titleId": "0100000000010000",
     "name": "Amber Adventure",
+    "automatic_name": "Amber Adventure",
+    "custom_name": "",
     "release_date_text": "2026-01-01",
     "remote_available": true,
     "metadata_available": true,
@@ -316,6 +321,104 @@
       }
     ],
     "local_only_dlc": []
+  },
+  "gameNameSaved": {
+    "title_name_overrides": {},
+    "library": {
+      "library_data": [
+        {
+          "id": 1,
+          "name": "Amber Adventure",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000010000",
+          "path": "Amber Adventure.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        },
+        {
+          "id": 2,
+          "name": "Birch \u0026 Bloom",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000020000",
+          "path": "Birch \u0026 Bloom.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        },
+        {
+          "id": 3,
+          "name": "Cobalt Quest",
+          "version": "1.0.0",
+          "dlc": "",
+          "titleId": "0100000000030000",
+          "path": "Cobalt Quest.nsp",
+          "icon": "/test-icon.svg",
+          "update": 0,
+          "region": "USA",
+          "type": "NSP"
+        }
+      ],
+      "issues": [
+        {
+          "key": "/synthetic/library/notes.txt",
+          "value": "file type is not supported"
+        }
+      ],
+      "num_files": 4
+    },
+    "details": {
+      "attributes": {
+        "id": "0100000000010000",
+        "name": "Amber Adventure",
+        "region": "USA",
+        "releaseDate": 20260101,
+        "ParsedReleaseDate": "2026-01-01",
+        "publisher": "Synthetic Studio",
+        "bannerUrl": "/test-icon.svg"
+      },
+      "titleId": "0100000000010000",
+      "name": "Amber Adventure",
+      "automatic_name": "Amber Adventure",
+      "custom_name": "",
+      "release_date_text": "2026-01-01",
+      "remote_available": true,
+      "metadata_available": true,
+      "base_collected": true,
+      "base_path": "/synthetic/library/Amber Adventure.nsp",
+      "updates": [
+        {
+          "version": 65536,
+          "date": "2026-02-01",
+          "status": "missing",
+          "path": ""
+        }
+      ],
+      "local_only_updates": [],
+      "dlc": [
+        {
+          "titleId": "0100000000011001",
+          "name": "Amber Expansion",
+          "attributes": {
+            "id": "0100000000011001",
+            "releaseDate": 20260301,
+            "ParsedReleaseDate": "2026-03-01"
+          },
+          "status": "missing",
+          "update_status": "",
+          "local_version": 0,
+          "has_local_version": false,
+          "available_version": 0,
+          "has_available_version": false,
+          "path": ""
+        }
+      ],
+      "local_only_dlc": []
+    }
   },
   "preview": {
     "root_folder": "/synthetic/library",

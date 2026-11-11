@@ -21,7 +21,7 @@ func TestSettingsRestartPolicyCoversEverySetting(t *testing.T) {
 	}
 	expected := map[string]impact{}
 	for _, path := range []string{
-		"SchemaVersion", "GUI.Enabled", "GUI.PageSize", "GUI.HideMissingGames", "GUI.HideDemoGames",
+		"TitleNameOverrides", "SchemaVersion", "GUI.Enabled", "GUI.PageSize", "GUI.HideMissingGames", "GUI.HideDemoGames",
 		"GUI.HideVersionString", "GUI.RememberWindowState", "GUI.Theme", "GUI.DateFormat", "Scan.RescanOnStartup",
 		"MissingContent.CheckForUpdates", "MissingContent.CheckForDLC", "MissingContent.IgnoreDLCUpdates",
 		"MissingContent.IgnoreDLCTitleIDs", "MissingContent.IgnoreUpdateIDs",
@@ -66,6 +66,8 @@ func TestSettingsRestartPolicyCoversEverySetting(t *testing.T) {
 					field.SetInt(1)
 				case reflect.String:
 					field.SetString("changed")
+				case reflect.Map:
+					field.Set(reflect.ValueOf(map[string]string{"0100000000010000": "changed"}))
 				case reflect.Slice:
 					field.Set(reflect.ValueOf([]string{"changed"}))
 				default:

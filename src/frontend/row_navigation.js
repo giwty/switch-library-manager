@@ -9,9 +9,10 @@ export function createRowNavigation(table, isCurrent) {
 
     function sync() {
         if (!isCurrent()) return;
-        const rows = table.getRows("display");
+        const rows = table.getRows("display").filter(row => row.getElement());
         const next = rows.includes(focusedRow) ? focusedRow : rows[0];
-        if (focusedRow && focusedRow !== next) focusedRow.getElement().tabIndex = -1;
+        const previous = focusedRow?.getElement();
+        if (previous && focusedRow !== next) previous.tabIndex = -1;
         focusedRow = next;
         rows.forEach(row => row.getElement().tabIndex = row === focusedRow ? 0 : -1);
         if (ownsFocus && focusedRow && ownerDocument.activeElement === ownerDocument.body) {
@@ -28,7 +29,8 @@ export function createRowNavigation(table, isCurrent) {
     function remember(element) {
         const row = rowForElement(element);
         if (!row || !isCurrent()) return;
-        if (focusedRow) focusedRow.getElement().tabIndex = -1;
+        const previous = focusedRow?.getElement();
+        if (previous) previous.tabIndex = -1;
         focusedRow = row;
         ownsFocus = true;
         focusedControl = null;

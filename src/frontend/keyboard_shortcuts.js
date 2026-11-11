@@ -20,8 +20,8 @@ export const SHORTCUTS = [
     {id: "row-up", label: "Previous row (across pages)", rowOnly: true, repeat: true, bindings: [{key: "ArrowUp"}]},
     {id: "row-down", label: "Next row (across pages)", rowOnly: true, repeat: true, bindings: [{key: "ArrowDown"}]},
     {id: "open-details", label: "Open the focused game’s details", rowOnly: true, bindings: [{key: "Enter"}, {key: " "}]},
-    {id: "row-menu", label: "Open row actions in Library, Missing updates or Missing DLC", rowOnly: true, bindings: [{key: "F10", shift: true}, {key: "ContextMenu"}]},
-    {id: "dismiss", label: "Close details or shortcut help", dialogOnly: true, bindings: [{key: "Escape"}]},
+    {id: "row-menu", label: "Open game row actions", rowOnly: true, bindings: [{key: "F10", shift: true}, {key: "ContextMenu"}]},
+    {id: "dismiss", label: "Close the current dialog", dialogOnly: true, bindings: [{key: "Escape"}]},
     {id: "dialog-tab", label: "Move between dialog controls", dialogOnly: true, repeat: true, bindings: [{key: "Tab"}, {key: "Tab", shift: true}]},
     {id: "back", label: "Close game details and return to the row", bindings: [{key: "ArrowLeft", alt: true}, {key: "[", primary: true, macOnly: true}]},
     {id: "forward", label: "Reopen the last game details", bindings: [{key: "ArrowRight", alt: true}, {key: "]", primary: true, macOnly: true}]},
@@ -64,7 +64,7 @@ export function registerKeyboardShortcuts(target, {isMacOS, getContext, onAction
         if (context.blocked || (event.repeat && !shortcut.repeat)) {
             return;
         }
-        if (context.dialog && shortcut.id !== "dismiss" && shortcut.id !== "dialog-tab" && !(context.dialog === "details" && shortcut.id === "back")) {
+        if (context.dialog && shortcut.id !== "dismiss" && shortcut.id !== "dialog-tab" && !(["details", "name"].includes(context.dialog) && shortcut.id === "back")) {
             return;
         }
         onAction(shortcut, context, event);

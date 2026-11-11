@@ -29,7 +29,7 @@ type IncompleteTitle struct {
 func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles,
 	switchDB map[string]*db.SwitchTitle,
 	ignoreTitleIds map[string]struct{},
-	ignoreDLCupdates bool) map[string]IncompleteTitle {
+	ignoreDLCupdates bool, overrides ...map[string]string) map[string]IncompleteTitle {
 
 	result := map[string]IncompleteTitle{}
 
@@ -50,6 +50,7 @@ func ScanForMissingUpdates(localDB map[string]*db.SwitchGameFiles,
 		}
 
 		switchTitle := IncompleteTitle{Attributes: switchDB[idPrefix].Attributes, Meta: switchFile.File.Metadata}
+		switchTitle.Attributes.Name = db.GameName(idPrefix+"000", switchTitle.Attributes.Name, overrides...)
 
 		//sort the available local versions
 		localVersions := make([]int, len(switchFile.Updates))
@@ -142,7 +143,7 @@ func displayVersion(metadata *switchfs.ContentMetaAttributes) string {
 }
 
 func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles,
-	switchDB map[string]*db.SwitchTitle, ignoreTitleIds map[string]struct{}) map[string]IncompleteTitle {
+	switchDB map[string]*db.SwitchTitle, ignoreTitleIds map[string]struct{}, overrides ...map[string]string) map[string]IncompleteTitle {
 	result := map[string]IncompleteTitle{}
 
 	//iterate over local files, and compare to remote versions
@@ -156,6 +157,7 @@ func ScanForMissingDLC(localDB map[string]*db.SwitchGameFiles,
 			continue
 		}
 		switchTitle := IncompleteTitle{Attributes: switchDB[idPrefix].Attributes}
+		switchTitle.Attributes.Name = db.GameName(idPrefix+"000", switchTitle.Attributes.Name, overrides...)
 
 		//process dlc
 		if len(switchDB[idPrefix].Dlc) != 0 {
